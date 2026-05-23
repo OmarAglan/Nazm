@@ -1,0 +1,30 @@
+#pragma once
+/*
+ * cli/args.h
+ * Command-line argument parsing for nazm.
+ *
+ * Usage: nazm [options] <source.مجمع>
+ *   -o <output>          output file path (default: input with .o extension)
+ *   -f elf64|coff        output format (default: platform native)
+ *   -v                   verbose output
+ *   --version            print version and exit
+ *   --help               print usage and exit
+ */
+
+#include <stdbool.h>
+#include "../output/output.h"
+
+typedef struct {
+    const char  *source_path;
+    const char  *output_path;
+    OutputFormat format;
+    bool         verbose;
+    bool         help;
+    bool         version;
+    bool         valid;       /* false = parse error */
+    const char  *error_msg;
+} CliArgs;
+
+CliArgs cli_parse(int argc, char **argv);
+void    cli_print_usage(const char *program_name);
+void    cli_print_version(void);
