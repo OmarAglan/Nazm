@@ -49,6 +49,20 @@ int utf8_codepoint_len(const uint8_t *src, size_t src_len, size_t offset) {
 }
 
 bool is_arabic_letter(uint32_t cp) {
+    /*
+     * Exclude Arabic punctuation / formatting inside 0x0600-0x06FF:
+     *   U+060C  ،  Arabic Comma
+     *   U+061B  ؛  Arabic Semicolon
+     *   U+061F  ؟  Arabic Question Mark
+     *   U+0640     Arabic Tatweel (kashida filler, not a letter)
+     *   U+0660-U+0669  Arabic-Indic digits (handled by is_arabic_digit)
+     *   U+066A-U+066F  Arabic percent / decimal / thousand separators
+     */
+    if (cp == 0x060C || cp == 0x061B || cp == 0x061F || cp == 0x0640)
+        return false;
+    if (cp >= 0x0660 && cp <= 0x066F)
+        return false;
+
     return (cp >= 0x0600 && cp <= 0x06FF)
         || (cp >= 0x0750 && cp <= 0x077F)
         || (cp >= 0xFB50 && cp <= 0xFDFF)
