@@ -1,6 +1,6 @@
 # Technology Stack
 
-**Analysis Date:** 2025-05-22
+**Analysis Date:** 2026-05-24
 
 ## Languages
 
@@ -8,7 +8,7 @@
 - C11 — all assembler source code (`src/`)
 
 **Secondary:**
-- Arabic Assembly (`.مجمع`) — the language being implemented; used in `examples/` and `tests/fixtures/`
+- Arabic Assembly (`.مجمع`) — the language being implemented; used in `examples/`.
 - Makefile / CMake — build scripting
 
 **Future (self-hosting target):**
@@ -36,8 +36,8 @@
 - None — standard C11 only; no external C libraries
 
 **Testing:**
-- Unity (`ThrowTheSwitch/Unity`) — lightweight C unit test framework, single `.c` + `.h` file
-- Custom integration harness (`tests/integration/harness.c`) — assembles `.مجمع` fixtures and diffs output bytes
+- Unity (`ThrowTheSwitch/Unity`) — lightweight C unit test framework, single `.c` + `.h` file.
+- Integration harness is planned; current tests are under `tests/unit/`.
 
 **Build:**
 - CMake 3.20 — primary build system (handles platform differences)

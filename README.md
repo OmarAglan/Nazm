@@ -55,6 +55,12 @@ make اختبار-وحدة
 make اختبار-تكامل
 ```
 
+وللتحقق السريع من روابط الوثائق والمسارات المشار إليها فيها:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/check-markdown.ps1
+```
+
 أو مباشرة عبر CTest:
 
 ```bash
@@ -145,4 +151,4 @@ Docs/
 
 ## الترخيص
 
-لم يتم توثيق الترخيص بعد. أضف ملف `LICENSE` قبل نشر حزم أو إصدارات عامة.
+المشروع مرخّص برخصة MIT. راجع [LICENSE](LICENSE).

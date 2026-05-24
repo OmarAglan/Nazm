@@ -1,140 +1,134 @@
 # Architecture
 
-**Analysis Date:** 2025-05-22
+**Analysis Date:** 2026-05-24
 
 ## Pattern Overview
 
-**Overall:** Multi-pass Assembler Pipeline with Pluggable Output Backends
+Nazm is structured as a small multi-pass assembler pipeline:
 
-**Key Characteristics:**
-- Linear pipeline: source text → tokens → AST → symbol table → encoded bytes → object file
-- Two-pass design: pass 1 collects labels and sizes, pass 2 resolves all addresses
-- Stateless stages: each stage transforms data and hands it to the next, no shared mutable globals
-- Pluggable output backends: same encoded bytes fed to ELF64 writer or PE/COFF writer
-- Self-hosting target: architecture is designed to be portable to Baa later (no C++ features, plain C structs)
+```text
+source bytes (.مجمع)
+  -> lexer: UTF-8 Arabic text to TokenArray
+  -> parser: TokenArray to InstructionList
+  -> pass1: instruction sizes and SymbolTable
+  -> pass2: encoded .text bytes
+  -> output writer: ELF64 or COFF object bytes
+  -> CLI result
+```
 
-## Layers
+The public embedding API in `include/nazm.h` is present as a contract, but its
+functions are still roadmap work. The current implemented entry point is the
+CLI binary target `nazm`.
 
-**Frontend (تحليل — Parsing):**
-- Purpose: Transform raw Arabic UTF-8 source text into a structured instruction list
-- Contains: Lexer (`src/lexer/`), Parser (`src/parser/`), token definitions (`src/lexer/tokens.h`)
-- Depends on: Nothing — only raw file bytes in, token/AST structs out
-- Used by: Pass 1 of the assembler core
+## Layer Responsibilities
 
-**Assembler Core (المعالجة — Processing):**
-- Purpose: Two-pass resolution of labels, operand sizes, and instruction encodings
-- Contains: Pass 1 (`src/passes/pass1.c`), Pass 2 (`src/passes/pass2.c`), symbol table (`src/symtable/`)
-- Depends on: Frontend output (instruction list), Encoder layer
-- Used by: Output backends
+**Frontend**
+- Contains `src/lexer/` and `src/parser/`.
+- The lexer owns UTF-8 source tokenization, Arabic mnemonic recognition,
+  register names, numeric immediates, directives, labels, comments, and
+  punctuation.
+- The parser owns `InstructionList` creation, operand classification, directive
+  recognition, operand count checks, comma checks, and basic error recovery.
 
-**Encoder (التشفير — Encoding):**
-- Purpose: Translate Arabic mnemonic + operand combination into raw x86-64 byte sequences
-- Contains: Instruction table (`src/encoder/table.c`), REX/ModRM/SIB logic (`src/encoder/modrm.c`), immediate emitter (`src/encoder/immediate.c`)
-- Depends on: Nothing external — pure data transformation
-- Used by: Pass 2
+**Assembler core**
+- Contains `src/passes/` and `src/symtable/`.
+- Pass 1 owns instruction-size assumptions and label offsets.
+- Pass 2 owns final traversal of parsed instructions and calls into the encoder.
+- Symbol lookup and insertion belong to `src/symtable/`.
 
-**Output Backends (الإخراج — Output):**
-- Purpose: Wrap encoded bytes in a standard object file format
-- Contains: ELF64 writer (`src/output/elf64.c`), PE/COFF writer (`src/output/coff.c`)
-- Depends on: Encoded byte buffer, symbol table (for relocation entries)
-- Used by: Main driver
+**Encoder**
+- Contains `src/encoder/`.
+- Owns raw x86-64 instruction bytes, including REX, ModRM, immediate emission,
+  and the instruction table.
+- The encoder does not parse source text and should reject unsupported forms
+  instead of guessing bytes.
 
-**Driver (المُشغِّل — Driver):**
-- Purpose: CLI entry point — parse arguments, orchestrate the pipeline, report errors
-- Contains: `src/main.c`, argument parser (`src/cli/args.c`), error reporter (`src/error/report.c`)
-- Depends on: All layers
-- Used by: End user (command line)
+**Output backends**
+- Contains `src/output/`.
+- Owns wrapping encoded bytes into ELF64 or PE/COFF object structures.
+- Object format logic must stay out of the lexer, parser, and encoder.
 
-## Data Flow
+**Driver and CLI**
+- Contains `src/main.c` and `src/cli/`.
+- Owns argument parsing, file I/O, pipeline orchestration, user-facing messages,
+  and process exit codes.
 
-**Assembling a source file:**
+## Current Data Flow
 
-1. User runs: `مجمع ملف.مجمع -o ملف.o`
-2. Driver opens source file, passes raw bytes to Lexer
-3. Lexer tokenizes UTF-8 stream → `Token[]` array (mnemonics, registers, labels, immediates, directives)
-4. Parser consumes `Token[]` → `Instruction[]` list (each instruction: opcode enum + operand list)
-5. **Pass 1** walks `Instruction[]`, computes size of each instruction, builds `SymbolTable` (label → byte offset)
-6. **Pass 2** walks `Instruction[]` again; for each instruction calls Encoder with fully-resolved operands → appends bytes to output buffer
-7. Output backend (ELF64 or COFF) wraps buffer with section headers, symbol table, relocation entries
-8. Driver writes final `.o` file to disk
-9. User invokes standard linker (`ld`) to produce executable
+1. The user invokes `nazm` with a source path and options.
+2. `src/cli/args.c` parses flags such as output path and object format.
+3. `src/main.c` reads the source file and creates pipeline state.
+4. The lexer returns a `TokenArray`.
+5. The parser returns an `InstructionList`.
+6. Pass 1 walks the instruction list, estimates sizes, and records labels in a
+   `SymbolTable`.
+7. Pass 2 walks the instruction list again and requests final instruction bytes
+   from `src/encoder/`.
+8. The output layer writes ELF64 or COFF bytes.
+9. The CLI writes the object file and reports success or Arabic diagnostics.
 
-**Error flow:**
-- Any stage emits an `Error` struct (file, line, column, Arabic message)
-- Driver collects all errors, prints them, exits non-zero
-- Stages continue after non-fatal errors to report multiple issues at once
+## Key Data Structures
 
-**State Management:**
-- No global mutable state
-- Each pipeline stage receives its input struct, returns its output struct
-- Symbol table is allocated once in Pass 1, read-only in Pass 2
+**Token**
+- Defined in `src/lexer/lexer.h`.
+- Represents mnemonics, registers, immediates, directives, labels, punctuation,
+  and EOF markers.
+- Carries source location for diagnostics.
 
-## Key Abstractions
+**Instruction and InstructionList**
+- Defined in `src/parser/instruction.h`.
+- `Instruction` stores the opcode, up to three operands, optional label,
+  optional directive, and source location.
+- `InstructionList` is the parser-owned sequence consumed by passes.
 
-**Token (رمز):**
-- Purpose: Smallest meaningful unit from the source file
-- Fields: `type` (MNEMONIC, REGISTER, IMMEDIATE, LABEL_DEF, LABEL_REF, DIRECTIVE), `value` (UTF-8 string), `line`, `col`
-- Location: `src/lexer/tokens.h`
+**Operand**
+- Defined in `src/encoder/encoder.h`.
+- Represents register, immediate, memory, or label operands.
+- Shared today by parser, passes, and encoder.
 
-**Instruction (تعليمة):**
-- Purpose: One parsed assembly instruction with all operands identified
-- Fields: `opcode` (enum), `operands[]` (up to 3), `label` (if line has a label), `line`
-- Location: `src/parser/instruction.h`
+**SymbolTable**
+- Defined in `src/symtable/symtable.h`.
+- Maps labels to byte offsets.
 
-**Operand (معامل):**
-- Purpose: A single operand in an instruction — discriminated union of register, immediate, memory, or label reference
-- Fields: `kind` (REG, IMM, MEM, LABEL), union of `reg_id`, `imm_value`, `mem_addr`, `label_name`
-- Location: `src/parser/operand.h`
+**OutputBuffer**
+- Defined in `src/output/output.h`.
+- Carries object bytes produced by an output writer.
 
-**SymbolTable (جدول الرموز):**
-- Purpose: Map label names (Arabic strings) to their resolved byte offsets
-- Operations: `symtable_insert()`, `symtable_lookup()`, `symtable_patch()` (for forward references)
-- Location: `src/symtable/symtable.h`
+## Ownership Model
 
-**EncodedInstruction (تعليمة مشفرة):**
-- Purpose: Raw bytes for one instruction, plus optional relocation info if it references an unresolved external symbol
-- Fields: `bytes[]`, `len`, `reloc` (optional)
-- Location: `src/encoder/encoded.h`
+- Arena allocation is central for pipeline objects where established.
+- Arena-owned objects are released with the arena lifetime and must not be freed
+  individually.
+- Heap-owned output buffers and API result buffers need explicit cleanup by
+  their owning module or future public API cleanup function.
+- User-facing diagnostic strings must remain valid until printed or copied into
+  the public result.
 
-## Entry Points
+## Implemented vs Planned
 
-**CLI Entry:**
-- Location: `src/main.c`
-- Triggers: User invokes `مجمع` binary
-- Responsibilities: Parse flags (`-o`, `-f elf64|coff`, `-l` for listing), open source file, run pipeline, write output
+Implemented now:
+- Arabic lexer and parser coverage for the current instruction representation.
+- Basic pass and symbol table structure.
+- Encoder helper modules and instruction table scaffolding.
+- ELF64 and COFF writer modules in the source tree.
+- CLI option parser and `nazm` executable target.
+- Unit tests for arena, Unicode, symtable, keywords, immediates, REX, lexer, and
+  parser through the direct script path.
 
-**Library API (future):**
-- Location: `include/majmaa.h` (planned)
-- Triggers: Called by Baa compiler backend
-- Responsibilities: Expose `assemble_buffer()` so Baa can call the assembler in-process without spawning a subprocess
+Planned or limited:
+- Stable in-process API behavior for `include/nazm.h`.
+- Verified end-to-end object compatibility across ELF64 and COFF.
+- Relocation support for external/unresolved symbols.
+- Integration fixtures and full pipeline tests.
+- Listing output and richer CLI exit-code coverage.
 
 ## Error Handling
 
-**Strategy:** Collect and continue — report all errors before exiting, never crash on bad input
-
-**Patterns:**
-- Each stage returns a result struct `{ ok: bool, errors: Error[] }`
-- Driver aggregates errors across all stages, prints them at the end with Arabic messages
-- Fatal errors (cannot open file, out of memory) abort immediately with `exit(1)`
-- Non-fatal errors (unknown mnemonic, unresolved label) are collected and all reported together
-
-## Cross-Cutting Concerns
-
-**Arabic Error Messages:**
-- All user-facing errors are in Arabic
-- Format: `خطأ [ملف]:[سطر]:[عمود]: [رسالة]`
-- Internal assert messages stay in English (developer-facing only)
-
-**UTF-8 Handling:**
-- All string operations are byte-level; the lexer manually decodes multi-byte codepoints only when needed (Arabic character classification)
-- `src/unicode/arabic.c` — single file responsible for all codepoint logic
-
-**Memory Management:**
-- Arena allocator (`src/alloc/arena.c`) used for all pipeline data structures
-- Entire arena freed at end of pipeline — no individual frees needed
-- Makes future Baa port easier (Baa has no free() yet)
+- User-facing diagnostics should be Arabic-first and valid UTF-8.
+- Bad source should produce diagnostics rather than crashes or guessed bytes.
+- Encoder failures and unsupported forms must be explicit because silent wrong
+  machine code is worse than rejecting a feature.
 
 ---
 
-*Architecture analysis: 2025-05-22*
-*Update when major patterns change*
+*Update this file when pipeline ownership or implemented contracts change.*

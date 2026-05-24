@@ -56,10 +56,10 @@
 - File: `src/main.c` (file open) and `src/alloc/arena.c` (allocation)
 - Recommendations: Reject input files over a configurable limit (default 100MB); add arena allocation failure checks
 
-**No bounds check on EncodedInstruction byte buffer:**
+**No bounds check on encoded instruction byte buffer:**
 - Risk: An encoding bug that writes more bytes than `MAX_INSTRUCTION_BYTES` would silently corrupt adjacent arena memory
 - Current mitigation: `MAX_INSTRUCTION_BYTES` is conservatively set to 15 (x86-64 maximum instruction length)
-- File: `src/encoder/encoded.h`
+- File: `src/encoder/encoder.h`
 - Recommendations: Add `assert(result.len <= MAX_INSTRUCTION_BYTES)` after every `encode_*()` call in pass2
 
 ## Performance Bottlenecks
@@ -84,14 +84,14 @@
 - Why fragile: All section offsets are computed by hand with running byte counters; adding a new section requires re-deriving all offsets that come after it
 - Common failures: Off-by-one in string table size causes `readelf` to report corrupt section names
 - Safe modification: Add a new section in one place only (the `build_elf()` function); run `readelf -a output.o` after every change to verify
-- Test coverage: `tests/unit/elf64.test.c` checks section count and `.text` offset; relocation section is not yet tested
+- Test coverage: no dedicated ELF64 unit test is registered yet; relocation section is not yet tested
 
 **UTF-8 codepoint decoder in the lexer:**
 - File: `src/unicode/arabic.c`
 - Why fragile: Hand-rolled multi-byte UTF-8 decoder; Arabic Unicode ranges are hardcoded
 - Common failures: Non-Arabic Unicode (e.g., Persian digits, extended Arabic characters) either mis-classified or cause the decoder to read past buffer end
 - Safe modification: Add a test case for every new Arabic character range before touching `is_arabic_letter()`
-- Test coverage: `tests/unit/lexer.test.c` has basic Arabic character tests; Persian digits and extended ranges not covered
+- Test coverage: `tests/unit/test_lexer.c` has basic Arabic character tests; Persian digits and extended ranges not covered
 
 ## Scaling Limits
 

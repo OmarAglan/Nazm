@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2025-05-22
+**Analysis Date:** 2026-05-24
 
 ## APIs & External Services
 
@@ -77,7 +77,7 @@ Not applicable. No network communication, no user accounts, no authentication of
 
 **Baa Compiler (`باء`) — future:**
 - Relationship: The Baa compiler will call the Arabic assembler as its code generation backend
-- Integration method (planned): Either subprocess (`fork`/`exec`) or in-process via `include/majmaa.h` library API
+- Integration method (planned): Either subprocess (`fork`/`exec`) or in-process via `include/nazm.h` library API
 - Trigger: When Baa's compiler backend is modified to emit `.مجمع` files instead of passing C to GCC
 - Status: Not yet integrated — this is the self-hosting milestone
 
@@ -89,9 +89,9 @@ Not applicable. No network communication, no user accounts, no authentication of
 - Build: `cmake -B build && make -C build`
 
 **Testing:**
-- No external services needed
-- Fixtures are vendored in `tests/fixtures/`
-- Unity test framework vendored in `tests/vendor/unity/`
+- No external services needed.
+- Integration fixtures are planned.
+- Unity test framework is vendored in `tests/vendor/unity/`.
 
 **Production / Distribution:**
 - No runtime environment variables

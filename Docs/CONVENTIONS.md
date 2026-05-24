@@ -1,13 +1,13 @@
 # Coding Conventions
 
-**Analysis Date:** 2025-05-22
+**Analysis Date:** 2026-05-24
 
 ## Naming Patterns
 
 **Files:**
-- `kebab-case.c` / `kebab-case.h` for all C source files (`pass1.c`, `symbol-table.c`)
-- `module-name.test.c` for unit test files mirroring their source module
-- `*.مجمع` for Arabic assembly source files in examples and fixtures
+- Lowercase C source and header names matching the owning module (`pass1.c`, `lexer.h`).
+- `test_<module>.c` for current unit test files.
+- `*.مجمع` for Arabic assembly source files in examples.
 
 **Functions:**
 - `snake_case` for all C functions
@@ -86,7 +86,7 @@ if (!tokens) { /* how do we know what went wrong? */ }
 
 **Framework:**
 - No logging library — `fprintf(stderr, ...)` for warnings and internal diagnostics
-- User-facing errors go through `src/error/report.c` (`error_print()` — formats in Arabic)
+- User-facing errors go through `src/error/error.c` helpers and stay Arabic-first.
 - Never `printf` for errors; `fprintf(stderr, ...)` only
 
 **Patterns:**
@@ -143,9 +143,9 @@ EncodedInstruction encode_mov_reg_imm(RegId dst, int64_t imm);
 ## Module Design
 
 **Headers:**
-- Each `src/module/module.h` exposes only the public API — internal helpers stay in `.c`
+- Each module header in `src/` exposes only the public API — internal helpers stay in `.c`
 - No circular includes — draw dependency direction clearly (encoder never includes parser)
-- `include/majmaa.h` is the future external API; only add to it when a function is stable
+- `include/nazm.h` is the future external API; only add stable public declarations there
 
 **Portability — Baa Rewrite Readiness:**
 - No C++ features (obviously), no `__attribute__` except `__attribute__((unused))`
