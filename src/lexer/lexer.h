@@ -67,3 +67,10 @@ LexResult lexer_lex(const SourceBuffer *src, Arena *arena);
 void token_array_print(const TokenArray *tokens);
 
 const char *token_type_name(TokenType type);
+
+/*
+ * lexer_register_id()
+ * Resolve a TOKEN_REGISTER value string (e.g. "ر0", "مكدس") to a RegId.
+ * Returns REG_INVALID if the string is not a known register.
+ */
+int lexer_register_id(const char *name, size_t len);

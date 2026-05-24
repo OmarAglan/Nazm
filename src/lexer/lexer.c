@@ -165,7 +165,7 @@ static const char *scan_ident(Lexer *lx, size_t *out_len) {
  * Handles:  ر0 … ر15  (Arabic ر + ASCII digit(s))
  * and named entries in REG_TABLE.
  * Returns reg_id (0–31) or -1 if not a register. */
-static int classify_register(const char *text, size_t len) {
+int classify_register(const char *text, size_t len) {
     /* Named registers */
     for (const RegEntry *r = REG_TABLE; r->name; r++) {
         if (strlen(r->name) == len && memcmp(r->name, text, len) == 0)
@@ -418,3 +418,9 @@ const char *token_type_name(TokenType type) {
     }
     return "UNKNOWN";
 }
+
+/* ── Public register resolution ─────────────────────────────────────────── */
+int lexer_register_id(const char *name, size_t len) {
+    return classify_register(name, len);
+}
+
