@@ -115,7 +115,7 @@
 - Priority: High for encoder confidence.
 
 **CLI end-to-end behavior:**
-- What's covered: `tests/unit/test_cli_args.c` covers argument parsing.
+- What's covered: `tests/unit/test_cli_args.c` covers argument parsing, and `tests/unit/test_diagnostics.c` covers rendered Arabic diagnostic shape through library-level pipeline calls.
 - What's not covered: Executing `nazm` on fixture files and checking exit codes/output files through a dedicated integration harness.
 
 ---

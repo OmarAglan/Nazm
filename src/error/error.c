@@ -93,7 +93,7 @@ static void print_marker_spaces(FILE *stream, int count) {
     }
 }
 
-static void print_source_context(const ErrorList *list, const NazmError *error) {
+static void print_source_context(FILE *stream, const ErrorList *list, const NazmError *error) {
     if (!source_has_context(list, error)) {
         return;
     }
@@ -109,27 +109,31 @@ static void print_source_context(const ErrorList *list, const NazmError *error) 
         marker_len = 1;
     }
 
-    fprintf(stderr, "  السطر │ %.*s\n", (int)line_len, list->source.data + line_start);
-    fprintf(stderr, "        │ ");
-    print_marker_spaces(stderr, error->col > 1 ? error->col - 1 : 0);
+    fprintf(stream, "  السطر │ %.*s\n", (int)line_len, list->source.data + line_start);
+    fprintf(stream, "        │ ");
+    print_marker_spaces(stream, error->col > 1 ? error->col - 1 : 0);
     for (int i = 0; i < marker_len; i++) {
-        fputc('^', stderr);
+        fputc('^', stream);
     }
-    fprintf(stderr, " هنا\n");
+    fprintf(stream, " هنا\n");
 }
 
-void error_print_all(const ErrorList *list) {
+void error_print_all_to(const ErrorList *list, FILE *stream) {
     for (size_t i = 0; i < list->count; i++) {
         const NazmError *e = &list->errors[i];
-        fprintf(stderr, "خطأ في %s:%d:%d: %s\n",
+        fprintf(stream, "خطأ في %s:%d:%d: %s\n",
                 e->file, e->line, e->col, e->message);
-        print_source_context(list, e);
+        print_source_context(stream, list, e);
     }
 
     if (list->fatal) {
-        fprintf(stderr, "خطأ: تجاوز الحد الأقصى للأخطاء (%d)، توقف المُجمِّع.\n",
+        fprintf(stream, "خطأ: تجاوز الحد الأقصى للأخطاء (%d)، توقف المُجمِّع.\n",
                 NAZM_MAX_ERRORS);
     }
+}
+
+void error_print_all(const ErrorList *list) {
+    error_print_all_to(list, stderr);
 }
 
 bool error_has_any(const ErrorList *list) {

@@ -62,7 +62,7 @@
 
 **Error Types:**
 - `NazmError` in `src/error/error.h` stores `{ file, line, col, end_col, message }`; `end_col` is exclusive and lets diagnostics underline the complete offending token or operand.
-- `ErrorList` may borrow source text through `error_list_set_source()` so `error_print_all()` can print Arabic source context and a marker line.
+- `ErrorList` may borrow source text through `error_list_set_source()` so `error_print_all()` can print Arabic source context and a marker line. Tests should use `error_print_all_to()` to capture rendered diagnostics without redirecting `stderr`.
 - Messages are in Arabic (user-facing); internal `assert()` messages may be English.
 - Do not use `errno` as the user-facing result — convert failures into explicit Arabic diagnostics or CLI messages.
 

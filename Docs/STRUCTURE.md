@@ -28,6 +28,7 @@ Nazm/
 │   ├── vendor/unity/     # Vendored Unity test framework
 │   └── CMakeLists.txt    # CTest registration
 ├── examples/             # Arabic .مجمع examples
+│   └── diagnostics/       # Intentional-error examples for Arabic diagnostics
 ├── Docs/                 # Project documentation
 ├── tools/                # Developer checks
 ├── CMakeLists.txt        # Build configuration
@@ -89,8 +90,11 @@ Nazm/
 **tests/unit/**
 - Current unit tests: `test_arena.c`, `test_unicode.c`, `test_symtable.c`,
   `test_keywords.c`, `test_immediate.c`, `test_rex.c`, `test_lexer.c`,
-  `test_parser.c`, `test_encoder.c`, `test_passes.c`, `test_elf64.c`, and
-  `test_cli_args.c`.
+  `test_parser.c`, `test_encoder.c`, `test_passes.c`, `test_elf64.c`,
+  `test_cli_args.c`, and `test_diagnostics.c`.
+
+**examples/diagnostics/**
+- Holds intentional-error `.مجمع` files used to demonstrate Arabic source-context diagnostics.
 
 **tests/integration/** *(planned)*
 - Will hold full-pipeline tests once object output contracts are stable.

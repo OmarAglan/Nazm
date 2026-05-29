@@ -432,13 +432,16 @@ static void parse_line(Parser *p) {
     int max_ops = 0;
     get_arity(instr.opcode, &min_ops, &max_ops);
 
+    bool syntax_ok = true;
     while (cur_type(p) != TOKEN_NEWLINE && cur_type(p) != TOKEN_EOF) {
         if (instr.op_count > 0 && !expect_comma(p)) {
+            syntax_ok = false;
             sync_to_newline(p);
             break;
         }
 
         if (instr.op_count >= MAX_OPERANDS) {
+            syntax_ok = false;
             parse_error(p, "عدد معاملات أكثر من المسموح؛ الحد الأقصى 3");
             sync_to_newline(p);
             break;
@@ -446,13 +449,16 @@ static void parse_line(Parser *p) {
 
         Operand op;
         if (!parse_operand(p, &op)) {
+            syntax_ok = false;
             sync_to_newline(p);
             break;
         }
         instr.ops[instr.op_count++] = op;
     }
 
-    check_arity(p, &instr, min_ops, max_ops);
+    if (syntax_ok) {
+        check_arity(p, &instr, min_ops, max_ops);
+    }
 
     if (cur_type(p) == TOKEN_NEWLINE) {
         advance(p);

@@ -1,4 +1,5 @@
 #include "args.h"
+#include "nazm.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -91,5 +92,5 @@ void cli_print_usage(const char *prog) {
 }
 
 void cli_print_version(void) {
-    fprintf(stdout, "نَظْم %s\n", "0.1.0");
+    fprintf(stdout, "نَظْم %s\n", NAZM_VERSION_STRING);
 }

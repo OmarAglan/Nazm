@@ -6,7 +6,7 @@
 
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
-- `build.sh test` is the direct no-CMake path and currently runs the same 12
+- `build.sh test` is the direct no-CMake path and currently runs the same 13
   unit-test suites registered for CTest.
 
 ## Run Commands
@@ -31,6 +31,7 @@ tests/
   unit/
     test_arena.c
     test_cli_args.c
+    test_diagnostics.c
     test_elf64.c
     test_encoder.c
     test_immediate.c
@@ -50,6 +51,13 @@ tests/
 CTest currently registers the unit tests listed in `tests/CMakeLists.txt` using
 the `unit_<suite>` naming pattern. The direct `build.sh test` path also compiles
 and runs those same suites.
+
+## Diagnostic Snapshot Style
+
+`tests/unit/test_diagnostics.c` renders `ErrorList` values through
+`error_print_all_to()` and checks stable Arabic markers such as `خطأ في`,
+`السطر │`, `^`, and `هنا`. Keep these tests focused on user-visible
+diagnostic shape rather than every byte of whitespace.
 
 ## Planned Test Areas
 
@@ -83,7 +91,7 @@ and runs those same suites.
 - Critical modules are lexer, parser, pass1, pass2, encoder, and output writers.
 - Any change that affects machine bytes, symbol resolution, diagnostics, or
   object layout needs focused tests or a stated reason for deferral.
-- Diagnostic changes should assert both Arabic message intent and source span
+- Diagnostic changes should assert both Arabic message intent, rendered source context, and source span
   (`line`, `col`, `end_col`) where the exact position matters.
 
 ---

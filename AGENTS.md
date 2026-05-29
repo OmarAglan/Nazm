@@ -15,7 +15,7 @@
 **Decision Style:** Prefer outcome-first execution. Use the workflow below as the default operating model, scaling depth to the risk of the task. Keep strict rules for byte correctness, memory ownership, Arabic diagnostics, C11 portability, and destructive operations.
 
 **Project Facts:**
-- Current version is `0.1.0` in `CMakeLists.txt` and `include/nazm.h`.
+- Current version is `0.2.0` in `CMakeLists.txt`, `include/nazm.h`, and `nazm --version`.
 - Nazm is an Arabic-first assembler for x86-64.
 - Primary implementation language is C11, with no runtime external dependencies.
 - Current build system is CMake 3.20+, with `build.sh` as a direct build/test path.

@@ -17,9 +17,9 @@ extern "C" {
 
 /* ── Version ─────────────────────────────────────────────────────────────── */
 #define NAZM_VERSION_MAJOR 0
-#define NAZM_VERSION_MINOR 1
+#define NAZM_VERSION_MINOR 2
 #define NAZM_VERSION_PATCH 0
-#define NAZM_VERSION_STRING "0.1.0"
+#define NAZM_VERSION_STRING "0.2.0"
 
 /* ── Output format ───────────────────────────────────────────────────────── */
 typedef enum {

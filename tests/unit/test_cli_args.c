@@ -1,5 +1,6 @@
 #include "unity.h"
 #include "cli/args.h"
+#include "nazm.h"
 
 void setUp(void) {}
 void tearDown(void) {}
@@ -87,6 +88,10 @@ void test_cli_rejects_unknown_option(void) {
     TEST_ASSERT_NOT_NULL(args.error_msg);
 }
 
+void test_cli_version_string_is_020(void) {
+    TEST_ASSERT_EQUAL_STRING("0.2.0", NAZM_VERSION_STRING);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -99,6 +104,7 @@ int main(void) {
     RUN_TEST(test_cli_rejects_missing_output_path);
     RUN_TEST(test_cli_rejects_multiple_sources);
     RUN_TEST(test_cli_rejects_unknown_option);
+    RUN_TEST(test_cli_version_string_is_020);
 
     return UNITY_END();
 }

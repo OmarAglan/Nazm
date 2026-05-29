@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdint.h>
 #include "../alloc/arena.h"
 
@@ -57,6 +58,9 @@ void error_add_span(ErrorList *list,
                     int col,
                     int end_col,
                     const char *message);
+
+/* Print all errors to the given stream with Arabic source context when available. */
+void error_print_all_to(const ErrorList *list, FILE *stream);
 
 /* Print all errors to stderr with Arabic source context when available. */
 void error_print_all(const ErrorList *list);
