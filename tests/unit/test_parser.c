@@ -392,6 +392,41 @@ void test_parse_bad_memory_no_reg(void) {
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
 }
 
+
+void test_parse_missing_comma_span_points_to_second_operand(void) {
+    ParseResult r = parse("احمل ر0 ر1");
+    TEST_ASSERT_TRUE(error_has_any(&r.errors));
+
+    NazmError e = r.errors.errors[0];
+    TEST_ASSERT_EQUAL_INT(1, e.line);
+    TEST_ASSERT_EQUAL_INT(9, e.col);
+    TEST_ASSERT_EQUAL_INT(11, e.end_col);
+    TEST_ASSERT_NOT_NULL(strstr(e.message, "فاصلة عربية"));
+}
+
+void test_parse_memory_operand_source_span(void) {
+    ParseResult r = parse("احمل ر0، [ر1+٨]");
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+
+    Operand mem = instr(&r, 0).ops[1];
+    TEST_ASSERT_EQUAL_INT(OP_MEM_DISP, mem.kind);
+    TEST_ASSERT_EQUAL_INT(1, mem.line);
+    TEST_ASSERT_EQUAL_INT(10, mem.col);
+    TEST_ASSERT_EQUAL_INT(16, mem.end_col);
+}
+
+void test_parse_label_operand_source_span(void) {
+    ParseResult r = parse("اقفز هدف");
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+
+    Operand label = instr(&r, 0).ops[0];
+    TEST_ASSERT_EQUAL_INT(OP_LABEL, label.kind);
+    TEST_ASSERT_EQUAL_STRING("هدف", label.label);
+    TEST_ASSERT_EQUAL_INT(1, label.line);
+    TEST_ASSERT_EQUAL_INT(6, label.col);
+    TEST_ASSERT_EQUAL_INT(9, label.end_col);
+}
+
 void test_parse_empty_source(void) {
     ParseResult r = parse("");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
@@ -524,6 +559,9 @@ int main(void) {
     RUN_TEST(test_parse_too_many_operands);
     RUN_TEST(test_parse_missing_comma);
     RUN_TEST(test_parse_bad_memory_no_reg);
+    RUN_TEST(test_parse_missing_comma_span_points_to_second_operand);
+    RUN_TEST(test_parse_memory_operand_source_span);
+    RUN_TEST(test_parse_label_operand_source_span);
     RUN_TEST(test_parse_empty_source);
     RUN_TEST(test_parse_only_comments);
     RUN_TEST(test_parse_error_recovery);

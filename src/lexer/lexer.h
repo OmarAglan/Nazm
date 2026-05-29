@@ -35,13 +35,17 @@ typedef struct {
     size_t      len;    /* byte length of value        */
     int         line;
     int         col;
+    int         end_col; /* exclusive source column */
 } Token;
 
 /* ── Token array ─────────────────────────────────────────────────────────── */
 typedef struct {
-    Token  *data;
-    size_t  count;
-    size_t  capacity;
+    Token        *data;
+    size_t        count;
+    size_t        capacity;
+    const char   *source_name;
+    const uint8_t *source_data;
+    size_t        source_len;
 } TokenArray;
 
 /* ── Source buffer ───────────────────────────────────────────────────────── */

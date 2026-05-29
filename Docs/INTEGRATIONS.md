@@ -33,7 +33,7 @@ Not applicable. No network communication, no user accounts, no authentication of
 ## Monitoring & Observability
 
 **Error Reporting:**
-- All errors printed to `stderr` in Arabic, format: `خطأ [ملف]:[سطر]:[عمود]: [رسالة]`
+- All errors printed to `stderr` in Arabic, starting with `خطأ في [ملف]:[سطر]:[عمود]: [رسالة]`; when source text is available, the following lines show the original line and a caret marker for the source span.
 - No crash reporting, no telemetry, no external error tracking
 - Exit codes currently used by the CLI: `0` = success, `1` = assembly/output error, `2` = CLI or I/O error
 

@@ -43,13 +43,15 @@ static Token make_token(TokenType type,
                         const char *value,
                         size_t len,
                         int line,
-                        int col) {
+                        int col,
+                        int end_col) {
     Token token = {
-        .type  = type,
-        .value = value,
-        .len   = len,
-        .line  = line,
-        .col   = col,
+        .type    = type,
+        .value   = value,
+        .len     = len,
+        .line    = line,
+        .col     = col,
+        .end_col = end_col,
     };
 
     return token;
@@ -79,11 +81,16 @@ static void push_token_value(Lexer *lx,
                              const char *value,
                              size_t len,
                              int line,
-                             int col) {
-    push_token(lx, make_token(type, value, len, line, col));
+                             int col,
+                             int end_col) {
+    push_token(lx, make_token(type, value, len, line, col, end_col));
 }
 
-static void push_immediate_token(Lexer *lx, int64_t value, int line, int col) {
+static void push_immediate_token(Lexer *lx,
+                                 int64_t value,
+                                 int line,
+                                 int col,
+                                 int end_col) {
     char buf[32];
 
     snprintf(buf, sizeof(buf), "%lld", (long long)value);
@@ -92,7 +99,8 @@ static void push_immediate_token(Lexer *lx, int64_t value, int line, int col) {
                      arena_strdup(lx->arena, buf),
                      strlen(buf),
                      line,
-                     col);
+                     col,
+                     end_col);
 }
 
 /* ── Cursor helpers ──────────────────────────────────────────────────────── */
@@ -122,8 +130,12 @@ static void skip_cp(Lexer *lx) {
 }
 
 /* ── Error helper ────────────────────────────────────────────────────────── */
+static void lex_error_at(Lexer *lx, int line, int col, int end_col, const char *msg) {
+    error_add_span(lx->errors, lx->arena, lx->src->name, line, col, end_col, msg);
+}
+
 static void lex_error(Lexer *lx, const char *msg) {
-    error_add(lx->errors, lx->arena, lx->src->name, lx->line, lx->col, msg);
+    lex_error_at(lx, lx->line, lx->col, lx->col + 1, msg);
 }
 
 /* ── Character helpers ───────────────────────────────────────────────────── */
@@ -354,7 +366,7 @@ static void lex_newline(Lexer *lx, int line, int col) {
         return;
     }
 
-    push_token_value(lx, TOKEN_NEWLINE, "\n", 1, line, col);
+    push_token_value(lx, TOKEN_NEWLINE, "\n", 1, line, col, col + 1);
 }
 
 static void lex_comment(Lexer *lx) {
@@ -367,27 +379,27 @@ static bool lex_single_char_token(Lexer *lx, uint32_t cp, int line, int col) {
     switch (cp) {
     case '[':
         skip_cp(lx);
-        push_token_value(lx, TOKEN_LBRACKET, "[", 1, line, col);
+        push_token_value(lx, TOKEN_LBRACKET, "[", 1, line, col, col + 1);
         return true;
     case ']':
         skip_cp(lx);
-        push_token_value(lx, TOKEN_RBRACKET, "]", 1, line, col);
+        push_token_value(lx, TOKEN_RBRACKET, "]", 1, line, col, col + 1);
         return true;
     case '+':
         skip_cp(lx);
-        push_token_value(lx, TOKEN_PLUS, "+", 1, line, col);
+        push_token_value(lx, TOKEN_PLUS, "+", 1, line, col, col + 1);
         return true;
     case ',':
         skip_cp(lx);
-        push_token_value(lx, TOKEN_COMMA, ",", 1, line, col);
+        push_token_value(lx, TOKEN_COMMA, ",", 1, line, col, col + 1);
         return true;
     case ':':
         skip_cp(lx);
-        push_token_value(lx, TOKEN_COLON, ":", 1, line, col);
+        push_token_value(lx, TOKEN_COLON, ":", 1, line, col, col + 1);
         return true;
     case 0x060C:
         skip_cp(lx);
-        push_token_value(lx, TOKEN_COMMA, "،", 2, line, col);
+        push_token_value(lx, TOKEN_COMMA, "،", 2, line, col, col + 1);
         return true;
     default:
         return false;
@@ -405,7 +417,7 @@ static void lex_minus_or_negative_number(Lexer *lx, int line, int col) {
         int64_t val = parse_number(lx, &ok);
 
         if (ok) {
-            push_immediate_token(lx, -val, line, col);
+            push_immediate_token(lx, -val, line, col, lx->col);
         }
 
         return;
@@ -413,7 +425,7 @@ static void lex_minus_or_negative_number(Lexer *lx, int line, int col) {
 
     lx->pos = saved;
     skip_cp(lx);
-    push_token_value(lx, TOKEN_MINUS, "-", 1, line, col);
+    push_token_value(lx, TOKEN_MINUS, "-", 1, line, col, col + 1);
 }
 
 static void lex_number(Lexer *lx, int line, int col) {
@@ -421,7 +433,7 @@ static void lex_number(Lexer *lx, int line, int col) {
     int64_t val = parse_number(lx, &ok);
 
     if (ok) {
-        push_immediate_token(lx, val, line, col);
+        push_immediate_token(lx, val, line, col, lx->col);
     }
 }
 
@@ -430,7 +442,7 @@ static void lex_directive(Lexer *lx, int line, int col) {
 
     size_t dlen;
     const char *dname = scan_directive(lx, &dlen);
-    push_token_value(lx, TOKEN_DIRECTIVE, dname, dlen, line, col);
+    push_token_value(lx, TOKEN_DIRECTIVE, dname, dlen, line, col, lx->col);
 }
 
 static void lex_identifier(Lexer *lx, int line, int col) {
@@ -439,23 +451,23 @@ static void lex_identifier(Lexer *lx, int line, int col) {
 
     if (!at_end(lx) && peek_cp(lx) == ':') {
         skip_cp(lx);
-        push_token_value(lx, TOKEN_LABEL_DEF, id, id_len, line, col);
+        push_token_value(lx, TOKEN_LABEL_DEF, id, id_len, line, col, lx->col - 1);
         return;
     }
 
     OpcodeEnum op = keywords_lookup(id, id_len);
     if (op != OPCODE_INVALID) {
-        push_token_value(lx, TOKEN_MNEMONIC, id, id_len, line, col);
+        push_token_value(lx, TOKEN_MNEMONIC, id, id_len, line, col, lx->col);
         return;
     }
 
     int reg_id = classify_register(id, id_len);
     if (reg_id >= 0) {
-        push_token_value(lx, TOKEN_REGISTER, id, id_len, line, col);
+        push_token_value(lx, TOKEN_REGISTER, id, id_len, line, col, lx->col);
         return;
     }
 
-    push_token_value(lx, TOKEN_LABEL_REF, id, id_len, line, col);
+    push_token_value(lx, TOKEN_LABEL_REF, id, id_len, line, col, lx->col);
 }
 
 /* ── Main tokenise loop ──────────────────────────────────────────────────── */
@@ -510,13 +522,18 @@ static void lex_all(Lexer *lx) {
         skip_cp(lx);
     }
 
-    push_token_value(lx, TOKEN_EOF, "", 0, lx->line, lx->col);
+    push_token_value(lx, TOKEN_EOF, "", 0, lx->line, lx->col, lx->col);
 }
 
 /* ── Public API ──────────────────────────────────────────────────────────── */
 LexResult lexer_lex(const SourceBuffer *src, Arena *arena) {
     LexResult result = {0};
+    result.tokens.source_name = src->name;
+    result.tokens.source_data = src->data;
+    result.tokens.source_len  = src->len;
+
     error_list_init(&result.errors);
+    error_list_set_source(&result.errors, src->name, src->data, src->len);
 
     Lexer lx = {
         .src    = src,
@@ -537,12 +554,13 @@ void token_array_print(const TokenArray *tokens) {
     for (size_t i = 0; i < tokens->count; i++) {
         const Token *t = &tokens->data[i];
 
-        printf("[%-12s] \"%.*s\" (%d:%d)\n",
+        printf("[%-12s] \"%.*s\" (%d:%d-%d)\n",
                token_type_name(t->type),
                (int)t->len,
                t->value,
                t->line,
-               t->col);
+               t->col,
+               t->end_col);
     }
 }
 

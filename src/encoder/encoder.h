@@ -38,6 +38,9 @@ typedef enum {
 
 typedef struct {
     OperandKind kind;
+    int         line;
+    int         col;
+    int         end_col; /* exclusive source column */
     union {
         RegId       reg;
         int64_t     imm;

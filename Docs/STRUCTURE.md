@@ -51,12 +51,12 @@ Nazm/
 
 **src/error/**
 - `error.c`, `error.h`
-- Owns diagnostic storage and Arabic-first reporting helpers.
+- Owns diagnostic storage, source-span handling, source-context attachment, and Arabic-first reporting helpers.
 
 **src/lexer/**
 - `lexer.c`, `lexer.h`, `keywords.c`, `keywords.h`
 - Owns source tokenization, Arabic keywords, registers, immediates, directives,
-  labels, punctuation, comments, and line/column tracking.
+  labels, punctuation, comments, and source-span tracking.
 
 **src/parser/**
 - `parser.c`, `parser.h`, `instruction.h`

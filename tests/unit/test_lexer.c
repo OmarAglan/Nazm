@@ -339,6 +339,30 @@ void test_lex_line_numbers(void) {
 
 /* ── Error cases ──────────────────────────────────────────────────────────── */
 
+
+void test_lex_mnemonic_source_span(void) {
+    LexResult r = lex("احمل ر0، ١");
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+
+    Token t = tok(&r, 0);
+    TEST_ASSERT_EQUAL_INT(1, t.line);
+    TEST_ASSERT_EQUAL_INT(1, t.col);
+    TEST_ASSERT_EQUAL_INT(5, t.end_col);
+}
+
+void test_lex_unknown_char_source_span(void) {
+    LexResult r = lex("احمل ر0، @");
+    TEST_ASSERT_TRUE(error_has_any(&r.errors));
+    TEST_ASSERT_EQUAL_STRING("test", r.errors.source.name);
+    TEST_ASSERT_NOT_NULL(r.errors.source.data);
+
+    NazmError e = r.errors.errors[0];
+    TEST_ASSERT_EQUAL_INT(1, e.line);
+    TEST_ASSERT_EQUAL_INT(10, e.col);
+    TEST_ASSERT_EQUAL_INT(11, e.end_col);
+    TEST_ASSERT_NOT_NULL(strstr(e.message, "محرف غير معروف"));
+}
+
 void test_lex_bad_hex_reports_error(void) {
     LexResult r = lex("0x");
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
@@ -439,6 +463,8 @@ int main(void) {
     RUN_TEST(test_lex_line_numbers);
 
     /* Errors */
+    RUN_TEST(test_lex_mnemonic_source_span);
+    RUN_TEST(test_lex_unknown_char_source_span);
     RUN_TEST(test_lex_bad_hex_reports_error);
     RUN_TEST(test_lex_bad_binary_reports_error);
     RUN_TEST(test_lex_continues_after_error);

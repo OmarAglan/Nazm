@@ -1,32 +1,39 @@
 #include "parser.h"
-#include "../lexer/lexer.h"
 #include "../lexer/keywords.h"
-#include <string.h>
-#include <stdlib.h>
+#include "../lexer/lexer.h"
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * Parser state
  * ═══════════════════════════════════════════════════════════════════════════ */
 typedef struct {
     const TokenArray *tokens;
-    size_t            pos;       /* current token index            */
+    size_t            pos;       /* current token index */
     Arena            *arena;
     ErrorList        *errors;
     InstructionList  *out;
-    const char       *src_name; /* filename for diagnostics        */
+    const char       *src_name;  /* filename for diagnostics */
 } Parser;
 
 /* ── InstructionList growth ──────────────────────────────────────────────── */
 static void push_instr(Parser *p, Instruction instr) {
     InstructionList *il = p->out;
+
     if (il->count >= il->capacity) {
         size_t nc = il->capacity == 0 ? 64 : il->capacity * 2;
         Instruction *nd = ARENA_ALLOC_N(p->arena, Instruction, nc);
-        if (il->data) memcpy(nd, il->data, il->count * sizeof(Instruction));
+
+        if (il->data != NULL) {
+            memcpy(nd, il->data, il->count * sizeof(Instruction));
+        }
+
         il->data     = nd;
         il->capacity = nc;
     }
+
     il->data[il->count++] = instr;
 }
 
@@ -41,37 +48,64 @@ static TokenType cur_type(const Parser *p) {
 
 static const Token *advance(Parser *p) {
     const Token *t = cur(p);
-    if (t->type != TOKEN_EOF) p->pos++;
+
+    if (t->type != TOKEN_EOF) {
+        p->pos++;
+    }
+
     return t;
 }
 
 /* Skip newlines — used between instructions */
 static void skip_newlines(Parser *p) {
-    while (cur_type(p) == TOKEN_NEWLINE) advance(p);
-}
-
-/* Consume a COMMA or report error */
-static bool expect_comma(Parser *p) {
-    if (cur_type(p) == TOKEN_COMMA) { advance(p); return true; }
-    const Token *t = cur(p);
-    char msg[128];
-    snprintf(msg, sizeof(msg),
-             "توقعت فاصلة '،' بين المعاملات، وجدت: %s",
-             token_type_name(t->type));
-    error_add(p->errors, p->arena, p->src_name, t->line, t->col, msg);
-    return false;
+    while (cur_type(p) == TOKEN_NEWLINE) {
+        advance(p);
+    }
 }
 
 /* Skip to next NEWLINE or EOF — error recovery */
 static void sync_to_newline(Parser *p) {
-    while (cur_type(p) != TOKEN_NEWLINE && cur_type(p) != TOKEN_EOF)
+    while (cur_type(p) != TOKEN_NEWLINE && cur_type(p) != TOKEN_EOF) {
         advance(p);
+    }
 }
 
-/* ── Error helper ────────────────────────────────────────────────────────── */
+/* ── Error helpers ───────────────────────────────────────────────────────── */
+static void token_error(Parser *p, const Token *t, const char *msg) {
+    error_add_span(p->errors,
+                   p->arena,
+                   p->src_name,
+                   t->line,
+                   t->col,
+                   t->end_col,
+                   msg);
+}
+
 static void parse_error(Parser *p, const char *msg) {
+    token_error(p, cur(p), msg);
+}
+
+/* Consume a COMMA or report error */
+static bool expect_comma(Parser *p) {
+    if (cur_type(p) == TOKEN_COMMA) {
+        advance(p);
+        return true;
+    }
+
     const Token *t = cur(p);
-    error_add(p->errors, p->arena, p->src_name, t->line, t->col, msg);
+    char msg[160];
+    snprintf(msg,
+             sizeof(msg),
+             "توقعت فاصلة عربية '،' بين المعاملات، لكنني وجدت: %s",
+             token_type_name(t->type));
+    token_error(p, t, msg);
+    return false;
+}
+
+static void set_operand_span(Operand *out, const Token *t) {
+    out->line    = t->line;
+    out->col     = t->col;
+    out->end_col = t->end_col;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -80,40 +114,37 @@ static void parse_error(Parser *p, const char *msg) {
 
 /* Parse a memory operand: [ reg ]  or  [ reg + imm ]  or  [ reg - imm ]
  * Called after the opening '[' has been consumed. */
-static bool parse_mem_operand(Parser *p, Operand *out) {
-    /* expect register */
+static bool parse_mem_operand(Parser *p, const Token *open_tok, Operand *out) {
+    out->line    = open_tok->line;
+    out->col     = open_tok->col;
+    out->end_col = open_tok->end_col;
+
     if (cur_type(p) != TOKEN_REGISTER) {
-        parse_error(p, "توقعت اسم سجل داخل '[...]'");
+        parse_error(p, "توقعت اسم سجل داخل عنوان الذاكرة '[...]'");
         sync_to_newline(p);
         return false;
     }
+
     const Token *reg_tok = advance(p);
     int rid = lexer_register_id(reg_tok->value, reg_tok->len);
     if (rid < 0) {
-        char msg[128];
-        snprintf(msg, sizeof(msg), "سجل غير معروف: %.*s",
-                 (int)reg_tok->len, reg_tok->value);
-        error_add(p->errors, p->arena, p->src_name,
-                  reg_tok->line, reg_tok->col, msg);
+        char msg[160];
+        snprintf(msg, sizeof(msg), "سجل غير معروف: %.*s", (int)reg_tok->len, reg_tok->value);
+        token_error(p, reg_tok, msg);
         sync_to_newline(p);
         return false;
     }
 
-    /* optional displacement:
-     *   [reg + imm]  → TOKEN_PLUS  followed by TOKEN_IMMEDIATE
-     *   [reg - imm]  → TOKEN_MINUS followed by TOKEN_IMMEDIATE
-     *   [reg-imm]    → lexer emits TOKEN_IMMEDIATE with negative value directly
-     *                  (no TOKEN_MINUS token in this case)
-     */
     if (cur_type(p) == TOKEN_PLUS || cur_type(p) == TOKEN_MINUS) {
-        int sign = (cur_type(p) == TOKEN_MINUS) ? -1 : 1;
-        advance(p); /* consume + or - */
+        const Token *sign_tok = advance(p);
+        int sign = sign_tok->type == TOKEN_MINUS ? -1 : 1;
 
         if (cur_type(p) != TOKEN_IMMEDIATE) {
-            parse_error(p, "توقعت رقماً بعد '+' أو '-' داخل '[...]'");
+            parse_error(p, "توقعت رقماً بعد علامة الإزاحة داخل عنوان الذاكرة");
             sync_to_newline(p);
             return false;
         }
+
         const Token *imm_tok = advance(p);
         int64_t disp = strtoll(imm_tok->value, NULL, 10) * sign;
 
@@ -121,25 +152,26 @@ static bool parse_mem_operand(Parser *p, Operand *out) {
         out->mem.base = (RegId)rid;
         out->mem.disp = (int32_t)disp;
     } else if (cur_type(p) == TOKEN_IMMEDIATE) {
-        /* Negative immediate directly: lexer already encoded the sign */
         const Token *imm_tok = advance(p);
         int64_t disp = strtoll(imm_tok->value, NULL, 10);
+
         out->kind     = OP_MEM_DISP;
         out->mem.base = (RegId)rid;
         out->mem.disp = (int32_t)disp;
     } else {
-        out->kind = OP_MEM_REG;
+        out->kind     = OP_MEM_REG;
         out->mem.base = (RegId)rid;
         out->mem.disp = 0;
     }
 
-    /* expect ] */
     if (cur_type(p) != TOKEN_RBRACKET) {
         parse_error(p, "توقعت ']' لإغلاق عنوان الذاكرة");
         sync_to_newline(p);
         return false;
     }
-    advance(p); /* consume ] */
+
+    const Token *close_tok = advance(p);
+    out->end_col = close_tok->end_col;
     return true;
 }
 
@@ -148,49 +180,47 @@ static bool parse_mem_operand(Parser *p, Operand *out) {
 static bool parse_operand(Parser *p, Operand *out) {
     memset(out, 0, sizeof(*out));
     const Token *t = cur(p);
+    set_operand_span(out, t);
 
     switch (t->type) {
-
     case TOKEN_REGISTER: {
         advance(p);
         int rid = lexer_register_id(t->value, t->len);
         if (rid < 0) {
-            char msg[128];
-            snprintf(msg, sizeof(msg), "سجل غير معروف: %.*s",
-                     (int)t->len, t->value);
-            error_add(p->errors, p->arena, p->src_name, t->line, t->col, msg);
+            char msg[160];
+            snprintf(msg, sizeof(msg), "سجل غير معروف: %.*s", (int)t->len, t->value);
+            token_error(p, t, msg);
             return false;
         }
+
         out->kind = OP_REG;
         out->reg  = (RegId)rid;
         return true;
     }
 
-    case TOKEN_IMMEDIATE: {
+    case TOKEN_IMMEDIATE:
         advance(p);
         out->kind = OP_IMM;
         out->imm  = strtoll(t->value, NULL, 10);
         return true;
-    }
 
-    case TOKEN_LBRACKET: {
-        advance(p); /* consume [ */
-        return parse_mem_operand(p, out);
-    }
+    case TOKEN_LBRACKET:
+        advance(p);
+        return parse_mem_operand(p, t, out);
 
-    case TOKEN_LABEL_REF: {
+    case TOKEN_LABEL_REF:
         advance(p);
         out->kind  = OP_LABEL;
         out->label = arena_strndup(p->arena, t->value, t->len);
         return true;
-    }
 
     default: {
-        char msg[128];
-        snprintf(msg, sizeof(msg),
-                 "توقعت معاملاً (سجل، رقم، ذاكرة، أو رمز)، وجدت: %s",
+        char msg[160];
+        snprintf(msg,
+                 sizeof(msg),
+                 "توقعت معاملاً: سجل، رقم، ذاكرة، أو وسم؛ لكنني وجدت: %s",
                  token_type_name(t->type));
-        error_add(p->errors, p->arena, p->src_name, t->line, t->col, msg);
+        token_error(p, t, msg);
         return false;
     }
     }
@@ -198,8 +228,6 @@ static bool parse_operand(Parser *p, Operand *out) {
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * Operand count table
- * How many operands does each opcode expect?
- * -1 = variable (0 or more checked at encode time)
  * ═══════════════════════════════════════════════════════════════════════════ */
 typedef struct { OpcodeEnum op; int min; int max; } OpArity;
 
@@ -210,7 +238,7 @@ static const OpArity ARITY_TABLE[] = {
     { OPCODE_POP,     1, 1 },
     { OPCODE_ADD,     2, 2 },
     { OPCODE_SUB,     2, 2 },
-    { OPCODE_IMUL,    2, 3 },  /* imul reg,reg  or  imul reg,reg,imm */
+    { OPCODE_IMUL,    2, 3 },
     { OPCODE_IDIV,    1, 1 },
     { OPCODE_INC,     1, 1 },
     { OPCODE_DEC,     1, 1 },
@@ -241,14 +269,61 @@ static const OpArity ARITY_TABLE[] = {
     { OPCODE_NOP,     0, 0 },
     { OPCODE_HLT,     0, 0 },
     { OPCODE_INT,     1, 1 },
-    { OPCODE_INVALID, 0, 0 },  /* sentinel */
+    { OPCODE_INVALID, 0, 0 },
 };
 
 static void get_arity(OpcodeEnum op, int *min, int *max) {
     for (const OpArity *a = ARITY_TABLE; a->op != OPCODE_INVALID; a++) {
-        if (a->op == op) { *min = a->min; *max = a->max; return; }
+        if (a->op == op) {
+            *min = a->min;
+            *max = a->max;
+            return;
+        }
     }
-    *min = 0; *max = MAX_OPERANDS;
+
+    *min = 0;
+    *max = MAX_OPERANDS;
+}
+
+static void set_instruction_span(Instruction *instr, const Token *t) {
+    instr->line    = t->line;
+    instr->col     = t->col;
+    instr->end_col = t->end_col;
+}
+
+static void check_arity(Parser *p, const Instruction *instr, int min_ops, int max_ops) {
+    if (instr->op_count < min_ops) {
+        char msg[160];
+        snprintf(msg,
+                 sizeof(msg),
+                 "التعليمة تحتاج %d معاملات على الأقل، لكن الموجود %d",
+                 min_ops,
+                 instr->op_count);
+        error_add_span(p->errors,
+                       p->arena,
+                       p->src_name,
+                       instr->line,
+                       instr->col,
+                       instr->end_col,
+                       msg);
+        return;
+    }
+
+    if (instr->op_count > max_ops) {
+        char msg[160];
+        snprintf(msg,
+                 sizeof(msg),
+                 "التعليمة تقبل %d معاملات كحد أقصى، لكن الموجود %d",
+                 max_ops,
+                 instr->op_count);
+        error_add_span(p->errors,
+                       p->arena,
+                       p->src_name,
+                       instr->line,
+                       instr->col,
+                       instr->end_col,
+                       msg);
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -260,109 +335,128 @@ static void get_arity(OpcodeEnum op, int *min, int *max) {
 static void parse_line(Parser *p) {
     const Token *t = cur(p);
 
-    /* ── Empty / EOF ── */
-    if (t->type == TOKEN_EOF)    return;
-    if (t->type == TOKEN_NEWLINE){ advance(p); return; }
+    if (t->type == TOKEN_EOF) {
+        return;
+    }
+
+    if (t->type == TOKEN_NEWLINE) {
+        advance(p);
+        return;
+    }
 
     Instruction instr;
     memset(&instr, 0, sizeof(instr));
     instr.opcode = OPCODE_INVALID;
-    instr.line   = t->line;
-    instr.col    = t->col;
+    set_instruction_span(&instr, t);
 
-    /* ── Optional label definition ── */
     if (t->type == TOKEN_LABEL_DEF) {
-        instr.label = arena_strndup(p->arena, t->value, t->len);
-        advance(p); /* consume label token */
+        instr.label         = arena_strndup(p->arena, t->value, t->len);
+        instr.label_line    = t->line;
+        instr.label_col     = t->col;
+        instr.label_end_col = t->end_col;
+        advance(p);
         t = cur(p);
 
-        /* label alone on the line? */
         if (t->type == TOKEN_NEWLINE || t->type == TOKEN_EOF) {
-            if (t->type == TOKEN_NEWLINE) advance(p);
+            if (t->type == TOKEN_NEWLINE) {
+                advance(p);
+            }
             push_instr(p, instr);
             return;
         }
+
+        set_instruction_span(&instr, t);
     }
 
-    /* ── Directive ── */
     if (t->type == TOKEN_DIRECTIVE) {
         instr.directive = arena_strndup(p->arena, t->value, t->len);
-        advance(p); /* consume directive token */
+        advance(p);
 
-        /* Collect any operands that follow on the same line */
         while (cur_type(p) != TOKEN_NEWLINE && cur_type(p) != TOKEN_EOF) {
-            if (cur_type(p) == TOKEN_COMMA) { advance(p); continue; }
-            if (instr.op_count >= MAX_OPERANDS) break;
+            if (cur_type(p) == TOKEN_COMMA) {
+                advance(p);
+                continue;
+            }
+
+            if (instr.op_count >= MAX_OPERANDS) {
+                parse_error(p, "عدد معاملات أكثر من المسموح؛ الحد الأقصى 3");
+                sync_to_newline(p);
+                break;
+            }
+
             Operand op;
-            if (!parse_operand(p, &op)) { sync_to_newline(p); break; }
+            if (!parse_operand(p, &op)) {
+                sync_to_newline(p);
+                break;
+            }
             instr.ops[instr.op_count++] = op;
         }
-        if (cur_type(p) == TOKEN_NEWLINE) advance(p);
+
+        if (cur_type(p) == TOKEN_NEWLINE) {
+            advance(p);
+        }
         push_instr(p, instr);
         return;
     }
 
-    /* ── Instruction ── */
     if (t->type != TOKEN_MNEMONIC) {
-        char msg[128];
-        snprintf(msg, sizeof(msg),
-                 "توقعت تعليمة أو توجيهاً، وجدت: '%.*s' (%s)",
-                 (int)t->len, t->value, token_type_name(t->type));
-        error_add(p->errors, p->arena, p->src_name, t->line, t->col, msg);
+        char msg[180];
+        snprintf(msg,
+                 sizeof(msg),
+                 "توقعت تعليمة أو توجيهاً، لكنني وجدت '%.*s' (%s)",
+                 (int)t->len,
+                 t->value,
+                 token_type_name(t->type));
+        token_error(p, t, msg);
         sync_to_newline(p);
-        if (cur_type(p) == TOKEN_NEWLINE) advance(p);
+        if (cur_type(p) == TOKEN_NEWLINE) {
+            advance(p);
+        }
         return;
     }
 
-    /* Resolve mnemonic → opcode (already done by lexer, just confirm) */
     instr.opcode = keywords_lookup(t->value, t->len);
     if (instr.opcode == OPCODE_INVALID) {
-        char msg[128];
-        snprintf(msg, sizeof(msg), "تعليمة غير معروفة: '%.*s'",
-                 (int)t->len, t->value);
-        error_add(p->errors, p->arena, p->src_name, t->line, t->col, msg);
+        char msg[160];
+        snprintf(msg, sizeof(msg), "تعليمة غير معروفة: '%.*s'", (int)t->len, t->value);
+        token_error(p, t, msg);
         sync_to_newline(p);
-        if (cur_type(p) == TOKEN_NEWLINE) advance(p);
+        if (cur_type(p) == TOKEN_NEWLINE) {
+            advance(p);
+        }
         return;
     }
-    advance(p); /* consume mnemonic */
+    advance(p);
 
-    /* Parse operands */
-    int min_ops, max_ops;
+    int min_ops = 0;
+    int max_ops = 0;
     get_arity(instr.opcode, &min_ops, &max_ops);
 
     while (cur_type(p) != TOKEN_NEWLINE && cur_type(p) != TOKEN_EOF) {
-        if (instr.op_count > 0) {
-            if (!expect_comma(p)) { sync_to_newline(p); break; }
-        }
-        if (instr.op_count >= MAX_OPERANDS) {
-            parse_error(p, "عدد معاملات أكثر من المسموح (الحد الأقصى 3)");
+        if (instr.op_count > 0 && !expect_comma(p)) {
             sync_to_newline(p);
             break;
         }
+
+        if (instr.op_count >= MAX_OPERANDS) {
+            parse_error(p, "عدد معاملات أكثر من المسموح؛ الحد الأقصى 3");
+            sync_to_newline(p);
+            break;
+        }
+
         Operand op;
-        if (!parse_operand(p, &op)) { sync_to_newline(p); break; }
+        if (!parse_operand(p, &op)) {
+            sync_to_newline(p);
+            break;
+        }
         instr.ops[instr.op_count++] = op;
     }
 
-    /* Arity check */
-    if (instr.op_count < min_ops) {
-        char msg[128];
-        snprintf(msg, sizeof(msg),
-                 "التعليمة تحتاج %d معاملات على الأقل، وجد %d",
-                 min_ops, instr.op_count);
-        error_add(p->errors, p->arena, p->src_name,
-                  instr.line, instr.col, msg);
-    } else if (instr.op_count > max_ops) {
-        char msg[128];
-        snprintf(msg, sizeof(msg),
-                 "التعليمة تقبل %d معاملات كحد أقصى، وجد %d",
-                 max_ops, instr.op_count);
-        error_add(p->errors, p->arena, p->src_name,
-                  instr.line, instr.col, msg);
-    }
+    check_arity(p, &instr, min_ops, max_ops);
 
-    if (cur_type(p) == TOKEN_NEWLINE) advance(p);
+    if (cur_type(p) == TOKEN_NEWLINE) {
+        advance(p);
+    }
     push_instr(p, instr);
 }
 
@@ -371,7 +465,15 @@ static void parse_line(Parser *p) {
  * ═══════════════════════════════════════════════════════════════════════════ */
 ParseResult parser_parse(const TokenArray *tokens, Arena *arena) {
     ParseResult result = {0};
+    result.instructions.source_name = tokens->source_name;
+    result.instructions.source_data = tokens->source_data;
+    result.instructions.source_len  = tokens->source_len;
+
     error_list_init(&result.errors);
+    error_list_set_source(&result.errors,
+                          tokens->source_name,
+                          tokens->source_data,
+                          tokens->source_len);
 
     Parser p = {
         .tokens   = tokens,
@@ -379,11 +481,8 @@ ParseResult parser_parse(const TokenArray *tokens, Arena *arena) {
         .arena    = arena,
         .errors   = &result.errors,
         .out      = &result.instructions,
-        .src_name = "unknown",
+        .src_name = tokens->source_name ? tokens->source_name : "unknown",
     };
-
-    /* Try to get filename from first token's context — not stored in tokens,
-     * so we use a generic label for now. Pass 1 can override via error context. */
 
     skip_newlines(&p);
     while (cur_type(&p) != TOKEN_EOF) {

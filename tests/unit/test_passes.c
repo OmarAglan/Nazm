@@ -92,6 +92,18 @@ void test_p1_duplicate_label_error(void) {
     TEST_ASSERT_TRUE(error_has_any(&pl.p1.errors));
 }
 
+void test_p1_duplicate_label_error_span_points_to_duplicate(void) {
+    Pipeline pl = run("حلقة:\nارجع\nحلقة:\nارجع");
+    TEST_ASSERT_TRUE(error_has_any(&pl.p1.errors));
+
+    NazmError e = pl.p1.errors.errors[0];
+    TEST_ASSERT_EQUAL_INT(3, e.line);
+    TEST_ASSERT_EQUAL_INT(1, e.col);
+    TEST_ASSERT_EQUAL_INT(5, e.end_col);
+    TEST_ASSERT_NOT_NULL(strstr(e.message, "وسم مكرر"));
+    TEST_ASSERT_EQUAL_STRING("test", pl.p1.errors.source.name);
+}
+
 /* ── Pass 2: byte output ──────────────────────────────────────────────────── */
 
 void test_p2_ret_bytes(void) {
@@ -198,6 +210,18 @@ void test_p2_unresolved_label_error(void) {
     TEST_ASSERT_TRUE(error_has_any(&pl.p2.errors));
 }
 
+void test_p2_unresolved_label_error_span_points_to_operand(void) {
+    Pipeline pl = run("اقفز غير_موجود");
+    TEST_ASSERT_TRUE(error_has_any(&pl.p2.errors));
+
+    NazmError e = pl.p2.errors.errors[0];
+    TEST_ASSERT_EQUAL_INT(1, e.line);
+    TEST_ASSERT_EQUAL_INT(6, e.col);
+    TEST_ASSERT_TRUE(e.end_col > e.col);
+    TEST_ASSERT_NOT_NULL(strstr(e.message, "وسم غير محلول"));
+    TEST_ASSERT_EQUAL_STRING("test", pl.p2.errors.source.name);
+}
+
 /* ── Main ─────────────────────────────────────────────────────────────────── */
 int main(void) {
     UNITY_BEGIN();
@@ -212,6 +236,7 @@ int main(void) {
     RUN_TEST(test_p1_text_size_syscall);
     RUN_TEST(test_p1_directive_not_counted);
     RUN_TEST(test_p1_duplicate_label_error);
+    RUN_TEST(test_p1_duplicate_label_error_span_points_to_duplicate);
 
     /* Pass 2 */
     RUN_TEST(test_p2_ret_bytes);
@@ -224,6 +249,7 @@ int main(void) {
     RUN_TEST(test_p2_forward_jump_resolved);
     RUN_TEST(test_p2_full_exit_program);
     RUN_TEST(test_p2_unresolved_label_error);
+    RUN_TEST(test_p2_unresolved_label_error_span_points_to_operand);
 
     return UNITY_END();
 }

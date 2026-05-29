@@ -21,6 +21,10 @@ Pass2Result pass2_run(const InstructionList *instructions,
                       Arena                 *arena) {
     Pass2Result result = {0};
     error_list_init(&result.errors);
+    error_list_set_source(&result.errors,
+                          instructions->source_name,
+                          instructions->source_data,
+                          instructions->source_len);
 
     /* Pre-allocate output buffer (text_size from pass1) */
     size_t buf_capacity = pass1->text_size + 16; /* small pad */
@@ -60,8 +64,13 @@ Pass2Result pass2_run(const InstructionList *instructions,
                     snprintf(msg, sizeof(msg),
                              "وسم غير محلول: '%s'",
                              resolved_ops[j].label);
-                    error_add(&result.errors, arena,
-                              "unknown", instr->line, instr->col, msg);
+                    error_add_span(&result.errors,
+                                   arena,
+                                   instructions->source_name ? instructions->source_name : "unknown",
+                                   resolved_ops[j].line ? resolved_ops[j].line : instr->line,
+                                   resolved_ops[j].col ? resolved_ops[j].col : instr->col,
+                                   resolved_ops[j].end_col ? resolved_ops[j].end_col : instr->end_col,
+                                   msg);
                     target_offset = 0;
                 }
                 /* PC-relative displacement from end of this instruction */
@@ -80,8 +89,13 @@ Pass2Result pass2_run(const InstructionList *instructions,
             char msg[256];
             snprintf(msg, sizeof(msg),
                      "تعذّر ترميز التعليمة (opcode=%d)", (int)instr->opcode);
-            error_add(&result.errors, arena,
-                      "unknown", instr->line, instr->col, msg);
+            error_add_span(&result.errors,
+                           arena,
+                           instructions->source_name ? instructions->source_name : "unknown",
+                           instr->line,
+                           instr->col,
+                           instr->end_col,
+                           msg);
             /* Emit NOP bytes to maintain offsets */
             for (int k = 0; k < sz; k++) {
                 if (result.text_size < buf_capacity)

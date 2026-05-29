@@ -74,17 +74,18 @@ without compiling `src/main.c`.
 - Defined in `src/lexer/lexer.h`.
 - Represents mnemonics, registers, immediates, directives, labels, punctuation,
   and EOF markers.
-- Carries source location for diagnostics.
+- Carries source span data (`line`, `col`, `end_col`) plus borrowed source metadata for diagnostics.
 
 **Instruction and InstructionList**
 - Defined in `src/parser/instruction.h`.
 - `Instruction` stores the opcode, up to three operands, optional label,
-  optional directive, and source location.
-- `InstructionList` is the parser-owned sequence consumed by passes.
+  optional directive, instruction source span, and label-definition source span.
+- `InstructionList` is the parser-owned sequence consumed by passes and carries borrowed source metadata for later diagnostics.
 
 **Operand**
 - Defined in `src/encoder/encoder.h`.
 - Represents register, immediate, memory, or label operands.
+- Carries operand source span data so pass2 can report unresolved labels at the operand, not merely at the instruction.
 - Shared today by parser, passes, and encoder.
 
 **SymbolTable**
@@ -127,6 +128,7 @@ Planned or limited:
 ## Error Handling
 
 - User-facing diagnostics should be Arabic-first and valid UTF-8.
+- Lexer, parser, pass1, and pass2 diagnostics should prefer precise source spans and print source context when the original buffer is available.
 - Bad source should produce diagnostics rather than crashes or guessed bytes.
 - Encoder failures and unsupported forms must be explicit because silent wrong
   machine code is worse than rejecting a feature.

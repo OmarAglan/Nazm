@@ -61,18 +61,25 @@
 - Collect multiple errors when possible (the parser and pass1 both accumulate errors rather than stopping at first)
 
 **Error Types:**
-- `Error` struct defined in `src/error/error.h`: `{ char *message; char *file; int line; int col; }`
-- Messages are in Arabic (user-facing); internal `assert()` messages may be English
-- Do not use `errno` — all errors are explicit structs
+- `NazmError` in `src/error/error.h` stores `{ file, line, col, end_col, message }`; `end_col` is exclusive and lets diagnostics underline the complete offending token or operand.
+- `ErrorList` may borrow source text through `error_list_set_source()` so `error_print_all()` can print Arabic source context and a marker line.
+- Messages are in Arabic (user-facing); internal `assert()` messages may be English.
+- Do not use `errno` as the user-facing result — convert failures into explicit Arabic diagnostics or CLI messages.
 
 **Example:**
 ```c
-// Good: result struct pattern
-LexResult result = lexer_lex(&source);
-if (!result.ok) {
-    error_print_all(result.errors, result.error_count);
+SourceBuffer source = {
+    .data = bytes,
+    .len  = byte_count,
+    .name = path,
+};
+
+LexResult result = lexer_lex(&source, arena);
+if (error_has_any(&result.errors)) {
+    error_print_all(&result.errors);
     return ASSEMBLE_ERROR;
 }
+
 TokenArray tokens = result.tokens;
 
 // Bad: NULL return
@@ -84,7 +91,7 @@ if (!tokens) { /* how do we know what went wrong? */ }
 
 **Framework:**
 - No logging library — `fprintf(stderr, ...)` for warnings and internal diagnostics
-- User-facing errors go through `src/error/error.c` helpers and stay Arabic-first.
+- User-facing errors go through `src/error/error.c` helpers, use source spans when possible, and stay Arabic-first.
 - Never `printf` for errors; `fprintf(stderr, ...)` only
 
 **Patterns:**

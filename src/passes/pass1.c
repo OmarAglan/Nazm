@@ -20,6 +20,10 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
     Pass1Result result = {0};
     symtable_init(&result.symtable, arena);
     error_list_init(&result.errors);
+    error_list_set_source(&result.errors,
+                          instructions->source_name,
+                          instructions->source_data,
+                          instructions->source_len);
 
     size_t offset = 0;
 
@@ -34,8 +38,13 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                          "وسم مكرر: '%s'", instr->label);
-                error_add(&result.errors, arena,
-                          "unknown", instr->line, instr->col, msg);
+                error_add_span(&result.errors,
+                               arena,
+                               instructions->source_name ? instructions->source_name : "unknown",
+                               instr->label_line ? instr->label_line : instr->line,
+                               instr->label_col ? instr->label_col : instr->col,
+                               instr->label_end_col ? instr->label_end_col : instr->end_col,
+                               msg);
             }
         }
 

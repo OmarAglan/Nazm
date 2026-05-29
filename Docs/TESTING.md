@@ -83,6 +83,8 @@ and runs those same suites.
 - Critical modules are lexer, parser, pass1, pass2, encoder, and output writers.
 - Any change that affects machine bytes, symbol resolution, diagnostics, or
   object layout needs focused tests or a stated reason for deferral.
+- Diagnostic changes should assert both Arabic message intent and source span
+  (`line`, `col`, `end_col`) where the exact position matters.
 
 ---
 
