@@ -20,12 +20,17 @@ function(add_nazm_test)
 endfunction()
 
 # ── Unit tests ───────────────────────────────────────────────────────────────
-add_nazm_test(NAME test_arena    SOURCES unit/test_arena.c)
-add_nazm_test(NAME test_unicode  SOURCES unit/test_unicode.c)
-add_nazm_test(NAME test_symtable SOURCES unit/test_symtable.c)
-add_nazm_test(NAME test_keywords SOURCES unit/test_keywords.c)
-add_nazm_test(NAME test_imm      SOURCES unit/test_immediate.c)
-add_nazm_test(NAME test_rex      SOURCES unit/test_rex.c)
+add_nazm_test(NAME test_arena     SOURCES unit/test_arena.c)
+add_nazm_test(NAME test_unicode   SOURCES unit/test_unicode.c)
+add_nazm_test(NAME test_symtable  SOURCES unit/test_symtable.c)
+add_nazm_test(NAME test_keywords  SOURCES unit/test_keywords.c)
+add_nazm_test(NAME test_immediate SOURCES unit/test_immediate.c)
+add_nazm_test(NAME test_rex       SOURCES unit/test_rex.c)
+add_nazm_test(NAME test_lexer     SOURCES unit/test_lexer.c)
+add_nazm_test(NAME test_parser    SOURCES unit/test_parser.c)
+add_nazm_test(NAME test_encoder   SOURCES unit/test_encoder.c)
+add_nazm_test(NAME test_passes    SOURCES unit/test_passes.c)
+add_nazm_test(NAME test_elf64     SOURCES unit/test_elf64.c)
 
 # ── Integration tests ────────────────────────────────────────────────────────
 # (added when pipeline is functional)

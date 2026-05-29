@@ -27,12 +27,15 @@ typedef struct {
 } Buf;
 
 static void emit(Buf *b, uint8_t byte) {
-    if (b->len < MAX_INSTRUCTION_BYTES) b->buf[b->len++] = byte;
+    if (b->len < MAX_INSTRUCTION_BYTES) {
+        b->buf[b->len++] = byte;
+    }
 }
 
 static void emit_rex(Buf *b, bool w, bool r, bool x, bool bp) {
-    if (rex_required(w, r, x, bp))
+    if (rex_required(w, r, x, bp)) {
         emit(b, rex_byte(w, r, x, bp));
+    }
 }
 
 static void emit32(Buf *b, int32_t v) {
@@ -43,11 +46,16 @@ static void emit32(Buf *b, int32_t v) {
 }
 
 static void emit64(Buf *b, int64_t v) {
-    for (int i = 0; i < 8; i++) emit(b, (uint8_t)(v >> (i*8)));
+    for (int i = 0; i < 8; i++) {
+        emit(b, (uint8_t)(v >> (i * 8)));
+    }
 }
 
 static EncodedInstruction make_error(void) {
-    EncodedInstruction r = {0}; r.error = true; return r;
+    EncodedInstruction r = {0};
+
+    r.error = true;
+    return r;
 }
 
 static EncodedInstruction from_buf(Buf *b) {
@@ -60,13 +68,31 @@ static EncodedInstruction from_buf(Buf *b) {
 /* ── Register helpers ────────────────────────────────────────────────────── */
 
 /* 3-bit field for a 64-bit GPR (strips REX extension bit) */
-static int rf(RegId r) { return reg_field(r); }
+static int rf(RegId r) {
+    return reg_field(r);
+}
 
 /* Does register need REX.R (used in reg field of ModRM)? */
-static bool rex_r(RegId r) { return reg_needs_rex(r) != 0; }
+static bool rex_r(RegId r) {
+    return reg_needs_rex(r) != 0;
+}
 
 /* Does register need REX.B (used in rm/base field of ModRM)? */
-static bool rex_b(RegId r) { return reg_needs_rex(r) != 0; }
+static bool rex_b(RegId r) {
+    return reg_needs_rex(r) != 0;
+}
+
+static bool operand_is_mem(const Operand *op) {
+    return op->kind == OP_MEM_REG || op->kind == OP_MEM_DISP;
+}
+
+static int32_t operand_disp(const Operand *op) {
+    if (op->kind == OP_MEM_DISP) {
+        return op->mem.disp;
+    }
+
+    return 0;
+}
 
 /* ── ModRM encoders ──────────────────────────────────────────────────────── */
 
@@ -92,35 +118,59 @@ static void emit_mem(Buf *b, uint8_t opcode,
                      int reg_field_val, bool rex_R,
                      RegId base, int32_t disp, bool w64) {
     bool need_sib = (rf(base) == 4);  /* RSP/R12 always need SIB */
-    bool rex_B    = rex_b(base);
+    bool rex_B = rex_b(base);
+    int rm_field = need_sib ? 4 : rf(base);
+
     emit_rex(b, w64, rex_R, false, rex_B);
     emit(b, opcode);
 
     if (disp == 0 && rf(base) != 5) {
         /* mod=00, no disp (except RBP/R13 which must use mod=01, disp=0) */
-        emit(b, modrm_byte(0, reg_field_val, need_sib ? 4 : rf(base)));
-        if (need_sib) emit(b, sib_byte(0, 4, rf(base)));
-    } else if (disp >= -128 && disp <= 127) {
-        /* mod=01, disp8 */
-        emit(b, modrm_byte(1, reg_field_val, need_sib ? 4 : rf(base)));
-        if (need_sib) emit(b, sib_byte(0, 4, rf(base)));
-        emit(b, (uint8_t)(int8_t)disp);
-    } else {
-        /* mod=10, disp32 */
-        emit(b, modrm_byte(2, reg_field_val, need_sib ? 4 : rf(base)));
-        if (need_sib) emit(b, sib_byte(0, 4, rf(base)));
-        emit32(b, disp);
+        emit(b, modrm_byte(0, reg_field_val, rm_field));
+        if (need_sib) {
+            emit(b, sib_byte(0, 4, rf(base)));
+        }
+        return;
     }
+
+    if (disp >= -128 && disp <= 127) {
+        /* mod=01, disp8 */
+        emit(b, modrm_byte(1, reg_field_val, rm_field));
+        if (need_sib) {
+            emit(b, sib_byte(0, 4, rf(base)));
+        }
+        emit(b, (uint8_t)(int8_t)disp);
+        return;
+    }
+
+    /* mod=10, disp32 */
+    emit(b, modrm_byte(2, reg_field_val, rm_field));
+    if (need_sib) {
+        emit(b, sib_byte(0, 4, rf(base)));
+    }
+    emit32(b, disp);
 }
 
 /* ── Size of disp field for a memory operand ─────────────────────────────── */
 static int mem_disp_size(RegId base, int32_t disp) {
-    if (disp == 0 && rf(base) != 5) return 0;
-    if (disp >= -128 && disp <= 127) return 1;
+    if (disp == 0 && rf(base) != 5) {
+        return 0;
+    }
+
+    if (disp >= -128 && disp <= 127) {
+        return 1;
+    }
+
     return 4;
 }
 
-static int mem_sib_size(RegId base) { return (rf(base) == 4) ? 1 : 0; }
+static int mem_sib_size(RegId base) {
+    if (rf(base) == 4) {
+        return 1;
+    }
+
+    return 0;
+}
 
 /* ── MOV ─────────────────────────────────────────────────────────────────── */
 
@@ -154,19 +204,17 @@ static EncodedInstruction enc_mov(const Operand *ops, int n) {
     }
 
     /* MOV r64, r/m64 (load from memory)  — REX.W 8B /r */
-    if (dst->kind == OP_REG &&
-        (src->kind == OP_MEM_REG || src->kind == OP_MEM_DISP)) {
+    if (dst->kind == OP_REG && operand_is_mem(src)) {
         RegId base = src->mem.base;
-        int32_t disp = (src->kind == OP_MEM_DISP) ? src->mem.disp : 0;
+        int32_t disp = operand_disp(src);
         emit_mem(&b, 0x8B, rf(dst->reg), rex_r(dst->reg), base, disp, true);
         return from_buf(&b);
     }
 
     /* MOV r/m64, r64 (store to memory)  — REX.W 89 /r */
-    if ((dst->kind == OP_MEM_REG || dst->kind == OP_MEM_DISP) &&
-        src->kind == OP_REG) {
+    if (operand_is_mem(dst) && src->kind == OP_REG) {
         RegId base = dst->mem.base;
-        int32_t disp = (dst->kind == OP_MEM_DISP) ? dst->mem.disp : 0;
+        int32_t disp = operand_disp(dst);
         emit_mem(&b, 0x89, rf(src->reg), rex_r(src->reg), base, disp, true);
         return from_buf(&b);
     }
@@ -185,16 +233,14 @@ static int size_mov(const Operand *ops, int n) {
     }
     if (dst->kind == OP_REG && src->kind == OP_REG)
         return 1 + 1 + 1; /* REX.W + 89 + ModRM = 3 */
-    if (dst->kind == OP_REG &&
-        (src->kind == OP_MEM_REG || src->kind == OP_MEM_DISP)) {
+    if (dst->kind == OP_REG && operand_is_mem(src)) {
         RegId base = src->mem.base;
-        int32_t d  = (src->kind == OP_MEM_DISP) ? src->mem.disp : 0;
+        int32_t d = operand_disp(src);
         return 1 + 1 + 1 + mem_sib_size(base) + mem_disp_size(base, d);
     }
-    if ((dst->kind == OP_MEM_REG || dst->kind == OP_MEM_DISP) &&
-        src->kind == OP_REG) {
+    if (operand_is_mem(dst) && src->kind == OP_REG) {
         RegId base = dst->mem.base;
-        int32_t d  = (dst->kind == OP_MEM_DISP) ? dst->mem.disp : 0;
+        int32_t d = operand_disp(dst);
         return 1 + 1 + 1 + mem_sib_size(base) + mem_disp_size(base, d);
     }
     return MAX_INSTRUCTION_BYTES;
@@ -275,10 +321,9 @@ static int size_alu(const Operand *ops, int n) {
     if (dst->kind == OP_REG && src->kind == OP_IMM) {
         return (src->imm >= -128 && src->imm <= 127) ? 4 : 7;
     }
-    if (dst->kind == OP_REG &&
-        (src->kind == OP_MEM_REG || src->kind == OP_MEM_DISP)) {
+    if (dst->kind == OP_REG && operand_is_mem(src)) {
         RegId base = src->mem.base;
-        int32_t d  = (src->kind == OP_MEM_DISP) ? src->mem.disp : 0;
+        int32_t d = operand_disp(src);
         return 1+1+1 + mem_sib_size(base) + mem_disp_size(base,d);
     }
     return MAX_INSTRUCTION_BYTES;
@@ -461,25 +506,38 @@ static EncodedInstruction enc_jcc(int64_t disp, uint8_t opcode2) {
 /* ── RET ─────────────────────────────────────────────────────────────────── */
 
 static EncodedInstruction enc_ret(void) {
-    Buf b = {0}; emit(&b, 0xC3); return from_buf(&b);
+    Buf b = {0};
+
+    emit(&b, 0xC3);
+    return from_buf(&b);
 }
 
 /* ── NOP ─────────────────────────────────────────────────────────────────── */
 
 static EncodedInstruction enc_nop(void) {
-    Buf b = {0}; emit(&b, 0x90); return from_buf(&b);
+    Buf b = {0};
+
+    emit(&b, 0x90);
+    return from_buf(&b);
 }
 
 /* ── HLT ─────────────────────────────────────────────────────────────────── */
 
 static EncodedInstruction enc_hlt(void) {
-    Buf b = {0}; emit(&b, 0xF4); return from_buf(&b);
+    Buf b = {0};
+
+    emit(&b, 0xF4);
+    return from_buf(&b);
 }
 
 /* ── SYSCALL ─────────────────────────────────────────────────────────────── */
 
 static EncodedInstruction enc_syscall(void) {
-    Buf b = {0}; emit(&b, 0x0F); emit(&b, 0x05); return from_buf(&b);
+    Buf b = {0};
+
+    emit(&b, 0x0F);
+    emit(&b, 0x05);
+    return from_buf(&b);
 }
 
 /* ── INT ─────────────────────────────────────────────────────────────────── */
@@ -496,11 +554,12 @@ static EncodedInstruction enc_int(const Operand *ops, int n) {
 
 static EncodedInstruction enc_lea(const Operand *ops, int n) {
     if (n != 2 || ops[0].kind != OP_REG) return make_error();
-    if (ops[1].kind != OP_MEM_REG && ops[1].kind != OP_MEM_DISP)
+    if (!operand_is_mem(&ops[1])) {
         return make_error();
+    }
     Buf b = {0};
     RegId base = ops[1].mem.base;
-    int32_t d  = (ops[1].kind == OP_MEM_DISP) ? ops[1].mem.disp : 0;
+    int32_t d = operand_disp(&ops[1]);
     emit_mem(&b, 0x8D, rf(ops[0].reg), rex_r(ops[0].reg), base, d, true);
     return from_buf(&b);
 }

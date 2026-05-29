@@ -34,9 +34,7 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 # ── Source files ─────────────────────────────────────────────────────────────
-set(NAZM_SOURCES
-    src/main.c
-
+set(NAZM_LIBRARY_SOURCES
     src/alloc/arena.c
     src/unicode/arabic.c
     src/error/error.c
@@ -64,6 +62,11 @@ set(NAZM_SOURCES
     src/cli/args.c
 )
 
+set(NAZM_SOURCES
+    src/main.c
+    ${NAZM_LIBRARY_SOURCES}
+)
+
 # ── Assembler binary ─────────────────────────────────────────────────────────
 add_executable(nazm ${NAZM_SOURCES})
 
@@ -73,16 +76,12 @@ target_include_directories(nazm PRIVATE
 )
 
 # ── Library (for future in-process use by Baa) ───────────────────────────────
-add_library(libnazm STATIC ${NAZM_SOURCES})
+add_library(libnazm STATIC ${NAZM_LIBRARY_SOURCES})
 target_include_directories(libnazm PUBLIC
     ${CMAKE_SOURCE_DIR}/include
 )
 target_include_directories(libnazm PRIVATE
     ${CMAKE_SOURCE_DIR}/src
-)
-# Exclude main.c from library build
-set_target_properties(libnazm PROPERTIES
-    COMPILE_DEFINITIONS "NAZM_LIBRARY_BUILD=1"
 )
 
 # ── Tests ────────────────────────────────────────────────────────────────────

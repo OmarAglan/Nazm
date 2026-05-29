@@ -44,7 +44,7 @@ static int _unity_tests    = 0;
     int _e = (int)(expected), _a = (int)(actual); \
     if (_e != _a) { \
         char _m[128]; \
-        snprintf(_m, sizeof(_m), "Expected %d but got %d (" #actual ")", _e, _a); \
+        snprintf(_m, sizeof(_m), "Expected %d but got %d (%s)", _e, _a, #actual); \
         _FAIL(_m); \
     } \
 } while(0)
@@ -115,4 +115,4 @@ static int _unity_tests    = 0;
     } \
 } while(0)
 
-/* unity.c is empty when using header-only mode */
+/* unity.c keeps a non-empty translation unit for strict CMake builds. */
