@@ -1,6 +1,6 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-05-24
+**Analysis Date:** 2026-05-29
 
 This file describes the repository as it exists now. Planned directories are
 marked explicitly so release checks do not treat them as implemented behavior.
@@ -31,7 +31,6 @@ Nazm/
 ├── Docs/                 # Project documentation
 ├── tools/                # Developer checks
 ├── CMakeLists.txt        # Build configuration
-├── Makefile              # Arabic and English convenience targets
 ├── build.sh              # Direct build/test path without CMake
 ├── README.md
 ├── CHANGELOG.md
@@ -89,8 +88,9 @@ Nazm/
 
 **tests/unit/**
 - Current unit tests: `test_arena.c`, `test_unicode.c`, `test_symtable.c`,
-  `test_keywords.c`, `test_immediate.c`, `test_rex.c`, `test_lexer.c`, and
-  `test_parser.c`.
+  `test_keywords.c`, `test_immediate.c`, `test_rex.c`, `test_lexer.c`,
+  `test_parser.c`, `test_encoder.c`, `test_passes.c`, `test_elf64.c`, and
+  `test_cli_args.c`.
 
 **tests/integration/** *(planned)*
 - Will hold full-pipeline tests once object output contracts are stable.
@@ -106,7 +106,6 @@ Nazm/
 
 **Configuration**
 - `CMakeLists.txt` - CMake targets for `nazm`, `libnazm`, and tests.
-- `Makefile` - convenience wrappers for build, test, release, and coverage.
 - `build.sh` - direct build/test script for environments without CMake.
 
 **Core implementation**

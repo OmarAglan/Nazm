@@ -28,34 +28,98 @@
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 
-static uint8_t *read_file(const char *path, size_t *out_size) {
+enum { NAZM_MAX_SOURCE_SIZE = 100 * 1024 * 1024 };
+
+typedef enum {
+    READ_FILE_OK,
+    READ_FILE_OPEN_FAILED,
+    READ_FILE_STAT_FAILED,
+    READ_FILE_TOO_LARGE,
+    READ_FILE_ALLOC_FAILED,
+    READ_FILE_READ_FAILED,
+} ReadFileStatus;
+
+typedef struct {
+    uint8_t        *data;
+    size_t          size;
+    ReadFileStatus  status;
+} ReadFileResult;
+
+static ReadFileResult read_file(const char *path) {
     FILE *f = fopen(path, "rb");
 
     if (f == NULL) {
-        return NULL;
+        return (ReadFileResult){ .status = READ_FILE_OPEN_FAILED };
     }
 
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    rewind(f);
+    if (fseek(f, 0, SEEK_END) != 0) {
+        fclose(f);
+        return (ReadFileResult){ .status = READ_FILE_STAT_FAILED };
+    }
 
+    long size = ftell(f);
     if (size < 0) {
         fclose(f);
-        return NULL;
+        return (ReadFileResult){ .status = READ_FILE_STAT_FAILED };
     }
 
-    uint8_t *buf = malloc((size_t)size + 1);
+    size_t file_size = (size_t)size;
+    if (file_size > NAZM_MAX_SOURCE_SIZE) {
+        fclose(f);
+        return (ReadFileResult){ .status = READ_FILE_TOO_LARGE };
+    }
+
+    if (fseek(f, 0, SEEK_SET) != 0) {
+        fclose(f);
+        return (ReadFileResult){ .status = READ_FILE_STAT_FAILED };
+    }
+
+    uint8_t *buf = malloc(file_size + 1);
     if (buf == NULL) {
         fclose(f);
-        return NULL;
+        return (ReadFileResult){ .status = READ_FILE_ALLOC_FAILED };
     }
 
-    fread(buf, 1, (size_t)size, f);
-    buf[size] = 0;
+    size_t bytes_read = fread(buf, 1, file_size, f);
+    if (bytes_read != file_size) {
+        free(buf);
+        fclose(f);
+        return (ReadFileResult){ .status = READ_FILE_READ_FAILED };
+    }
+
+    buf[file_size] = 0;
     fclose(f);
 
-    *out_size = (size_t)size;
-    return buf;
+    return (ReadFileResult){
+        .data   = buf,
+        .size   = file_size,
+        .status = READ_FILE_OK,
+    };
+}
+
+static void print_read_file_error(const char *path, ReadFileStatus status) {
+    switch (status) {
+    case READ_FILE_OPEN_FAILED:
+        fprintf(stderr, "خطأ: تعذّر فتح الملف: %s\n", path);
+        return;
+    case READ_FILE_STAT_FAILED:
+        fprintf(stderr, "خطأ: تعذّر تحديد حجم الملف: %s\n", path);
+        return;
+    case READ_FILE_TOO_LARGE:
+        fprintf(stderr,
+                "خطأ: حجم الملف أكبر من الحد المسموح (%d MiB): %s\n",
+                NAZM_MAX_SOURCE_SIZE / (1024 * 1024),
+                path);
+        return;
+    case READ_FILE_ALLOC_FAILED:
+        fprintf(stderr, "خطأ: الذاكرة غير كافية لقراءة الملف: %s\n", path);
+        return;
+    case READ_FILE_READ_FAILED:
+        fprintf(stderr, "خطأ: تعذّرت قراءة الملف كاملاً: %s\n", path);
+        return;
+    case READ_FILE_OK:
+        return;
+    }
 }
 
 static char *make_output_path(Arena *arena, const char *source_path) {
@@ -112,11 +176,10 @@ int main(int argc, char **argv) {
 
     Arena arena = arena_create(0);
 
-    size_t src_size = 0;
-    uint8_t *src_data = read_file(args.source_path, &src_size);
-    if (src_data == NULL) {
-        fprintf(stderr, "خطأ: تعذّر فتح الملف: %s\n", args.source_path);
-        return cleanup_and_return(&arena, src_data, 2);
+    ReadFileResult source_file = read_file(args.source_path);
+    if (source_file.status != READ_FILE_OK) {
+        print_read_file_error(args.source_path, source_file.status);
+        return cleanup_and_return(&arena, source_file.data, 2);
     }
 
     if (args.verbose) {
@@ -124,29 +187,29 @@ int main(int argc, char **argv) {
     }
 
     SourceBuffer source = {
-        .data = src_data,
-        .len  = src_size,
+        .data = source_file.data,
+        .len  = source_file.size,
         .name = args.source_path,
     };
 
     LexResult lex = lexer_lex(&source, &arena);
     if (print_errors_if_any(&lex.errors)) {
-        return cleanup_and_return(&arena, src_data, 1);
+        return cleanup_and_return(&arena, source_file.data, 1);
     }
 
     ParseResult parse = parser_parse(&lex.tokens, &arena);
     if (print_errors_if_any(&parse.errors)) {
-        return cleanup_and_return(&arena, src_data, 1);
+        return cleanup_and_return(&arena, source_file.data, 1);
     }
 
     Pass1Result p1 = pass1_run(&parse.instructions, &arena);
     if (print_errors_if_any(&p1.errors)) {
-        return cleanup_and_return(&arena, src_data, 1);
+        return cleanup_and_return(&arena, source_file.data, 1);
     }
 
     Pass2Result p2 = pass2_run(&parse.instructions, &p1, &arena);
     if (print_errors_if_any(&p2.errors)) {
-        return cleanup_and_return(&arena, src_data, 1);
+        return cleanup_and_return(&arena, source_file.data, 1);
     }
 
     const char *out_path = args.output_path;
@@ -166,19 +229,19 @@ int main(int argc, char **argv) {
     OutputResult out = output_write(args.format, &out_input, &arena);
     if (!out.ok) {
         fprintf(stderr, "خطأ في الإخراج: %s\n", out.error_message);
-        return cleanup_and_return(&arena, src_data, 1);
+        return cleanup_and_return(&arena, source_file.data, 1);
     }
 
     if (!output_write_file(out_path, &out)) {
         fprintf(stderr, "خطأ: تعذّر كتابة الملف: %s\n", out_path);
-        return cleanup_and_return(&arena, src_data, 2);
+        return cleanup_and_return(&arena, source_file.data, 2);
     }
 
     if (args.verbose) {
         fprintf(stderr, "نَظْم: كُتب %s (%zu بايت)\n", out_path, out.size);
     }
 
-    return cleanup_and_return(&arena, src_data, 0);
+    return cleanup_and_return(&arena, source_file.data, 0);
 }
 
 #endif /* NAZM_LIBRARY_BUILD */

@@ -1,13 +1,13 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-05-24
+**Analysis Date:** 2026-05-29
 
 ## Test Framework
 
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
-- `build.sh test` is the direct no-CMake path and currently includes the lexer
-  and parser unit tests as well as the earlier module tests.
+- `build.sh test` is the direct no-CMake path and currently runs the same 12
+  unit-test suites registered for CTest.
 
 ## Run Commands
 
@@ -20,15 +20,6 @@ ctest --output-on-failure
 ctest --output-on-failure -R unit
 ```
 
-Convenience targets:
-
-```bash
-make اختبار
-make اختبار-وحدة
-make اختبار-تكامل
-make إصدار
-```
-
 Current workspace note: the commands above require the matching toolchain on
 `PATH`. On Windows, use an environment that provides CMake and a C11 compiler.
 
@@ -39,10 +30,14 @@ tests/
   CMakeLists.txt
   unit/
     test_arena.c
+    test_cli_args.c
+    test_elf64.c
+    test_encoder.c
     test_immediate.c
     test_keywords.c
     test_lexer.c
     test_parser.c
+    test_passes.c
     test_rex.c
     test_symtable.c
     test_unicode.c
@@ -52,9 +47,9 @@ tests/
       unity.h
 ```
 
-CTest currently registers the unit tests listed in `tests/CMakeLists.txt`.
-The direct `build.sh test` path also compiles and runs `test_lexer.c` and
-`test_parser.c`.
+CTest currently registers the unit tests listed in `tests/CMakeLists.txt` using
+the `unit_<suite>` naming pattern. The direct `build.sh test` path also compiles
+and runs those same suites.
 
 ## Planned Test Areas
 

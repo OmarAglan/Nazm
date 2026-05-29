@@ -1,6 +1,6 @@
 # Architecture
 
-**Analysis Date:** 2026-05-24
+**Analysis Date:** 2026-05-29
 
 ## Pattern Overview
 
@@ -18,7 +18,8 @@ source bytes (.مجمع)
 
 The public embedding API in `include/nazm.h` is present as a contract, but its
 functions are still roadmap work. The current implemented entry point is the
-CLI binary target `nazm`.
+CLI binary target `nazm`; the `libnazm` target now builds from library sources
+without compiling `src/main.c`.
 
 ## Layer Responsibilities
 
@@ -112,8 +113,9 @@ Implemented now:
 - Encoder helper modules and instruction table scaffolding.
 - ELF64 and COFF writer modules in the source tree.
 - CLI option parser and `nazm` executable target.
-- Unit tests for arena, Unicode, symtable, keywords, immediates, REX, lexer, and
-  parser through the direct script path.
+- Unit tests for arena, Unicode, symtable, keywords, immediates, REX, lexer,
+  parser, encoder, passes, ELF64, and CLI argument parsing through both CTest
+  and the direct script path.
 
 Planned or limited:
 - Stable in-process API behavior for `include/nazm.h`.

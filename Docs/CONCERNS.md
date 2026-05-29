@@ -1,160 +1,123 @@
 # Codebase Concerns
 
-**Analysis Date:** 2025-05-22
+**Analysis Date:** 2026-05-29
 
 ## Tech Debt
 
-**Instruction encoding table is a monolithic C array:**
-- Issue: All x86-64 encoding patterns live in one flat array in `src/encoder/table.c`
-- Why: Simplest thing that works for the initial instruction set (~50 instructions)
-- Impact: As the instruction set grows to 500+ entries, lookup becomes slow (linear scan) and the file becomes hard to navigate; adding VEX/EVEX prefixes (SSE/AVX) will require restructuring
-- Fix approach: Replace with a hash map keyed on (opcode_enum, operand_kind_tuple); split table into sections by instruction family
+**Instruction encoding table is a monolithic C file:**
+- Issue: Most x86-64 encoding dispatch and helper logic lives in `src/encoder/table.c`.
+- Why: It keeps the first instruction set small and easy to audit byte-by-byte.
+- Impact: As the instruction set grows, lookup and review will become harder; VEX/EVEX families should not be added as more dense cases in the same file.
+- Fix approach: Split the table by instruction family before adding large SIMD or floating-point groups. Add a keyed lookup only after measurement shows the linear scan matters.
 
-**Lexer re-scans keyword table on every token:**
-- Issue: `src/lexer/keywords.c` uses a linear scan through the Arabic mnemonic array for every token
-- Why: Straightforward to implement and correct; fast enough for small files
-- Impact: On large files (thousands of instructions) lexing is O(n × k) where k is keyword count; profiling shows 15% of total time in worst case
-- Fix approach: Replace with a trie or hash map of Arabic keywords; `src/unicode/arabic.c` already has the UTF-8 codepoint tools needed
+**Lexer re-scans keyword table on every identifier:**
+- Issue: `src/lexer/keywords.c` uses a linear scan through the Arabic mnemonic array.
+- Why: Straightforward, dependency-free, and correct for the current small keyword set.
+- Impact: Large files will spend avoidable time in keyword lookup.
+- Fix approach: Measure first, then replace with a trie, generated perfect hash, or hand-written bucket table over UTF-8 mnemonic strings.
 
-**Pass 2 and the Encoder are tightly coupled:**
-- Issue: `src/passes/pass2.c` calls encoder functions directly by name rather than through an interface
-- Why: There was only one encoder target when pass2 was written
-- Impact: Cannot add a second encoder target (e.g., x86-32 or RISC-V) without forking pass2
-- Fix approach: Define an `Encoder` interface struct in `src/encoder/encoder.h` (function pointers); pass2 calls through the interface
+**Pass 2 and the encoder are tightly coupled:**
+- Issue: `src/passes/pass2.c` calls the x86-64 encoder directly.
+- Why: There is currently only one target architecture.
+- Impact: Adding a second encoder target would require changes in pass 2 rather than an architecture-neutral interface.
+- Fix approach: Introduce an `Encoder` interface only when a second backend is real enough to drive the shape of that abstraction.
 
-## Known Bugs
+## Known Limitations
 
-**Forward jump size mis-estimation with long displacements:**
-- Symptoms: Jumps to labels more than 127 bytes away encode as short jumps (`EB cb`) and produce wrong output bytes
-- Trigger: Write a loop with more than ~30 instructions between `اقفز_مساوٍ` and its target label
-- Files: `src/passes/pass1.c` (size estimation), `src/encoder/table.c` (jump encoding selection)
-- Workaround: None — produces silently incorrect code
-- Root cause: Pass 1 always allocates 2 bytes for conditional jumps (short form); pass 2 uses that committed size even when the displacement doesn't fit
-- Fix: Two-sub-pass approach: estimate sizes conservatively (always use 6-byte near form), then shrink in a relaxation pass
+**COFF writer is a stub:**
+- Symptoms: `-f coff` returns an explicit Arabic error instead of object bytes.
+- File: `src/output/coff.c`.
+- Current behavior: Safe failure; no invalid `.obj` file is produced.
+- Fix approach: Implement PE/COFF serialization and add byte-level tests similar to `tests/unit/test_elf64.c`.
 
-**Symbol table does not detect duplicate label definitions:**
-- Symptoms: Silently uses the first definition; second definition is ignored
-- Trigger: Define the same Arabic label twice in one file
-- File: `src/symtable/symtable.c` (`symtable_insert()`)
-- Workaround: None — no error is reported
-- Root cause: `symtable_insert()` does not check for existing key before inserting
-- Fix: Add duplicate check in `symtable_insert()` and return an error if key already exists
+**Public embedding API is declared but not implemented:**
+- Symptoms: `include/nazm.h` declares `nazm_assemble_file()`, `nazm_assemble_buffer()`, `nazm_result_free()`, and `nazm_default_options()`, but the current working entry point remains the CLI.
+- Files: `include/nazm.h`, future API implementation file.
+- Current mitigation: `libnazm` now builds without `src/main.c`, so the API can be implemented without coupling to CLI file I/O.
+- Fix approach: Add the API implementation and a small C unit test before promising external embedding support.
 
-**Arabic numerals (٠١٢٣...) not parsed in all contexts:**
-- Symptoms: `احمل ر0، ٤٢` works; `احمل ر0، [ر1+٨]` fails to parse the displacement `٨`
-- Trigger: Use Arabic-Indic digit characters inside a memory address expression
-- File: `src/lexer/lexer.c` — `parse_immediate()` handles top-level immediates but `parse_memory_operand()` calls `atoi()` directly
-- Workaround: Use ASCII digits in memory displacements for now (`[ر1+8]`)
-- Root cause: `parse_memory_operand()` does not use the `parse_arabic_integer()` helper
-- Fix: Replace `atoi()` in `parse_memory_operand()` with `parse_arabic_integer()`
+**No integration fixture directory yet:**
+- Symptoms: Unit tests cover modules and ELF64 fields, but no checked-in `.مجمع` fixtures validate full CLI assembly/link flows.
+- Fix approach: Add `tests/fixtures/` and `tests/integration/` once object output contracts are stable enough to avoid brittle snapshots.
+
+## Recently Resolved From Earlier Audits
+
+- Duplicate labels now fail through `symtable_insert()` and pass 1 reports an Arabic diagnostic. Covered by `tests/unit/test_symtable.c` and `tests/unit/test_passes.c`.
+- Arabic-Indic immediates inside memory displacements, including negative displacements such as `[ر5-١٦]`, are covered by parser tests.
+- Conditional jumps use near `rel32` sizing in pass 1 and encoder output, avoiding the previous short-jump size mismatch concern.
+- `libnazm` no longer compiles `src/main.c`; the executable owns `main.c`, while library and tests share `NAZM_LIBRARY_SOURCES`.
+- CLI source reads now reject files larger than 100 MiB with a specific Arabic diagnostic before allocating the whole file.
 
 ## Security Considerations
 
-**No source file size limit:**
-- Risk: Maliciously large input file causes arena to allocate gigabytes; OOM kills process
-- Current mitigation: None
-- File: `src/main.c` (file open) and `src/alloc/arena.c` (allocation)
-- Recommendations: Reject input files over a configurable limit (default 100MB); add arena allocation failure checks
+**Arena allocation failure still exits immediately:**
+- Risk: Library-style callers cannot recover from allocation failure because `arena_alloc()` exits on OOM.
+- File: `src/alloc/arena.c`.
+- Recommendation: Before the public API is implemented, decide whether OOM remains fatal or becomes a recoverable diagnostic in API mode.
 
-**No bounds check on encoded instruction byte buffer:**
-- Risk: An encoding bug that writes more bytes than `MAX_INSTRUCTION_BYTES` would silently corrupt adjacent arena memory
-- Current mitigation: `MAX_INSTRUCTION_BYTES` is conservatively set to 15 (x86-64 maximum instruction length)
-- File: `src/encoder/encoder.h`
-- Recommendations: Add `assert(result.len <= MAX_INSTRUCTION_BYTES)` after every `encode_*()` call in pass2
+**Pass 2 relies on pass 1 size agreement:**
+- Risk: If a future encoder path emits a different length from `encoder_instruction_size()`, label displacements and output buffer sizing can drift.
+- Files: `src/passes/pass1.c`, `src/passes/pass2.c`, `src/encoder/table.c`.
+- Recommendation: Add an assertion or diagnostic that compares expected and actual encoded lengths for every instruction.
 
 ## Performance Bottlenecks
 
 **Keyword lookup in lexer:**
-- Problem: Linear scan through Arabic mnemonic table on every token
-- Files: `src/lexer/keywords.c`, `src/lexer/lexer.c`
-- Measurement: ~15% of total assembly time on a 5000-line fixture (measured with `perf`)
-- Cause: O(n) scan × number of tokens
-- Improvement path: Replace with a perfect hash (gperf) or trie over the Arabic mnemonic strings
+- Problem: Linear scan through Arabic mnemonic table on every identifier.
+- Files: `src/lexer/keywords.c`, `src/lexer/lexer.c`.
+- Measurement: Not recently re-profiled after the current simplification pass.
+- Improvement path: Add a large-file benchmark before changing the lookup structure.
 
-**Arena reallocation on large files:**
-- Problem: Arena doubles in size when full; on large files this causes multiple `realloc()` calls and memory copies
-- File: `src/alloc/arena.c`
-- Measurement: Not yet profiled
-- Improvement path: Pre-size arena based on source file length (rough heuristic: 4 bytes per source byte)
+**Arena growth on large files:**
+- Problem: Arena capacity doubles as needed, which is simple but not tuned to source size.
+- File: `src/alloc/arena.c`.
+- Current mitigation: CLI rejects source files larger than 100 MiB.
+- Improvement path: Pre-size the arena based on source length once real large-file fixtures exist.
 
 ## Fragile Areas
 
 **ELF64 section header offset arithmetic:**
-- File: `src/output/elf64.c`
-- Why fragile: All section offsets are computed by hand with running byte counters; adding a new section requires re-deriving all offsets that come after it
-- Common failures: Off-by-one in string table size causes `readelf` to report corrupt section names
-- Safe modification: Add a new section in one place only (the `build_elf()` function); run `readelf -a output.o` after every change to verify
-- Test coverage: no dedicated ELF64 unit test is registered yet; relocation section is not yet tested
+- File: `src/output/elf64.c`.
+- Why fragile: Section offsets are computed manually with running byte counters.
+- Safe modification: Add or reorder sections in one place, then run `ctest -R unit_test_elf64` and inspect with `readelf` when available.
+- Test coverage: `tests/unit/test_elf64.c` covers headers, section counts, `.text`, symbols, string tables, and invalid output dispatch paths; relocations are still untested because relocation support is not implemented.
 
 **UTF-8 codepoint decoder in the lexer:**
-- File: `src/unicode/arabic.c`
-- Why fragile: Hand-rolled multi-byte UTF-8 decoder; Arabic Unicode ranges are hardcoded
-- Common failures: Non-Arabic Unicode (e.g., Persian digits, extended Arabic characters) either mis-classified or cause the decoder to read past buffer end
-- Safe modification: Add a test case for every new Arabic character range before touching `is_arabic_letter()`
-- Test coverage: `tests/unit/test_lexer.c` has basic Arabic character tests; Persian digits and extended ranges not covered
-
-## Scaling Limits
-
-**Instruction table coverage:**
-- Current capacity: ~60 instructions (core integer + control flow)
-- Limit: Missing: SSE/AVX (floating point), string instructions, system calls beyond `syscall`
-- Symptoms at limit: User gets "تعليمة غير معروفة" (unknown instruction) error
-- Scaling path: Add rows to `src/encoder/table.c` plus corresponding tests; after ~200 instructions the table should be restructured (see tech debt above)
-
-**Single-file input only:**
-- Current capacity: One `.مجمع` source file per invocation
-- Limit: Cannot assemble multi-file projects directly (no `%include` directive yet)
-- Symptoms at limit: User must manually split work into one file or use `ld` to link multiple `.o` files
-- Scaling path: Implement `%تضمين` (include) directive in the parser — resolves to inlining the included file's token stream
-
-## Dependencies at Risk
-
-**Unity test framework (vendored copy):**
-- Risk: Vendored `tests/vendor/unity/` is pinned at Unity 2.5.2 with no plan to update
-- Impact: New C11 compiler warnings may appear against the vendored copy; no upstream bug fixes
-- Migration plan: When updating, copy new `unity.c` + `unity.h` into `tests/vendor/unity/`; run `make اختبار` to verify
+- File: `src/unicode/arabic.c`.
+- Why fragile: It is hand-rolled and Arabic ranges are explicit.
+- Safe modification: Add a unit test for every new accepted digit or letter range before changing classification logic.
 
 ## Missing Critical Features
 
-**`%تضمين` (include directive):**
-- Problem: No way to split an Arabic assembly project across multiple source files
-- Current workaround: Everything in one `.مجمع` file; copy-paste shared code
-- Blocks: Cannot build a standard library (`مكتبة`) for Arabic assembly programs
-- Implementation complexity: Low — tokenize the included file and prepend its tokens to the stream
+**`%تضمين` or equivalent include directive:**
+- Problem: No way to split Arabic assembly across multiple source files.
+- Current workaround: Assemble one `.مجمع` file per invocation and link multiple objects externally.
+- Implementation complexity: Medium; include handling needs path ownership, diagnostics, and cycle prevention.
 
 **Listing file output:**
-- Problem: No way to see which bytes correspond to which source line
-- Current workaround: Use `objdump -d` on output `.o` file (shows English disassembly)
-- Blocks: Debugging Arabic assembly programs is very hard without this
-- Implementation complexity: Medium — track source line in `EncodedInstruction`, emit a `.lst` file alongside `.o`
+- Problem: No way to see which bytes correspond to which Arabic source line.
+- Current workaround: Inspect object bytes or use `objdump` after output generation.
+- Implementation complexity: Medium; track source line information through pass 2 and emit a sidecar `.lst` file.
 
-**`.بيانات` section support:**
-- Problem: Directives for defining initialized data (`.عدد٦٤`, `.سلسلة`, `.بايت`) are parsed but not yet emitted into the ELF `.data` section
-- Current workaround: Constants must be hardcoded as immediates in `.text`
-- Blocks: Cannot write programs that use string literals or static arrays
-- Implementation complexity: Medium — pass1 must size `.data` entries; output writer must emit a second section
+**`.بيانات` section emission:**
+- Problem: Directives for data are parsed but not emitted into a separate object-file data section.
+- Current workaround: Constants must be encoded as immediates in `.text`.
+- Implementation complexity: Medium; pass 1 and pass 2 need section-aware offsets, and output writers need `.data` support.
 
 ## Test Coverage Gaps
 
 **Relocation entries in ELF64 output:**
-- What's not tested: That external symbol references produce correct `.rela.text` entries
-- Risk: Linker silently produces wrong addresses for calls to C library functions
-- Priority: High
-- Difficulty to test: Need to inspect raw ELF relocation section bytes or link against a stub library
+- What's not tested: External or unresolved symbol references because relocation support is not implemented yet.
+- Priority: High once calls/jumps to external symbols are supported.
 
 **All 16 general-purpose registers in all operand positions:**
-- What's not tested: Only `rax`, `rbx`, `rcx`, `rdx` tested; `r8`–`r15` (REX.B/REX.R extended registers) not covered
-- Risk: REX prefix byte computed incorrectly for extended registers — wrong binary output
-- Priority: High
-- Difficulty to test: Mechanical — add encoder tests for each register; not complex, just not yet done
+- What's not tested: Coverage exists for several extended-register cases, but not every source/destination/memory position combination.
+- Priority: High for encoder confidence.
 
-**Error recovery after multiple errors:**
-- What's not tested: That the assembler correctly reports all errors in a file with multiple mistakes, not just the first
-- Risk: Users get one error at a time, very slow to fix files with many issues
-- Priority: Medium
-- Difficulty to test: Feed a fixture with 5 deliberate errors; assert all 5 appear in error output
+**CLI end-to-end behavior:**
+- What's covered: `tests/unit/test_cli_args.c` covers argument parsing.
+- What's not covered: Executing `nazm` on fixture files and checking exit codes/output files through a dedicated integration harness.
 
 ---
 
-*Concerns audit: 2025-05-22*
-*Update as issues are fixed or new ones discovered*
+*Update as issues are fixed, newly discovered, or validated by tests.*

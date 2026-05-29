@@ -31,6 +31,7 @@ add_nazm_test(NAME test_parser    SOURCES unit/test_parser.c)
 add_nazm_test(NAME test_encoder   SOURCES unit/test_encoder.c)
 add_nazm_test(NAME test_passes    SOURCES unit/test_passes.c)
 add_nazm_test(NAME test_elf64     SOURCES unit/test_elf64.c)
+add_nazm_test(NAME test_cli_args  SOURCES unit/test_cli_args.c)
 
 # ── Integration tests ────────────────────────────────────────────────────────
 # (added when pipeline is functional)

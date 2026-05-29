@@ -111,8 +111,25 @@ void test_parse_mov_mem_disp(void) {
     TEST_ASSERT_EQUAL_INT(8,           i.ops[1].mem.disp);
 }
 
+void test_parse_mov_mem_arabic_disp(void) {
+    ParseResult r = parse("احمل ر0، [ر1+٨]");
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+    Instruction i = instr(&r, 0);
+    TEST_ASSERT_EQUAL_INT(OP_MEM_DISP, i.ops[1].kind);
+    TEST_ASSERT_EQUAL_INT(REG_RCX,     i.ops[1].mem.base);
+    TEST_ASSERT_EQUAL_INT(8,           i.ops[1].mem.disp);
+}
+
 void test_parse_mov_mem_neg_disp(void) {
     ParseResult r = parse("احمل ر0، [ر5-16]");
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+    Instruction i = instr(&r, 0);
+    TEST_ASSERT_EQUAL_INT(OP_MEM_DISP, i.ops[1].kind);
+    TEST_ASSERT_EQUAL_INT(-16,         i.ops[1].mem.disp);
+}
+
+void test_parse_mov_mem_negative_arabic_disp(void) {
+    ParseResult r = parse("احمل ر0، [ر5-١٦]");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OP_MEM_DISP, i.ops[1].kind);
@@ -459,7 +476,9 @@ int main(void) {
     RUN_TEST(test_parse_mov_reg_mem);
     RUN_TEST(test_parse_mov_mem_reg);
     RUN_TEST(test_parse_mov_mem_disp);
+    RUN_TEST(test_parse_mov_mem_arabic_disp);
     RUN_TEST(test_parse_mov_mem_neg_disp);
+    RUN_TEST(test_parse_mov_mem_negative_arabic_disp);
     RUN_TEST(test_parse_mov_reg_label);
 
     /* Arithmetic */

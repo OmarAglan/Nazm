@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-05-24
+**Analysis Date:** 2026-05-29
 
 ## APIs & External Services
 
@@ -14,9 +14,10 @@ The Arabic assembler is a self-contained native binary. It reads files from disk
 - Format: UTF-8 text files with extension `.مجمع`
 - Location: Provided by user on the command line
 - Read via: `fopen()` / `fread()` in `src/main.c`
+- Limit: CLI rejects files larger than 100 MiB before allocating the full buffer
 
 **Output — Object Files:**
-- Format: ELF64 (Linux) or PE/COFF (Windows), chosen via `-f` flag
+- Format: ELF64 is implemented; PE/COFF is selectable via `-f coff` but currently returns an explicit not-implemented error
 - Location: Path provided with `-o` flag, defaults to input filename with `.o` extension
 - Written via: `src/output/elf64.c` or `src/output/coff.c`
 
@@ -34,24 +35,24 @@ Not applicable. No network communication, no user accounts, no authentication of
 **Error Reporting:**
 - All errors printed to `stderr` in Arabic, format: `خطأ [ملف]:[سطر]:[عمود]: [رسالة]`
 - No crash reporting, no telemetry, no external error tracking
-- Exit codes: `0` = success, `1` = assembly error, `2` = I/O error, `3` = internal error
+- Exit codes currently used by the CLI: `0` = success, `1` = assembly/output error, `2` = CLI or I/O error
 
 **Logs:**
-- Stdout only: progress messages when `-v` (verbose) flag is passed
+- Stderr: progress messages when `-v` (verbose) flag is passed
 - No persistent log files
 
 ## CI/CD & Deployment
 
 **Build System:**
 - CMake 3.20 — generates Makefiles or Ninja build files
-- `make بناء` → runs CMake configure + build in `build/`
-- `make اختبار` → runs CTest
-- `make تنظيف` → removes `build/`
+- `cmake -B build -DCMAKE_BUILD_TYPE=Debug && cmake --build build -j` → builds CLI, library, and tests
+- `ctest --test-dir build --output-on-failure` → runs CTest suites
+- `./build.sh test` → direct build/test path without CMake
 
 **CI Pipeline (planned — not yet configured):**
 - Intended platform: GitHub Actions
 - Intended workflows: `.github/workflows/ci.yml`
-  - On every push: `make بناء && make اختبار`
+  - On every push: Debug CMake build, Release CMake build, and `./build.sh test`
   - On release tag: build static binaries for Linux x86-64 and Windows x86-64, attach to GitHub Release
 - Not yet implemented — CI is manual at this stage
 
@@ -69,11 +70,12 @@ Not applicable. No network communication, no user accounts, no authentication of
 
 **LLVM Linker (`lld`):**
 - Relationship: Alternative linker consumer; compatible with the same ELF64 `.o` format
-- Verified compatible on Linux
+- Verification is planned as part of future integration fixtures
 
 **Microsoft Linker (`link.exe`) / `lld-link`:**
 - Relationship: Consumer of PE/COFF `.obj` files on Windows
 - Usage: `link.exe ملف.obj /out:ملف.exe`
+- Status: Blocked until `src/output/coff.c` is implemented
 
 **Baa Compiler (`باء`) — future:**
 - Relationship: The Baa compiler will call the Arabic assembler as its code generation backend
@@ -90,6 +92,7 @@ Not applicable. No network communication, no user accounts, no authentication of
 
 **Testing:**
 - No external services needed.
+- Unit tests run through CTest and `./build.sh test`.
 - Integration fixtures are planned.
 - Unity test framework is vendored in `tests/vendor/unity/`.
 
@@ -104,5 +107,5 @@ Not applicable.
 
 ---
 
-*Integration audit: 2025-05-22*
+*Integration audit: 2026-05-29*
 *Update when adding/removing external services*

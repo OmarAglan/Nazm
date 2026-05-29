@@ -18,7 +18,7 @@
 - Current version is `0.1.0` in `CMakeLists.txt` and `include/nazm.h`.
 - Nazm is an Arabic-first assembler for x86-64.
 - Primary implementation language is C11, with no runtime external dependencies.
-- Current build system is CMake 3.20+, with a Makefile exposing Arabic and English convenience targets.
+- Current build system is CMake 3.20+, with `build.sh` as a direct build/test path.
 - Pipeline: source file -> lexer -> parser -> pass1 -> pass2 -> output writer -> object file.
 - Main components: `src/alloc`, `src/unicode`, `src/error`, `src/lexer`, `src/parser`, `src/symtable`, `src/passes`, `src/encoder`, `src/output`, `src/cli`, and `src/main.c`.
 - Public future embedding API lives in `include/nazm.h`.
@@ -110,14 +110,11 @@ cd build
 ctest --output-on-failure
 ```
 
-Convenience targets:
+Direct script path:
 
 ```bash
-make بناء
-make اختبار
-make اختبار-وحدة
-make اختبار-تكامل
-make إصدار
+./build.sh
+./build.sh test
 ```
 
 For focused CTest runs:

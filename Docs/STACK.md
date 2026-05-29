@@ -1,6 +1,6 @@
 # Technology Stack
 
-**Analysis Date:** 2026-05-24
+**Analysis Date:** 2026-05-29
 
 ## Languages
 
@@ -9,7 +9,7 @@
 
 **Secondary:**
 - Arabic Assembly (`.مجمع`) — the language being implemented; used in `examples/`.
-- Makefile / CMake — build scripting
+- CMake and shell scripts — build scripting
 
 **Future (self-hosting target):**
 - Baa — the entire assembler will be rewritten in Baa once the C implementation is stable
@@ -37,11 +37,12 @@
 
 **Testing:**
 - Unity (`ThrowTheSwitch/Unity`) — lightweight C unit test framework, single `.c` + `.h` file.
+- CTest registers the current unit suites with `unit_` names.
 - Integration harness is planned; current tests are under `tests/unit/`.
 
 **Build:**
 - CMake 3.20 — primary build system (handles platform differences)
-- Makefile — thin convenience wrapper over CMake with Arabic-named targets (`بناء`, `اختبار`, `تنظيف`)
+- `build.sh` — direct build/test path for quick local checks without CMake
 
 ## Key Dependencies
 
@@ -67,7 +68,7 @@
 
 **Development:**
 - Linux (x86-64) or macOS with cross-compile toolchain — primary dev platform
-- Windows (x86-64) with MSVC or MinGW — secondary; COFF output tested here
+- Windows (x86-64) with MSVC or MinGW — secondary; COFF output still needs implementation and verification
 - No Docker required (no external services)
 
 **Distributed binary:**
@@ -80,5 +81,5 @@
 
 ---
 
-*Stack analysis: 2025-05-22*
+*Stack analysis: 2026-05-29*
 *Update after major dependency changes*

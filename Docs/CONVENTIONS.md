@@ -1,6 +1,6 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-05-24
+**Analysis Date:** 2026-05-29
 
 ## Naming Patterns
 
@@ -28,16 +28,14 @@
 ## Code Style
 
 **Formatting:**
-- `clang-format` with `.clang-format` in project root
 - 4-space indentation (no tabs)
 - 100 character line limit
 - Opening brace on same line for functions and control flow
-- Run: `make تنسيق` (formats all `src/` and `tests/` files)
+- No `.clang-format` file is checked in yet; follow the surrounding style and keep changes locally consistent.
 
 **Linting:**
-- `clang-tidy` with `.clang-tidy` config
-- Warnings treated as errors in CI (`-Werror`)
-- Run: `make فحص`
+- CMake builds use strict compiler warnings and `-Werror`.
+- No `.clang-tidy` configuration is checked in yet.
 
 ## Import / Include Organization
 
@@ -156,5 +154,5 @@ EncodedInstruction encode_mov_reg_imm(RegId dst, int64_t imm);
 
 ---
 
-*Convention analysis: 2025-05-22*
+*Convention analysis: 2026-05-29*
 *Update when patterns change*
