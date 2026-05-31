@@ -87,6 +87,52 @@ void test_enc_mov_r9_r10(void) {
     ENC(OPCODE_MOV, reg_op(REG_R9), reg_op(REG_R10));
 }
 
+void test_enc_mov_rax_from_extended_regs_sets_rex_r(void) {
+    const struct {
+        RegId reg;
+        uint8_t modrm;
+    } cases[] = {
+        { REG_R8,  0xC0 },
+        { REG_R9,  0xC8 },
+        { REG_R10, 0xD0 },
+        { REG_R11, 0xD8 },
+        { REG_R12, 0xE0 },
+        { REG_R13, 0xE8 },
+        { REG_R14, 0xF0 },
+        { REG_R15, 0xF8 },
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        Operand ops[] = { reg_op(REG_RAX), reg_op(cases[i].reg) };
+        uint8_t expected[] = { 0x4C, 0x89, cases[i].modrm };
+        EncodedInstruction e = encoder_encode(OPCODE_MOV, ops, 2, 0);
+        check(e, expected, (int)sizeof(expected));
+    }
+}
+
+void test_enc_mov_extended_regs_from_rax_sets_rex_b(void) {
+    const struct {
+        RegId reg;
+        uint8_t modrm;
+    } cases[] = {
+        { REG_R8,  0xC0 },
+        { REG_R9,  0xC1 },
+        { REG_R10, 0xC2 },
+        { REG_R11, 0xC3 },
+        { REG_R12, 0xC4 },
+        { REG_R13, 0xC5 },
+        { REG_R14, 0xC6 },
+        { REG_R15, 0xC7 },
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        Operand ops[] = { reg_op(cases[i].reg), reg_op(REG_RAX) };
+        uint8_t expected[] = { 0x49, 0x89, cases[i].modrm };
+        EncodedInstruction e = encoder_encode(OPCODE_MOV, ops, 2, 0);
+        check(e, expected, (int)sizeof(expected));
+    }
+}
+
 /* ── MOV reg, [mem] ───────────────────────────────────────────────────────── */
 void test_enc_mov_rax_mem_rcx(void) {
     /* REX.W(48) 8B 01 */
@@ -320,6 +366,8 @@ int main(void) {
     RUN_TEST(test_enc_mov_r8_imm);
     RUN_TEST(test_enc_mov_rax_rbx);
     RUN_TEST(test_enc_mov_r9_r10);
+    RUN_TEST(test_enc_mov_rax_from_extended_regs_sets_rex_r);
+    RUN_TEST(test_enc_mov_extended_regs_from_rax_sets_rex_b);
     RUN_TEST(test_enc_mov_rax_mem_rcx);
     RUN_TEST(test_enc_mov_rax_mem_rbp_disp8);
     RUN_TEST(test_enc_mov_rax_mem_rsp);
