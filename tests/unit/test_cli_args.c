@@ -89,7 +89,7 @@ void test_cli_rejects_unknown_option(void) {
 }
 
 void test_cli_version_string_is_020(void) {
-    TEST_ASSERT_EQUAL_STRING("0.2.0", NAZM_VERSION_STRING);
+    TEST_ASSERT_EQUAL_STRING("0.3.0", NAZM_VERSION_STRING);
 }
 
 int main(void) {

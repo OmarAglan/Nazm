@@ -11,7 +11,7 @@
  *   .عدد١٦  2 bytes × op_count
  *   .عدد٣٢  4 bytes × op_count
  *   .عدد٦٤  8 bytes × op_count
- *   .سلسلة  sum of strlen(label)+1 for each OP_LABEL operand
+ *   .سلسلة  sum of string length + 1 for each OP_STRING operand
  *   .مساحة  N bytes of zeros (N from ops[0].imm)
  */
 int data_directive_size(const Instruction *instr) {
@@ -21,10 +21,11 @@ int data_directive_size(const Instruction *instr) {
     if (strcmp(d, ".سلسلة") == 0) {
         int total = 0;
         for (int i = 0; i < instr->op_count; i++) {
-            if (instr->ops[i].kind == OP_LABEL && instr->ops[i].label)
-                total += (int)strlen(instr->ops[i].label) + 1;
+            if (instr->ops[i].kind == OP_STRING && instr->ops[i].string.data) {
+                total += (int)instr->ops[i].string.len + 1;
+            }
         }
-        return total > 0 ? total : 0;
+        return total;
     }
     if (strcmp(d, ".بايت")  == 0)
         return instr->op_count > 0 ? instr->op_count * 1 : 0;
@@ -66,11 +67,12 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
                 strcmp(instr->directive, ".محلي")  == 0)  { continue; }
 
             /* Data-emitting directive */
-            int dsz = data_directive_size(instr);
+            int dsz = in_data ? data_directive_size(instr) : 0;
             if (dsz > 0) {
                 if (instr->label) {
-                    if (!symtable_insert(&result.symtable, instr->label,
-                                         (int64_t)data_offset)) {
+                    if (!symtable_insert_section(&result.symtable, instr->label,
+                                                 SYMBOL_SECTION_DATA,
+                                                 (int64_t)data_offset)) {
                         char msg[256];
                         snprintf(msg, sizeof(msg), "وسم مكرر: '%s'", instr->label);
                         error_add_span(&result.errors, arena,
@@ -89,8 +91,9 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
         /* ── Register label at current offset ── */
         if (instr->label) {
             size_t cur_off = in_data ? data_offset : text_offset;
-            if (!symtable_insert(&result.symtable, instr->label,
-                                 (int64_t)cur_off)) {
+            if (!symtable_insert_section(&result.symtable, instr->label,
+                                         in_data ? SYMBOL_SECTION_DATA : SYMBOL_SECTION_TEXT,
+                                         (int64_t)cur_off)) {
                 char msg[256];
                 snprintf(msg, sizeof(msg), "وسم مكرر: '%s'", instr->label);
                 error_add_span(&result.errors, arena,

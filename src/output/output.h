@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "../symtable/symtable.h"
+#include "../passes/pass2.h"
 #include "../alloc/arena.h"
 
 typedef enum {
@@ -22,6 +23,7 @@ typedef struct {
     const uint8_t  *data_bytes;   /* NULL if no .data section */
     size_t          data_size;
     const SymbolTable *symtable;
+    const RelocationList *relocations;
     const char      *source_name; /* for debug info */
 } OutputInput;
 

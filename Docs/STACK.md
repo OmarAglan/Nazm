@@ -1,6 +1,6 @@
 # Technology Stack
 
-**Analysis Date:** 2026-05-29
+**Analysis Date:** 2026-06-01
 
 ## Languages
 
@@ -38,7 +38,7 @@
 **Testing:**
 - Unity (`ThrowTheSwitch/Unity`) — lightweight C unit test framework, single `.c` + `.h` file.
 - CTest registers the current unit suites with `unit_` names.
-- Integration harness is planned; current tests are under `tests/unit/`.
+- Example pipeline coverage exists in `tests/unit/test_examples.c`; subprocess/link integration is planned.
 
 **Build:**
 - CMake 3.20 — primary build system (handles platform differences)
@@ -68,7 +68,7 @@
 
 **Development:**
 - Linux (x86-64) or macOS with cross-compile toolchain — primary dev platform
-- Windows (x86-64) with MSVC or MinGW — secondary; COFF output still needs implementation and verification
+- Windows (x86-64) with MSVC or MinGW — secondary; COFF output exists but needs linker validation on Windows CI
 - No Docker required (no external services)
 
 **Distributed binary:**
@@ -81,5 +81,5 @@
 
 ---
 
-*Stack analysis: 2026-05-29*
+*Stack analysis: 2026-06-01*
 *Update after major dependency changes*

@@ -3,6 +3,57 @@
 #include <string.h>
 #include <stdio.h>
 
+
+static void push_relocation(RelocationList *list,
+                            Arena *arena,
+                            Relocation relocation) {
+    if (list->count >= list->capacity) {
+        size_t new_capacity = list->capacity == 0 ? 16 : list->capacity * 2;
+        Relocation *new_data = ARENA_ALLOC_N(arena, Relocation, new_capacity);
+
+        if (list->data != NULL) {
+            memcpy(new_data, list->data, list->count * sizeof(Relocation));
+        }
+
+        list->data = new_data;
+        list->capacity = new_capacity;
+    }
+
+    list->data[list->count++] = relocation;
+}
+
+static bool opcode_uses_relative_label(OpcodeEnum opcode) {
+    switch (opcode) {
+    case OPCODE_JMP:
+    case OPCODE_CALL:
+    case OPCODE_JE:
+    case OPCODE_JNE:
+    case OPCODE_JG:
+    case OPCODE_JGE:
+    case OPCODE_JL:
+    case OPCODE_JLE:
+    case OPCODE_JZ:
+    case OPCODE_JNZ:
+    case OPCODE_JS:
+    case OPCODE_JNS:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool is_mov_reg_label(const Instruction *instr, int operand_index) {
+    return instr->opcode == OPCODE_MOV
+        && instr->op_count == 2
+        && operand_index == 1
+        && instr->ops[0].kind == OP_REG
+        && instr->ops[1].kind == OP_LABEL;
+}
+
+static size_t mov_reg_label_relocation_offset(void) {
+    return 2; /* REX.W + B8+rd, then imm64 */
+}
+
 /* Emit data for one data-emitting directive into buf[*written..].
  * Returns bytes emitted.  */
 static int emit_data_directive(const Instruction *instr,
@@ -12,12 +63,12 @@ static int emit_data_directive(const Instruction *instr,
     const char *d = instr->directive;
     int emitted = 0;
 
-    /* .سلسلة — null-terminated string(s) */
+    /* .سلسلة — null-terminated decoded string literal(s) */
     if (strcmp(d, ".سلسلة") == 0) {
         for (int i = 0; i < instr->op_count; i++) {
-            if (instr->ops[i].kind == OP_LABEL && instr->ops[i].label) {
-                const char *s = instr->ops[i].label;
-                size_t len = strlen(s);
+            if (instr->ops[i].kind == OP_STRING && instr->ops[i].string.data) {
+                const char *s = instr->ops[i].string.data;
+                size_t len = instr->ops[i].string.len;
                 if (*written + len + 1 <= buf_cap) {
                     memcpy(buf + *written, s, len);
                     buf[*written + len] = 0;
@@ -122,25 +173,61 @@ Pass2Result pass2_run(const InstructionList *instructions,
         int64_t resolved_target = 0;
 
         for (int j = 0; j < instr->op_count; j++) {
-            if (resolved_ops[j].kind == OP_LABEL) {
-                int64_t target_offset = 0;
-                if (!symtable_lookup(&pass1->symtable,
-                                     resolved_ops[j].label,
-                                     &target_offset)) {
+            if (resolved_ops[j].kind != OP_LABEL) {
+                continue;
+            }
+
+            int64_t target_offset = 0;
+            SymbolSection target_section = SYMBOL_SECTION_UNKNOWN;
+            if (!symtable_lookup_ex(&pass1->symtable,
+                                    resolved_ops[j].label,
+                                    &target_offset,
+                                    &target_section)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                         "وسم غير محلول: '%s'", resolved_ops[j].label);
+                int err_line = resolved_ops[j].line ? resolved_ops[j].line : instr->line;
+                int err_col  = resolved_ops[j].col  ? resolved_ops[j].col  : instr->col;
+                int err_end  = resolved_ops[j].end_col ? resolved_ops[j].end_col : instr->end_col;
+                error_add_span(&result.errors, arena,
+                               instructions->source_name
+                                   ? instructions->source_name : "unknown",
+                               err_line, err_col, err_end, msg);
+                continue;
+            }
+
+            if (opcode_uses_relative_label(instr->opcode)) {
+                if (target_section != SYMBOL_SECTION_TEXT) {
                     char msg[256];
                     snprintf(msg, sizeof(msg),
-                             "وسم غير محلول: '%s'", resolved_ops[j].label);
-                    /* Point the error at the label operand itself */
-                    int err_line = resolved_ops[j].line ? resolved_ops[j].line : instr->line;
-                    int err_col  = resolved_ops[j].col  ? resolved_ops[j].col  : instr->col;
-                    int err_end  = resolved_ops[j].end_col ? resolved_ops[j].end_col : instr->end_col;
+                             "لا يمكن القفز إلى وسم خارج قسم النص: '%s'",
+                             resolved_ops[j].label);
                     error_add_span(&result.errors, arena,
                                    instructions->source_name
                                        ? instructions->source_name : "unknown",
-                                   err_line, err_col, err_end, msg);
+                                   resolved_ops[j].line ? resolved_ops[j].line : instr->line,
+                                   resolved_ops[j].col ? resolved_ops[j].col : instr->col,
+                                   resolved_ops[j].end_col ? resolved_ops[j].end_col : instr->end_col,
+                                   msg);
+                    continue;
                 }
+
                 int64_t ip_after = (int64_t)(text_offset + (size_t)sz);
-                resolved_target  = target_offset - ip_after;
+                resolved_target = target_offset - ip_after;
+                continue;
+            }
+
+            if (is_mov_reg_label(instr, j)) {
+                push_relocation(&result.relocations,
+                                arena,
+                                (Relocation){
+                                    .section = RELOC_SECTION_TEXT,
+                                    .kind = RELOC_ABS64,
+                                    .offset = text_offset + mov_reg_label_relocation_offset(),
+                                    .symbol = resolved_ops[j].label,
+                                    .addend = 0,
+                                });
+                continue;
             }
         }
 

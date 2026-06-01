@@ -30,9 +30,10 @@ static OutputResult assemble_elf(const char *src) {
     OutputInput oi = {
         .text_bytes  = p2.text_bytes,
         .text_size   = p2.text_size,
-        .data_bytes  = NULL,
-        .data_size   = 0,
+        .data_bytes  = p2.data_bytes,
+        .data_size   = p2.data_size,
         .symtable    = &p1.symtable,
+        .relocations = &p2.relocations,
         .source_name = "test",
     };
     return output_write_elf64(&oi, &g_arena);
@@ -202,6 +203,43 @@ void test_elf_minimum_size(void) {
     TEST_ASSERT_TRUE(r.size >= 385);
 }
 
+
+void test_elf_data_section_exists_when_data_emitted(void) {
+    OutputResult r = assemble_elf(".نص\nارجع\n.بيانات\nرسالة: .سلسلة \"x\"");
+    TEST_ASSERT_TRUE(r.ok);
+    TEST_ASSERT_EQUAL_INT(6, (int)rd16(r.data + 60));
+    uint64_t shoff = rd64(r.data + 40);
+    const uint8_t *data_sh = r.data + shoff + 2 * 64;
+    TEST_ASSERT_EQUAL_INT(1, (int)rd32(data_sh + 4)); /* SHT_PROGBITS */
+    TEST_ASSERT_EQUAL_INT(2, (int)rd64(data_sh + 32)); /* x + NUL */
+}
+
+void test_elf_data_symbol_uses_data_section_index(void) {
+    OutputResult r = assemble_elf(".نص\nارجع\n.بيانات\nرسالة: .سلسلة \"x\"");
+    uint64_t shoff = rd64(r.data + 40);
+    const uint8_t *symtab_sh = r.data + shoff + 3 * 64;
+    uint64_t sym_off = rd64(symtab_sh + 24);
+    const uint8_t *sym1 = r.data + sym_off + 24;
+    TEST_ASSERT_EQUAL_INT(2, (int)rd16(sym1 + 6)); /* .data section index */
+}
+
+void test_elf_rela_text_for_mov_label(void) {
+    OutputResult r = assemble_elf(".نص\nاحمل ر2، رسالة\n.بيانات\nرسالة: .سلسلة \"x\"");
+    TEST_ASSERT_TRUE(r.ok);
+    TEST_ASSERT_EQUAL_INT(7, (int)rd16(r.data + 60));
+    uint64_t shoff = rd64(r.data + 40);
+    const uint8_t *rela_sh = r.data + shoff + 3 * 64;
+    TEST_ASSERT_EQUAL_INT(4, (int)rd32(rela_sh + 4)); /* SHT_RELA */
+    TEST_ASSERT_EQUAL_INT(4, (int)rd32(rela_sh + 40)); /* link = .symtab */
+    TEST_ASSERT_EQUAL_INT(1, (int)rd32(rela_sh + 44)); /* info = .text */
+    TEST_ASSERT_EQUAL_INT(24, (int)rd64(rela_sh + 56));
+
+    uint64_t rela_off = rd64(rela_sh + 24);
+    TEST_ASSERT_EQUAL_INT(2, (int)rd64(r.data + rela_off + 0)); /* imm64 offset */
+    uint64_t info = rd64(r.data + rela_off + 8);
+    TEST_ASSERT_EQUAL_INT(1, (int)(info & 0xffffffffu)); /* R_X86_64_64 */
+}
+
 /* ── Main ─────────────────────────────────────────────────────────────────── */
 int main(void) {
     UNITY_BEGIN();
@@ -224,6 +262,9 @@ int main(void) {
     RUN_TEST(test_elf_symtab_has_label_entry);
     RUN_TEST(test_elf_empty_program);
     RUN_TEST(test_elf_minimum_size);
+    RUN_TEST(test_elf_data_section_exists_when_data_emitted);
+    RUN_TEST(test_elf_data_symbol_uses_data_section_index);
+    RUN_TEST(test_elf_rela_text_for_mov_label);
 
     return UNITY_END();
 }

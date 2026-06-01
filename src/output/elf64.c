@@ -1,62 +1,60 @@
 #include "elf64.h"
 #include "../symtable/symtable.h"
-#include <string.h>
+
 #include <stdio.h>
+#include <string.h>
 
 /*
- * ELF64 object file writer.
+ * ELF64 relocatable object writer.
  *
- * Produces a relocatable ELF64 object file (.o) with:
- *   - ELF header
- *   - .text section  (the encoded instruction bytes)
- *   - .symtab        (symbol table entries for defined labels)
- *   - .strtab        (string table: section names + symbol names)
- *   - .shstrtab      (section header string table)
- *   - Section header table
- *
- * Layout (all offsets computed explicitly):
- *   [0x00]  ELF header          (64 bytes)
- *   [0x40]  .text bytes         (variable)
- *   [...]   .symtab entries     (24 bytes each)
- *   [...]   .strtab             (null + symbol names)
- *   [...]   .shstrtab           (section name strings)
- *   [...]   Section header table (64 bytes × section count)
- *
- * Reference: ELF-64 Object File Format, Version 1.5 Draft 2
+ * Produces .text, optional .data, optional .rela.text, .symtab, .strtab,
+ * .shstrtab, and the section header table. ELF section headers describe each
+ * section in the object file, and relocation sections carry entries the linker
+ * uses to fix symbolic references.
  */
 
-/* ── ELF constants ───────────────────────────────────────────────────────── */
-#define ET_REL       1
-#define EM_X86_64    62
-#define EV_CURRENT   1
-#define ELFCLASS64   2
-#define ELFDATA2LSB  1
-#define ELFOSABI_NONE 0
-#define SHT_NULL     0
-#define SHT_PROGBITS 1
-#define SHT_SYMTAB   2
-#define SHT_STRTAB   3
-#define SHF_ALLOC    0x2
-#define SHF_EXECINSTR 0x4
-#define STB_LOCAL    0
-#define STB_GLOBAL   1
-#define STT_NOTYPE   0
-#define STT_FUNC     2
-#define STV_DEFAULT  0
+#define ET_REL          1
+#define EM_X86_64       62
+#define EV_CURRENT      1
+#define ELFCLASS64      2
+#define ELFDATA2LSB     1
+#define ELFOSABI_NONE   0
 
-/* ── Little-endian write helpers ─────────────────────────────────────────── */
+#define SHT_NULL        0
+#define SHT_PROGBITS    1
+#define SHT_SYMTAB      2
+#define SHT_STRTAB      3
+#define SHT_RELA        4
+
+#define SHF_WRITE       0x1
+#define SHF_ALLOC       0x2
+#define SHF_EXECINSTR   0x4
+
+#define STB_GLOBAL      1
+#define STT_NOTYPE      0
+#define STV_DEFAULT     0
+
+#define R_X86_64_64     1
+#define R_X86_64_PC32   2
+
 static void w16(uint8_t *p, uint16_t v) {
-    p[0]=(uint8_t)v; p[1]=(uint8_t)(v>>8);
-}
-static void w32(uint8_t *p, uint32_t v) {
-    p[0]=(uint8_t)v; p[1]=(uint8_t)(v>>8);
-    p[2]=(uint8_t)(v>>16); p[3]=(uint8_t)(v>>24);
-}
-static void w64(uint8_t *p, uint64_t v) {
-    for (int i=0;i<8;i++) p[i]=(uint8_t)(v>>(i*8));
+    p[0] = (uint8_t)v;
+    p[1] = (uint8_t)(v >> 8);
 }
 
-/* ── String table builder ────────────────────────────────────────────────── */
+static void w32(uint8_t *p, uint32_t v) {
+    p[0] = (uint8_t)v;
+    p[1] = (uint8_t)(v >> 8);
+    p[2] = (uint8_t)(v >> 16);
+    p[3] = (uint8_t)(v >> 24);
+}
+
+static void w64(uint8_t *p, uint64_t v) {
+    for (int i = 0; i < 8; i++) {
+        p[i] = (uint8_t)(v >> (i * 8));
+    }
+}
+
 typedef struct {
     uint8_t *data;
     size_t   size;
@@ -65,30 +63,30 @@ typedef struct {
 } StrTab;
 
 static void strtab_init(StrTab *st, Arena *arena) {
-    st->cap  = 256;
+    st->cap = 256;
     st->data = ARENA_ALLOC_N(arena, uint8_t, st->cap);
     st->size = 0;
     st->arena = arena;
-    st->data[st->size++] = 0; /* mandatory leading null */
+    st->data[st->size++] = 0;
 }
 
 static uint32_t strtab_add(StrTab *st, const char *s) {
     size_t len = strlen(s) + 1;
     uint32_t off = (uint32_t)st->size;
-    /* Grow if needed (arena: just allocate new, copy) */
+
     if (st->size + len > st->cap) {
-        size_t nc = st->cap * 2 + len;
-        uint8_t *nd = ARENA_ALLOC_N(st->arena, uint8_t, nc);
-        memcpy(nd, st->data, st->size);
-        st->data = nd;
-        st->cap  = nc;
+        size_t new_cap = st->cap * 2 + len;
+        uint8_t *new_data = ARENA_ALLOC_N(st->arena, uint8_t, new_cap);
+        memcpy(new_data, st->data, st->size);
+        st->data = new_data;
+        st->cap = new_cap;
     }
+
     memcpy(st->data + st->size, s, len);
     st->size += len;
     return off;
 }
 
-/* ── Output buffer builder ───────────────────────────────────────────────── */
 typedef struct {
     uint8_t *data;
     size_t   size;
@@ -97,19 +95,22 @@ typedef struct {
 } OutBuf;
 
 static void outbuf_init(OutBuf *ob, Arena *arena, size_t initial) {
-    ob->cap   = initial;
-    ob->data  = ARENA_ALLOC_N(arena, uint8_t, initial);
-    ob->size  = 0;
+    ob->cap = initial ? initial : 512;
+    ob->data = ARENA_ALLOC_N(arena, uint8_t, ob->cap);
+    ob->size = 0;
     ob->arena = arena;
 }
 
 static void outbuf_reserve(OutBuf *ob, size_t n) {
-    if (ob->size + n <= ob->cap) return;
-    size_t nc = ob->cap * 2 + n;
-    uint8_t *nd = ARENA_ALLOC_N(ob->arena, uint8_t, nc);
-    memcpy(nd, ob->data, ob->size);
-    ob->data = nd;
-    ob->cap  = nc;
+    if (ob->size + n <= ob->cap) {
+        return;
+    }
+
+    size_t new_cap = ob->cap * 2 + n;
+    uint8_t *new_data = ARENA_ALLOC_N(ob->arena, uint8_t, new_cap);
+    memcpy(new_data, ob->data, ob->size);
+    ob->data = new_data;
+    ob->cap = new_cap;
 }
 
 static size_t outbuf_write(OutBuf *ob, const void *src, size_t n) {
@@ -128,208 +129,342 @@ static size_t outbuf_zeros(OutBuf *ob, size_t n) {
     return off;
 }
 
-/* Write `n` bytes at an absolute offset (for patching) */
 static void outbuf_patch(OutBuf *ob, size_t off, const void *src, size_t n) {
     memcpy(ob->data + off, src, n);
 }
 
-/* ── ELF64 section header ────────────────────────────────────────────────── */
-static void write_shdr(OutBuf *ob,
-    uint32_t name, uint32_t type, uint64_t flags,
-    uint64_t addr, uint64_t offset, uint64_t size,
-    uint32_t link, uint32_t info,
-    uint64_t addralign, uint64_t entsize)
-{
-    uint8_t sh[64] = {0};
-    w32(sh+0,  name);
-    w32(sh+4,  type);
-    w64(sh+8,  flags);
-    w64(sh+16, addr);
-    w64(sh+24, offset);
-    w64(sh+32, size);
-    w32(sh+40, link);
-    w32(sh+44, info);
-    w64(sh+48, addralign);
-    w64(sh+56, entsize);
-    outbuf_write(ob, sh, 64);
+static void align_outbuf(OutBuf *ob, size_t alignment) {
+    while (alignment > 0 && ob->size % alignment != 0) {
+        outbuf_zeros(ob, 1);
+    }
 }
 
-/* ── ELF64 symbol table entry (24 bytes) ─────────────────────────────────── */
+static void write_shdr(OutBuf *ob,
+                       uint32_t name,
+                       uint32_t type,
+                       uint64_t flags,
+                       uint64_t addr,
+                       uint64_t offset,
+                       uint64_t size,
+                       uint32_t link,
+                       uint32_t info,
+                       uint64_t addralign,
+                       uint64_t entsize) {
+    uint8_t sh[64] = {0};
+
+    w32(sh + 0, name);
+    w32(sh + 4, type);
+    w64(sh + 8, flags);
+    w64(sh + 16, addr);
+    w64(sh + 24, offset);
+    w64(sh + 32, size);
+    w32(sh + 40, link);
+    w32(sh + 44, info);
+    w64(sh + 48, addralign);
+    w64(sh + 56, entsize);
+    outbuf_write(ob, sh, sizeof(sh));
+}
+
 static void write_sym(OutBuf *ob,
-    uint32_t name, uint8_t info, uint8_t other,
-    uint16_t shndx, uint64_t value, uint64_t size)
-{
+                      uint32_t name,
+                      uint8_t info,
+                      uint8_t other,
+                      uint16_t shndx,
+                      uint64_t value,
+                      uint64_t size) {
     uint8_t sym[24] = {0};
-    w32(sym+0,  name);
+
+    w32(sym + 0, name);
     sym[4] = info;
     sym[5] = other;
-    w16(sym+6,  shndx);
-    w64(sym+8,  value);
-    w64(sym+16, size);
-    outbuf_write(ob, sym, 24);
+    w16(sym + 6, shndx);
+    w64(sym + 8, value);
+    w64(sym + 16, size);
+    outbuf_write(ob, sym, sizeof(sym));
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * Main writer
- * ═══════════════════════════════════════════════════════════════════════════ */
-OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
+static void write_rela(OutBuf *ob,
+                       uint64_t offset,
+                       uint32_t symbol_index,
+                       uint32_t type,
+                       int64_t addend) {
+    uint8_t rela[24] = {0};
+    uint64_t info = ((uint64_t)symbol_index << 32) | type;
 
-    /* Section indices */
-    enum { SH_NULL=0, SH_TEXT, SH_SYMTAB, SH_STRTAB, SH_SHSTRTAB, SH_COUNT };
+    w64(rela + 0, offset);
+    w64(rela + 8, info);
+    w64(rela + 16, (uint64_t)addend);
+    outbuf_write(ob, rela, sizeof(rela));
+}
 
-    OutBuf ob;
-    outbuf_init(&ob, arena,
-        64                          /* ELF header      */
-        + in->text_size             /* .text           */
-        + 512                       /* .symtab         */
-        + 256                       /* .strtab         */
-        + 64                        /* .shstrtab       */
-        + SH_COUNT * 64             /* section headers */
-    );
+typedef struct {
+    const char    *name;
+    int64_t        offset;
+    SymbolSection  section;
+    uint32_t       name_offset;
+} ElfSymbol;
 
-    /* ── 1. ELF header (64 bytes) ── */
-    uint8_t ehdr[64] = {0};
-    /* e_ident */
-    ehdr[0]=0x7F; ehdr[1]='E'; ehdr[2]='L'; ehdr[3]='F';
-    ehdr[4]=ELFCLASS64;
-    ehdr[5]=ELFDATA2LSB;
-    ehdr[6]=EV_CURRENT;
-    ehdr[7]=ELFOSABI_NONE;
-    /* e_type = ET_REL */  w16(ehdr+16, ET_REL);
-    /* e_machine */        w16(ehdr+18, EM_X86_64);
-    /* e_version */        w32(ehdr+20, EV_CURRENT);
-    /* e_entry=0 e_phoff=0 e_shoff — patch later */
-    /* e_flags=0 */
-    /* e_ehsize */         w16(ehdr+52, 64);
-    /* e_phentsize */      w16(ehdr+54, 56);
-    /* e_phnum=0 */
-    /* e_shentsize */      w16(ehdr+58, 64);
-    /* e_shnum */          w16(ehdr+60, SH_COUNT);
-    /* e_shstrndx */       w16(ehdr+62, SH_SHSTRTAB);
-    size_t ehdr_off = outbuf_write(&ob, ehdr, 64);
-    (void)ehdr_off;
+static int collect_symbols(const SymbolTable *symtable, ElfSymbol *symbols, int max_symbols) {
+    int count = 0;
 
-    /* ── 2. .text section ── */
-    size_t text_off = ob.size;
-    if (in->text_size > 0)
-        outbuf_write(&ob, in->text_bytes, in->text_size);
-
-    /* ── 3. Build .strtab (symbol name strings) ── */
-    StrTab strtab;
-    strtab_init(&strtab, arena);
-
-    /* Collect global symbols from symtable */
-    typedef struct { const char *name; int64_t offset; } SymEntry2;
-    SymEntry2 syms[512];
-    int nsyms = 0;
-
-    for (int bucket = 0; bucket < SYMTABLE_BUCKETS && nsyms < 511; bucket++) {
-        SymEntry *e = in->symtable->buckets[bucket];
-        while (e && nsyms < 511) {
-            if (e->defined) {
-                syms[nsyms].name   = e->name;
-                syms[nsyms].offset = e->offset;
-                nsyms++;
+    for (int bucket = 0; bucket < SYMTABLE_BUCKETS && count < max_symbols; bucket++) {
+        for (SymEntry *e = symtable->buckets[bucket]; e != NULL && count < max_symbols; e = e->next) {
+            if (!e->defined) {
+                continue;
             }
-            e = e->next;
+
+            symbols[count].name = e->name;
+            symbols[count].offset = e->offset;
+            symbols[count].section = e->section;
+            symbols[count].name_offset = 0;
+            count++;
         }
     }
 
-    /* Build strtab offsets */
-    uint32_t sym_name_offs[512];
-    for (int s = 0; s < nsyms; s++)
-        sym_name_offs[s] = strtab_add(&strtab, syms[s].name);
+    return count;
+}
 
-    /* ── 4. .symtab ── */
-    /* Align to 8 bytes */
-    while (ob.size % 8) outbuf_zeros(&ob, 1);
+static uint16_t symbol_section_index(SymbolSection section,
+                                     int text_index,
+                                     int data_index) {
+    if (section == SYMBOL_SECTION_DATA && data_index > 0) {
+        return (uint16_t)data_index;
+    }
+
+    return (uint16_t)text_index;
+}
+
+static uint32_t symbol_index_for_name(const ElfSymbol *symbols,
+                                      int symbol_count,
+                                      const char *name) {
+    for (int i = 0; i < symbol_count; i++) {
+        if (strcmp(symbols[i].name, name) == 0) {
+            return (uint32_t)(i + 1); /* symbol 0 is the null entry */
+        }
+    }
+
+    return 0;
+}
+
+static uint32_t elf_relocation_type(RelocationKind kind) {
+    switch (kind) {
+    case RELOC_ABS64:
+        return R_X86_64_64;
+    case RELOC_PC32:
+        return R_X86_64_PC32;
+    }
+
+    return R_X86_64_64;
+}
+
+OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
+    bool has_data = in->data_bytes != NULL && in->data_size > 0;
+    bool has_rela_text = in->relocations != NULL && in->relocations->count > 0;
+
+    int sh_null = 0;
+    int sh_text = 1;
+    int next_section = 2;
+    int sh_data = has_data ? next_section++ : 0;
+    int sh_rela_text = has_rela_text ? next_section++ : 0;
+    (void)sh_rela_text;
+    int sh_symtab = next_section++;
+    int sh_strtab = next_section++;
+    int sh_shstrtab = next_section++;
+    int sh_count = next_section;
+    (void)sh_null;
+
+    OutBuf ob;
+    outbuf_init(&ob, arena,
+                64 + in->text_size + in->data_size + 1024 + (size_t)sh_count * 64);
+
+    uint8_t ehdr[64] = {0};
+    ehdr[0] = 0x7F;
+    ehdr[1] = 'E';
+    ehdr[2] = 'L';
+    ehdr[3] = 'F';
+    ehdr[4] = ELFCLASS64;
+    ehdr[5] = ELFDATA2LSB;
+    ehdr[6] = EV_CURRENT;
+    ehdr[7] = ELFOSABI_NONE;
+    w16(ehdr + 16, ET_REL);
+    w16(ehdr + 18, EM_X86_64);
+    w32(ehdr + 20, EV_CURRENT);
+    w16(ehdr + 52, 64);
+    w16(ehdr + 54, 56);
+    w16(ehdr + 58, 64);
+    w16(ehdr + 60, (uint16_t)sh_count);
+    w16(ehdr + 62, (uint16_t)sh_shstrtab);
+    outbuf_write(&ob, ehdr, sizeof(ehdr));
+
+    size_t text_off = ob.size;
+    if (in->text_size > 0) {
+        outbuf_write(&ob, in->text_bytes, in->text_size);
+    }
+
+    size_t data_off = 0;
+    if (has_data) {
+        align_outbuf(&ob, 8);
+        data_off = ob.size;
+        outbuf_write(&ob, in->data_bytes, in->data_size);
+    }
+
+    StrTab strtab;
+    strtab_init(&strtab, arena);
+
+    ElfSymbol symbols[512];
+    int symbol_count = collect_symbols(in->symtable, symbols, 511);
+    for (int i = 0; i < symbol_count; i++) {
+        symbols[i].name_offset = strtab_add(&strtab, symbols[i].name);
+    }
+
+    align_outbuf(&ob, 8);
     size_t symtab_off = ob.size;
-
-    /* Symbol 0: null entry */
     write_sym(&ob, 0, 0, 0, 0, 0, 0);
 
-    /* Local symbols first (STB_LOCAL), then global */
-    int first_global = 1 + nsyms; /* all our labels are global for now */
-    for (int s = 0; s < nsyms; s++) {
+    for (int i = 0; i < symbol_count; i++) {
         uint8_t info = (uint8_t)((STB_GLOBAL << 4) | STT_NOTYPE);
         write_sym(&ob,
-            sym_name_offs[s],
-            info,
-            STV_DEFAULT,
-            SH_TEXT,            /* shndx = .text */
-            (uint64_t)syms[s].offset,
-            0);
+                  symbols[i].name_offset,
+                  info,
+                  STV_DEFAULT,
+                  symbol_section_index(symbols[i].section, sh_text, sh_data),
+                  (uint64_t)symbols[i].offset,
+                  0);
     }
     size_t symtab_size = ob.size - symtab_off;
-    (void)first_global;
 
-    /* ── 5. .strtab (emit built string table) ── */
+    size_t rela_text_off = 0;
+    size_t rela_text_size = 0;
+    if (has_rela_text) {
+        align_outbuf(&ob, 8);
+        rela_text_off = ob.size;
+
+        for (size_t i = 0; i < in->relocations->count; i++) {
+            const Relocation *reloc = &in->relocations->data[i];
+            if (reloc->section != RELOC_SECTION_TEXT) {
+                continue;
+            }
+
+            uint32_t symbol_index = symbol_index_for_name(symbols, symbol_count, reloc->symbol);
+            if (symbol_index == 0) {
+                continue;
+            }
+
+            write_rela(&ob,
+                       (uint64_t)reloc->offset,
+                       symbol_index,
+                       elf_relocation_type(reloc->kind),
+                       reloc->addend);
+        }
+
+        rela_text_size = ob.size - rela_text_off;
+        has_rela_text = rela_text_size > 0;
+    }
+
     size_t strtab_off = ob.size;
     outbuf_write(&ob, strtab.data, strtab.size);
 
-    /* ── 6. .shstrtab (section name strings) ── */
     StrTab shstrtab;
     strtab_init(&shstrtab, arena);
-    uint32_t sh_null_name    = strtab_add(&shstrtab, "");
-    uint32_t sh_text_name    = strtab_add(&shstrtab, ".text");
-    uint32_t sh_symtab_name  = strtab_add(&shstrtab, ".symtab");
-    uint32_t sh_strtab_name  = strtab_add(&shstrtab, ".strtab");
-    uint32_t sh_shstrtab_name= strtab_add(&shstrtab, ".shstrtab");
+    uint32_t sh_text_name = strtab_add(&shstrtab, ".text");
+    uint32_t sh_data_name = has_data ? strtab_add(&shstrtab, ".data") : 0;
+    uint32_t sh_rela_text_name = has_rela_text ? strtab_add(&shstrtab, ".rela.text") : 0;
+    uint32_t sh_symtab_name = strtab_add(&shstrtab, ".symtab");
+    uint32_t sh_strtab_name = strtab_add(&shstrtab, ".strtab");
+    uint32_t sh_shstrtab_name = strtab_add(&shstrtab, ".shstrtab");
 
     size_t shstrtab_off = ob.size;
     outbuf_write(&ob, shstrtab.data, shstrtab.size);
 
-    /* ── 7. Align to 8 bytes before section headers ── */
-    while (ob.size % 8) outbuf_zeros(&ob, 1);
+    align_outbuf(&ob, 8);
     size_t shoff = ob.size;
 
-    /* ── 8. Section header table ── */
-    /* SH_NULL */
-    write_shdr(&ob, 0,0,0,0,0,0,0,0,0,0);
+    write_shdr(&ob, 0, SHT_NULL, 0, 0, 0, 0, 0, 0, 0, 0);
 
-    /* SH_TEXT: .text */
     write_shdr(&ob,
-        sh_text_name, SHT_PROGBITS,
-        SHF_ALLOC | SHF_EXECINSTR,
-        0, (uint64_t)text_off, (uint64_t)in->text_size,
-        0, 0, 16, 0);
+               sh_text_name,
+               SHT_PROGBITS,
+               SHF_ALLOC | SHF_EXECINSTR,
+               0,
+               (uint64_t)text_off,
+               (uint64_t)in->text_size,
+               0,
+               0,
+               16,
+               0);
 
-    /* SH_SYMTAB: .symtab
-     * link = index of .strtab, info = index of first global symbol */
+    if (has_data) {
+        write_shdr(&ob,
+                   sh_data_name,
+                   SHT_PROGBITS,
+                   SHF_ALLOC | SHF_WRITE,
+                   0,
+                   (uint64_t)data_off,
+                   (uint64_t)in->data_size,
+                   0,
+                   0,
+                   8,
+                   0);
+    }
+
+    if (has_rela_text) {
+        write_shdr(&ob,
+                   sh_rela_text_name,
+                   SHT_RELA,
+                   0,
+                   0,
+                   (uint64_t)rela_text_off,
+                   (uint64_t)rela_text_size,
+                   (uint32_t)sh_symtab,
+                   (uint32_t)sh_text,
+                   8,
+                   24);
+    }
+
     write_shdr(&ob,
-        sh_symtab_name, SHT_SYMTAB,
-        0, 0,
-        (uint64_t)symtab_off, (uint64_t)symtab_size,
-        SH_STRTAB,            /* link = .strtab */
-        1,                    /* info = first global (all global here) */
-        8, 24);
+               sh_symtab_name,
+               SHT_SYMTAB,
+               0,
+               0,
+               (uint64_t)symtab_off,
+               (uint64_t)symtab_size,
+               (uint32_t)sh_strtab,
+               1,
+               8,
+               24);
 
-    /* SH_STRTAB: .strtab */
     write_shdr(&ob,
-        sh_strtab_name, SHT_STRTAB,
-        0, 0,
-        (uint64_t)strtab_off, (uint64_t)strtab.size,
-        0, 0, 1, 0);
+               sh_strtab_name,
+               SHT_STRTAB,
+               0,
+               0,
+               (uint64_t)strtab_off,
+               (uint64_t)strtab.size,
+               0,
+               0,
+               1,
+               0);
 
-    /* SH_SHSTRTAB: .shstrtab */
     write_shdr(&ob,
-        sh_shstrtab_name, SHT_STRTAB,
-        0, 0,
-        (uint64_t)shstrtab_off, (uint64_t)shstrtab.size,
-        0, 0, 1, 0);
+               sh_shstrtab_name,
+               SHT_STRTAB,
+               0,
+               0,
+               (uint64_t)shstrtab_off,
+               (uint64_t)shstrtab.size,
+               0,
+               0,
+               1,
+               0);
 
-    /* ── 9. Patch e_shoff into ELF header ── */
     uint8_t shoff_le[8];
     w64(shoff_le, (uint64_t)shoff);
-    outbuf_patch(&ob, 40, shoff_le, 8);  /* e_shoff at offset 40 */
-
-    /* Patch unused section name indices to avoid warnings */
-    (void)sh_null_name;
+    outbuf_patch(&ob, 40, shoff_le, sizeof(shoff_le));
 
     return (OutputResult){
-        .data  = ob.data,
-        .size  = ob.size,
-        .ok    = true,
+        .data = ob.data,
+        .size = ob.size,
+        .ok = true,
         .error_message = NULL,
     };
 }

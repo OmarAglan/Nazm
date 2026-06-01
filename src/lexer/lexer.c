@@ -428,6 +428,91 @@ static void lex_minus_or_negative_number(Lexer *lx, int line, int col) {
     push_token_value(lx, TOKEN_MINUS, "-", 1, line, col, col + 1);
 }
 
+
+static void lex_string(Lexer *lx, int line, int col) {
+    skip_cp(lx); /* opening quote */
+
+    size_t cap = 32;
+    size_t len = 0;
+    char *buf = ARENA_ALLOC_N(lx->arena, char, cap);
+    bool ok = true;
+
+    while (!at_end(lx)) {
+        size_t cp_start = lx->pos;
+        uint32_t cp = peek_cp(lx);
+
+        if (cp == '"') {
+            skip_cp(lx);
+            char *text = ARENA_ALLOC_N(lx->arena, char, len + 1);
+            memcpy(text, buf, len);
+            text[len] = '\0';
+            if (ok) {
+                push_token_value(lx, TOKEN_STRING, text, len, line, col, lx->col);
+            }
+            return;
+        }
+
+        if (cp == '\n' || cp == '\r') {
+            lex_error_at(lx, line, col, lx->col, "سلسلة نصية غير مغلقة");
+            return;
+        }
+
+        if (cp == '\\') {
+            skip_cp(lx);
+            if (at_end(lx)) {
+                lex_error_at(lx, line, col, lx->col, "سلسلة نصية غير مغلقة");
+                return;
+            }
+
+            uint32_t esc = peek_cp(lx);
+            char out = '\0';
+            bool known = true;
+
+            switch (esc) {
+            case 'n':  out = '\n'; break;
+            case 't':  out = '\t'; break;
+            case 'r':  out = '\r'; break;
+            case '0':  out = '\0'; break;
+            case '"': out = '"';  break;
+            case '\\': out = '\\'; break;
+            default:
+                known = false;
+                ok = false;
+                lex_error_at(lx, lx->line, lx->col, lx->col + 1,
+                             "تسلسل هروب غير معروف داخل السلسلة النصية");
+                break;
+            }
+
+            skip_cp(lx);
+            if (known) {
+                if (len + 1 > cap) {
+                    size_t new_cap = cap * 2 + 1;
+                    char *new_buf = ARENA_ALLOC_N(lx->arena, char, new_cap);
+                    memcpy(new_buf, buf, len);
+                    buf = new_buf;
+                    cap = new_cap;
+                }
+                buf[len++] = out;
+            }
+            continue;
+        }
+
+        skip_cp(lx);
+        size_t cp_len = lx->pos - cp_start;
+        if (len + cp_len > cap) {
+            size_t new_cap = cap * 2 + cp_len;
+            char *new_buf = ARENA_ALLOC_N(lx->arena, char, new_cap);
+            memcpy(new_buf, buf, len);
+            buf = new_buf;
+            cap = new_cap;
+        }
+        memcpy(buf + len, lx->src->data + cp_start, cp_len);
+        len += cp_len;
+    }
+
+    lex_error_at(lx, line, col, lx->col, "سلسلة نصية غير مغلقة");
+}
+
 static void lex_number(Lexer *lx, int line, int col) {
     bool ok;
     int64_t val = parse_number(lx, &ok);
@@ -506,6 +591,11 @@ static void lex_all(Lexer *lx) {
             continue;
         }
 
+        if (cp == '"') {
+            lex_string(lx, tok_line, tok_col);
+            continue;
+        }
+
         if (is_number_start(cp)) {
             lex_number(lx, tok_line, tok_col);
             continue;
@@ -571,6 +661,7 @@ const char *token_type_name(TokenType type) {
     case TOKEN_IMMEDIATE: return "IMMEDIATE";
     case TOKEN_LABEL_DEF: return "LABEL_DEF";
     case TOKEN_LABEL_REF: return "LABEL_REF";
+    case TOKEN_STRING:    return "STRING";
     case TOKEN_DIRECTIVE: return "DIRECTIVE";
     case TOKEN_LBRACKET:  return "LBRACKET";
     case TOKEN_RBRACKET:  return "RBRACKET";

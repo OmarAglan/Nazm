@@ -163,8 +163,8 @@ Do not paste large code blocks unless requested. Reference files and behavior.
 source bytes (.مجمع)
   -> lexer: UTF-8 Arabic text to TokenArray
   -> parser: TokenArray to InstructionList
-  -> pass1: instruction sizes and SymbolTable
-  -> pass2: encoded .text bytes
+  -> pass1: instruction/data sizes and section-aware SymbolTable
+  -> pass2: encoded .text/.data bytes plus relocation records
   -> output: ELF64 or COFF object bytes
   -> CLI/API result
 ```
@@ -172,8 +172,8 @@ source bytes (.مجمع)
 Rules:
 - Lexer owns tokenization and Arabic character handling.
 - Parser owns instruction and operand structure.
-- Pass 1 owns label offsets and instruction-size assumptions.
-- Pass 2 owns final address resolution and calling the encoder.
+- Pass 1 owns label offsets, data offsets, section tracking, and instruction-size assumptions.
+- Pass 2 owns final address resolution, data emission, relocation collection, and calling the encoder.
 - Encoder owns raw x86-64 bytes only; it should not parse source text.
 - Output writers own object-file layout only; they should not reinterpret Arabic syntax.
 - CLI owns file I/O, argument parsing, phase orchestration, and exit codes.
@@ -187,8 +187,8 @@ Rules:
 | `src/error` | Error collection and Arabic diagnostic printing. |
 | `src/lexer` | Tokenizing Arabic assembly source and recognizing mnemonics. |
 | `src/parser` | Building `InstructionList` and operand structures. |
-| `src/symtable` | Mapping labels to offsets and detecting symbol issues. |
-| `src/passes` | Two-pass assembly logic, address sizing, and final encoding coordination. |
+| `src/symtable` | Mapping labels to section-aware offsets and detecting symbol issues. |
+| `src/passes` | Two-pass assembly logic, address/data sizing, relocation collection, and final encoding coordination. |
 | `src/encoder` | x86-64 encoding tables and helpers: REX, ModRM, SIB, immediates. |
 | `src/output` | ELF64 and PE/COFF object serialization. |
 | `src/cli` | CLI option parsing and help/version behavior. |
@@ -197,12 +197,12 @@ Rules:
 ### 2.3 Output Contracts
 
 ELF64:
-- Must emit valid headers, section tables, string tables, and `.text` contents.
-- Relocations must be explicit when external or unresolved symbols are supported.
+- Must emit valid headers, section tables, string tables, `.text`, optional `.data`, and supported relocation records.
+- Relocations must be explicit for every supported symbol-address form; unsupported external forms should diagnose clearly.
 - Verify with tests and, when possible, tools such as `readelf`.
 
 COFF:
-- Must emit valid PE/COFF object structure for Windows tooling.
+- Must emit valid PE/COFF object structure with section headers, symbols, optional `.data`, and supported relocations.
 - Keep platform differences isolated in `src/output/coff.*`.
 
 Raw encoded bytes:

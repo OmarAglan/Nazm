@@ -214,11 +214,18 @@ static bool parse_operand(Parser *p, Operand *out) {
         out->label = arena_strndup(p->arena, t->value, t->len);
         return true;
 
+    case TOKEN_STRING:
+        advance(p);
+        out->kind = OP_STRING;
+        out->string.data = arena_strndup(p->arena, t->value, t->len);
+        out->string.len = t->len;
+        return true;
+
     default: {
         char msg[160];
         snprintf(msg,
                  sizeof(msg),
-                 "توقعت معاملاً: سجل، رقم، ذاكرة، أو وسم؛ لكنني وجدت: %s",
+                 "توقعت معاملاً: سجل، رقم، ذاكرة، سلسلة، أو وسم؛ لكنني وجدت: %s",
                  token_type_name(t->type));
         token_error(p, t, msg);
         return false;

@@ -197,6 +197,14 @@ static EncodedInstruction enc_mov(const Operand *ops, int n) {
         return from_buf(&b);
     }
 
+    /* MOV r64, label — REX.W B8+rd io; linker fills imm64 relocation. */
+    if (dst->kind == OP_REG && src->kind == OP_LABEL) {
+        emit_rex(&b, true, false, false, rex_b(dst->reg));
+        emit(&b, (uint8_t)(0xB8 + rf(dst->reg)));
+        emit64(&b, 0);
+        return from_buf(&b);
+    }
+
     /* MOV r/m64, r64  — REX.W 89 /r */
     if (dst->kind == OP_REG && src->kind == OP_REG) {
         emit_rr(&b, 0x89, dst->reg, src->reg, true);
@@ -231,6 +239,8 @@ static int size_mov(const Operand *ops, int n) {
             return 1 + 1 + 1 + 4; /* REX + C7 + ModRM + imm32 = 7 */
         return 1 + 1 + 8;          /* REX + B8+r + imm64 = 10 */
     }
+    if (dst->kind == OP_REG && src->kind == OP_LABEL)
+        return 1 + 1 + 8; /* REX.W + B8+r + imm64 = 10 */
     if (dst->kind == OP_REG && src->kind == OP_REG)
         return 1 + 1 + 1; /* REX.W + 89 + ModRM = 3 */
     if (dst->kind == OP_REG && operand_is_mem(src)) {

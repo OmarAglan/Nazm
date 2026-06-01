@@ -17,6 +17,7 @@ typedef enum {
     TOKEN_IMMEDIATE,    /* ٤٢  255  0xFF  0b1010      */
     TOKEN_LABEL_DEF,    /* البداية:                   */
     TOKEN_LABEL_REF,    /* البداية  (used as operand) */
+    TOKEN_STRING,       /* "مرحبا\n" decoded string      */
     TOKEN_DIRECTIVE,    /* .نص  .بيانات  .عدد٦٤       */
     TOKEN_LBRACKET,     /* [                           */
     TOKEN_RBRACKET,     /* ]                           */

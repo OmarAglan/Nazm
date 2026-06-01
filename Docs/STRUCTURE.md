@@ -1,6 +1,6 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-05-29
+**Analysis Date:** 2026-06-01
 
 This file describes the repository as it exists now. Planned directories are
 marked explicitly so release checks do not treat them as implemented behavior.
@@ -66,12 +66,12 @@ Nazm/
 
 **src/symtable/**
 - `symtable.c`, `symtable.h`
-- Owns the current label-to-offset table.
+- Owns the current section-aware label-to-offset table.
 
 **src/passes/**
 - `pass1.c`, `pass1.h`, `pass2.c`, `pass2.h`
-- Owns two-pass assembly coordination: pass 1 computes offsets/symbols, pass 2
-  drives encoding.
+- Owns two-pass assembly coordination: pass 1 computes section-aware offsets/symbols, pass 2
+  drives encoding, data emission, and relocation collection.
 
 **src/encoder/**
 - `encoder.c`, `encoder.h`, `table.c`, `modrm.c`, `modrm.h`,
@@ -91,7 +91,10 @@ Nazm/
 - Current unit tests: `test_arena.c`, `test_unicode.c`, `test_symtable.c`,
   `test_keywords.c`, `test_immediate.c`, `test_rex.c`, `test_lexer.c`,
   `test_parser.c`, `test_encoder.c`, `test_passes.c`, `test_elf64.c`,
-  `test_cli_args.c`, and `test_diagnostics.c`.
+  `test_coff.c`, `test_cli_args.c`, `test_diagnostics.c`, and `test_examples.c`.
+
+**examples/**
+- Holds good Arabic `.مجمع` examples such as `مرحبا.مجمع`, `خروج.مجمع`, `حلقة.مجمع`, and `بيانات.مجمع`.
 
 **examples/diagnostics/**
 - Holds intentional-error `.مجمع` files used to demonstrate Arabic source-context diagnostics.

@@ -1,6 +1,6 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-05-29
+**Analysis Date:** 2026-06-01
 
 ## Tech Debt
 
@@ -17,36 +17,48 @@
 - Fix approach: Measure first, then replace with a trie, generated perfect hash, or hand-written bucket table over UTF-8 mnemonic strings.
 
 **Pass 2 and the encoder are tightly coupled:**
-- Issue: `src/passes/pass2.c` calls the x86-64 encoder directly.
+- Issue: `src/passes/pass2.c` calls the x86-64 encoder directly and also records the current relocation forms.
 - Why: There is currently only one target architecture.
 - Impact: Adding a second encoder target would require changes in pass 2 rather than an architecture-neutral interface.
 - Fix approach: Introduce an `Encoder` interface only when a second backend is real enough to drive the shape of that abstraction.
 
 ## Known Limitations
 
-**COFF writer is a stub:**
-- Symptoms: `-f coff` returns an explicit Arabic error instead of object bytes.
+**COFF writer still needs Windows linker validation:**
+- Symptoms: The writer now emits a real `.obj` with `.text`, optional `.data`, symbols, string table, and text relocations, but this environment cannot run `link.exe`.
 - File: `src/output/coff.c`.
-- Current behavior: Safe failure; no invalid `.obj` file is produced.
-- Fix approach: Implement PE/COFF serialization and add byte-level tests similar to `tests/unit/test_elf64.c`.
+- Current behavior: Byte-level unit tests validate layout and relocation records; cross-toolchain acceptance must be validated on Windows CI or with `lld-link`.
+- Fix approach: Add a Windows CI job that assembles a small example, links it, and verifies the process exits correctly.
+
+**Relocation support is intentionally narrow:**
+- Symptoms: `احمل رX، وسم` emits an absolute-address relocation for local labels. External symbols and call/jump relocations are not implemented yet.
+- Files: `src/passes/pass2.c`, `src/output/elf64.c`, `src/output/coff.c`.
+- Current mitigation: Unsupported unresolved symbols still produce Arabic diagnostics instead of guessed bytes.
+- Fix approach: Add explicit external-symbol directives, define relocation kinds per instruction form, then add linker-level integration tests.
 
 **Public embedding API is declared but not implemented:**
-- Symptoms: `include/nazm.h` declares `nazm_assemble_file()`, `nazm_assemble_buffer()`, `nazm_result_free()`, and `nazm_default_options()`, but the current working entry point remains the CLI.
+- Symptoms: `include/nazm.h` declares `nazm_assemble_file()`, `nazm_assemble_buffer()`, `nazm_result_free()`, and `nazm_default_options()`, but the current working entry point remains the CLI and unit-level pipeline helpers.
 - Files: `include/nazm.h`, future API implementation file.
-- Current mitigation: `libnazm` now builds without `src/main.c`, so the API can be implemented without coupling to CLI file I/O.
+- Current mitigation: `libnazm` builds without `src/main.c`, so the API can be implemented without coupling to CLI file I/O.
 - Fix approach: Add the API implementation and a small C unit test before promising external embedding support.
 
-**No integration fixture directory yet:**
-- Symptoms: Unit tests cover modules and ELF64 fields, but no checked-in `.مجمع` fixtures validate full CLI assembly/link flows.
-- Fix approach: Add `tests/fixtures/` and `tests/integration/` once object output contracts are stable enough to avoid brittle snapshots.
+**No subprocess integration harness yet:**
+- Symptoms: `tests/unit/test_examples.c` assembles checked-in examples through the library pipeline to ELF64 and COFF, but there is no test that executes the `nazm` binary, checks exit codes, and optionally links/runs output.
+- Fix approach: Add `tests/integration/` once the CLI contract and linker availability are stable enough for cross-platform snapshots.
 
 ## Recently Resolved From Earlier Audits
 
-- Duplicate labels now fail through `symtable_insert()` and pass 1 reports an Arabic diagnostic. Covered by `tests/unit/test_symtable.c` and `tests/unit/test_passes.c`.
+- COFF output is no longer a stub; it has field-level tests for headers, sections, symbols, data, and relocations.
+- `.بيانات` now emits real `.data` bytes in pass 2 and in both ELF64 and COFF writers.
+- `.سلسلة "..."` is tokenized, parsed, sized, and emitted as UTF-8 plus a trailing null byte.
+- Symbols now carry section information so `.data` labels are not accidentally emitted as `.text` symbols.
+- Basic label-address relocations are emitted for `احمل رX، وسم` in ELF64 `.rela.text` and COFF `.text` relocation tables.
+- Checked-in good examples are assembled by `tests/unit/test_examples.c` to both object formats.
+- Duplicate labels fail through `symtable_insert_section()` and pass 1 reports an Arabic diagnostic.
 - Arabic-Indic immediates inside memory displacements, including negative displacements such as `[ر5-١٦]`, are covered by parser tests.
-- Conditional jumps use near `rel32` sizing in pass 1 and encoder output, avoiding the previous short-jump size mismatch concern.
+- Conditional jumps use near `rel32` sizing in pass 1 and encoder output, avoiding short-jump size mismatch.
 - `libnazm` no longer compiles `src/main.c`; the executable owns `main.c`, while library and tests share `NAZM_LIBRARY_SOURCES`.
-- CLI source reads now reject files larger than 100 MiB with a specific Arabic diagnostic before allocating the whole file.
+- CLI source reads reject files larger than 100 MiB with a specific Arabic diagnostic before allocating the whole file.
 
 ## Security Considerations
 
@@ -76,16 +88,21 @@
 
 ## Fragile Areas
 
-**ELF64 section header offset arithmetic:**
-- File: `src/output/elf64.c`.
-- Why fragile: Section offsets are computed manually with running byte counters.
-- Safe modification: Add or reorder sections in one place, then run `ctest -R unit_test_elf64` and inspect with `readelf` when available.
-- Test coverage: `tests/unit/test_elf64.c` covers headers, section counts, `.text`, symbols, string tables, and invalid output dispatch paths; relocations are still untested because relocation support is not implemented.
+**ELF64 and COFF layout arithmetic:**
+- Files: `src/output/elf64.c`, `src/output/coff.c`.
+- Why fragile: Section offsets, symbol indexes, string-table offsets, and relocation offsets are computed manually with running counters.
+- Safe modification: Add or reorder sections in one place, then run `ctest -R unit_test_elf64`, `ctest -R unit_test_coff`, and inspect outputs with `readelf`/`objdump` when available.
+- Test coverage: ELF64 and COFF tests cover section counts, `.text`, `.data`, symbols, string tables, and current relocation records.
 
 **UTF-8 codepoint decoder in the lexer:**
 - File: `src/unicode/arabic.c`.
 - Why fragile: It is hand-rolled and Arabic ranges are explicit.
 - Safe modification: Add a unit test for every new accepted digit or letter range before changing classification logic.
+
+**String literal escape handling:**
+- File: `src/lexer/lexer.c`.
+- Why fragile: Escaped bytes are decoded before data emission, so lexer semantics directly affect object bytes.
+- Safe modification: Extend escapes only with lexer tests, parser tests, and `.سلسلة` pass2 byte tests.
 
 ## Missing Critical Features
 
@@ -99,24 +116,29 @@
 - Current workaround: Inspect object bytes or use `objdump` after output generation.
 - Implementation complexity: Medium; track source line information through pass 2 and emit a sidecar `.lst` file.
 
-**`.بيانات` section emission:**
-- Problem: Directives for data are parsed but not emitted into a separate object-file data section.
-- Current workaround: Constants must be encoded as immediates in `.text`.
-- Implementation complexity: Medium; pass 1 and pass 2 need section-aware offsets, and output writers need `.data` support.
+**External symbol model:**
+- Problem: There is no directive equivalent to declaring a symbol external/global enough for linker-level references beyond local labels.
+- Current workaround: Use labels defined in the same source file.
+- Implementation complexity: Medium; this needs parser directives, symbol flags, relocation records, and output-writer support.
 
 ## Test Coverage Gaps
 
-**Relocation entries in ELF64 output:**
-- What's not tested: External or unresolved symbol references because relocation support is not implemented yet.
-- Priority: High once calls/jumps to external symbols are supported.
+**Real linker acceptance:**
+- What's not tested: `ld`/`lld` linking on Linux and `link.exe`/`lld-link` linking on Windows.
+- Priority: High for the next backend-focused milestone.
+
+**External and PC-relative relocations:**
+- What's covered: Absolute local label-address relocation for `احمل رX، وسم`.
+- What's not covered: External symbols, `call`, `jmp`, and conditional branch relocations.
+- Priority: High before claiming broader object-file compatibility.
 
 **All 16 general-purpose registers in all operand positions:**
 - What's not tested: Coverage exists for several extended-register cases, but not every source/destination/memory position combination.
 - Priority: High for encoder confidence.
 
 **CLI end-to-end behavior:**
-- What's covered: `tests/unit/test_cli_args.c` covers argument parsing, and `tests/unit/test_diagnostics.c` covers rendered Arabic diagnostic shape through library-level pipeline calls.
-- What's not covered: Executing `nazm` on fixture files and checking exit codes/output files through a dedicated integration harness.
+- What's covered: `tests/unit/test_cli_args.c` covers argument parsing; `tests/unit/test_examples.c` covers the library pipeline on examples; `tests/unit/test_diagnostics.c` covers rendered Arabic diagnostic shape.
+- What's not covered: Executing `nazm` on fixture files and checking exit codes/output files through a dedicated subprocess integration harness.
 
 ---
 

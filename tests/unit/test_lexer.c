@@ -244,6 +244,32 @@ void test_lex_memory_with_displacement(void) {
     TEST_ASSERT_EQUAL_INT(TOKEN_RBRACKET,  tok(&r, 4).type);
 }
 
+
+/* ── Strings ─────────────────────────────────────────────────────────────── */
+
+void test_lex_string_literal_arabic(void) {
+    LexResult r = lex("\"مرحبا\"");
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+    Token t = tok(&r, 0);
+    TEST_ASSERT_EQUAL_INT(TOKEN_STRING, t.type);
+    TEST_ASSERT_EQUAL_STRING("مرحبا", t.value);
+    TEST_ASSERT_EQUAL_INT(10, (int)t.len);
+}
+
+void test_lex_string_literal_escape_newline(void) {
+    LexResult r = lex("\"أ\\nب\"");
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+    Token t = tok(&r, 0);
+    TEST_ASSERT_EQUAL_INT(TOKEN_STRING, t.type);
+    TEST_ASSERT_EQUAL_INT(5, (int)t.len);
+    TEST_ASSERT_EQUAL_HEX8('\n', t.value[2]);
+}
+
+void test_lex_string_literal_unclosed_reports_error(void) {
+    LexResult r = lex("\"مرحبا");
+    TEST_ASSERT_TRUE(error_has_any(&r.errors));
+}
+
 /* ── Comments ─────────────────────────────────────────────────────────────── */
 
 void test_lex_comment_stripped(void) {
@@ -447,6 +473,9 @@ int main(void) {
     RUN_TEST(test_lex_arabic_comma);
     RUN_TEST(test_lex_brackets);
     RUN_TEST(test_lex_memory_with_displacement);
+    RUN_TEST(test_lex_string_literal_arabic);
+    RUN_TEST(test_lex_string_literal_escape_newline);
+    RUN_TEST(test_lex_string_literal_unclosed_reports_error);
 
     /* Comments */
     RUN_TEST(test_lex_comment_stripped);

@@ -1,6 +1,6 @@
 # Architecture
 
-**Analysis Date:** 2026-05-29
+**Analysis Date:** 2026-06-01
 
 ## Pattern Overview
 
@@ -10,8 +10,8 @@ Nazm is structured as a small multi-pass assembler pipeline:
 source bytes (.مجمع)
   -> lexer: UTF-8 Arabic text to TokenArray
   -> parser: TokenArray to InstructionList
-  -> pass1: instruction sizes and SymbolTable
-  -> pass2: encoded .text bytes
+  -> pass1: instruction/data sizes and section-aware SymbolTable
+  -> pass2: encoded .text/.data bytes plus relocation records
   -> output writer: ELF64 or COFF object bytes
   -> CLI result
 ```
@@ -33,9 +33,9 @@ without compiling `src/main.c`.
 
 **Assembler core**
 - Contains `src/passes/` and `src/symtable/`.
-- Pass 1 owns instruction-size assumptions and label offsets.
-- Pass 2 owns final traversal of parsed instructions and calls into the encoder.
-- Symbol lookup and insertion belong to `src/symtable/`.
+- Pass 1 owns instruction-size assumptions, data-size accounting, current section tracking, and label offsets.
+- Pass 2 owns final traversal of parsed instructions, calls into the encoder, emits data bytes, and records the currently supported relocation forms.
+- Symbol lookup and insertion belong to `src/symtable/`, including whether a label belongs to `.text` or `.data`.
 
 **Encoder**
 - Contains `src/encoder/`.
@@ -63,9 +63,9 @@ without compiling `src/main.c`.
 5. The parser returns an `InstructionList`.
 6. Pass 1 walks the instruction list, estimates sizes, and records labels in a
    `SymbolTable`.
-7. Pass 2 walks the instruction list again and requests final instruction bytes
-   from `src/encoder/`.
-8. The output layer writes ELF64 or COFF bytes.
+7. Pass 2 walks the instruction list again, requests final instruction bytes
+   from `src/encoder/`, emits `.data` bytes, and records relocation entries.
+8. The output layer writes ELF64 or COFF bytes, including sections, symbols, string tables, and current relocation records.
 9. The CLI writes the object file and reports success or Arabic diagnostics.
 
 ## Key Data Structures
@@ -84,13 +84,18 @@ without compiling `src/main.c`.
 
 **Operand**
 - Defined in `src/encoder/encoder.h`.
-- Represents register, immediate, memory, or label operands.
+- Represents register, immediate, memory, label, or decoded string operands.
 - Carries operand source span data so pass2 can report unresolved labels at the operand, not merely at the instruction.
 - Shared today by parser, passes, and encoder.
 
 **SymbolTable**
 - Defined in `src/symtable/symtable.h`.
-- Maps labels to byte offsets.
+- Maps labels to byte offsets and records whether each label belongs to `.text`, `.data`, or an unknown/future section.
+
+**RelocationList**
+- Defined in `src/passes/pass2.h`.
+- Carries relocation records produced by pass 2 for output writers.
+- Current implemented kind: absolute 64-bit relocation for direct label-address loads from `.text`.
 
 **OutputBuffer**
 - Defined in `src/output/output.h`.
@@ -112,17 +117,17 @@ Implemented now:
 - Arabic lexer and parser coverage for the current instruction representation.
 - Basic pass and symbol table structure.
 - Encoder helper modules and instruction table scaffolding.
-- ELF64 and COFF writer modules in the source tree.
+- ELF64 and COFF writers with `.text`, optional `.data`, symbol/string tables, and current text relocation support.
 - CLI option parser and `nazm` executable target.
 - Unit tests for arena, Unicode, symtable, keywords, immediates, REX, lexer,
-  parser, encoder, passes, ELF64, and CLI argument parsing through both CTest
+  parser, encoder, passes, ELF64, COFF, diagnostics, examples, and CLI argument parsing through both CTest
   and the direct script path.
 
 Planned or limited:
 - Stable in-process API behavior for `include/nazm.h`.
-- Verified end-to-end object compatibility across ELF64 and COFF.
-- Relocation support for external/unresolved symbols.
-- Integration fixtures and full pipeline tests.
+- Verified end-to-end linker compatibility across ELF64 and COFF on CI.
+- Relocation support for external symbols and call/jump forms.
+- Subprocess CLI integration tests and link/run fixtures.
 - Listing output and richer CLI exit-code coverage.
 
 ## Error Handling

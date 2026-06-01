@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-05-29
+**Analysis Date:** 2026-06-01
 
 ## APIs & External Services
 
@@ -17,7 +17,10 @@ The Arabic assembler is a self-contained native binary. It reads files from disk
 - Limit: CLI rejects files larger than 100 MiB before allocating the full buffer
 
 **Output — Object Files:**
-- Format: ELF64 is implemented; PE/COFF is selectable via `-f coff` but currently returns an explicit not-implemented error
+- Formats: ELF64 via `-f elf64`, PE/COFF object via `-f coff`
+- Current section support: `.text` always, `.data` when data bytes exist, `.rela.text`/COFF text relocations when the source needs current supported relocations
+- Current symbol support: local labels with section-aware `.text`/`.data` indexes
+- Current relocation support: absolute address relocations for loading a local label into a register, such as `احمل ر0، رسالة`
 - Location: Path provided with `-o` flag, defaults to input filename with `.o` extension
 - Written via: `src/output/elf64.c` or `src/output/coff.c`
 
@@ -33,9 +36,9 @@ Not applicable. No network communication, no user accounts, no authentication of
 ## Monitoring & Observability
 
 **Error Reporting:**
-- All errors printed to `stderr` in Arabic, starting with `خطأ في [ملف]:[سطر]:[عمود]: [رسالة]`; when source text is available, the following lines show the original line and a caret marker for the source span.
+- All errors printed to `stderr` in Arabic, starting with `خطأ في [ملف]:[سطر]:[عمود]: [رسالة]`; when source text is available, following lines show the original line and a caret marker for the source span.
 - No crash reporting, no telemetry, no external error tracking
-- Exit codes currently used by the CLI: `0` = success, `1` = assembly/output error, `2` = CLI or I/O error
+- Exit codes currently used by the CLI: `0` = success, `1` = assembly/output error, `2` = CLI or I/O error, `3` = internal usage guard
 
 **Logs:**
 - Stderr: progress messages when `-v` (verbose) flag is passed
@@ -53,59 +56,32 @@ Not applicable. No network communication, no user accounts, no authentication of
 - Intended platform: GitHub Actions
 - Intended workflows: `.github/workflows/ci.yml`
   - On every push: Debug CMake build, Release CMake build, and `./build.sh test`
+  - On Linux: assemble and inspect ELF examples with `readelf`/`objdump` when available
+  - On Windows: assemble and link a tiny COFF example with `link.exe` or `lld-link`
   - On release tag: build static binaries for Linux x86-64 and Windows x86-64, attach to GitHub Release
-- Not yet implemented — CI is manual at this stage
 
-**Distribution:**
-- Linux: single static ELF64 binary, no shared libraries, copy to `/usr/local/bin/مجمع`
-- Windows: single static PE binary, add to `PATH`
-- Package manager support (planned): `brew`, `apt`, `pacman` — not yet
+## External Tooling Contracts
 
-## Toolchain Integrations (downstream consumers)
+**Linux Linkers:**
+- Relationship: Consumers of ELF64 relocatable object files
+- Current expectation: `.text`, `.data`, `.symtab`, `.strtab`, `.shstrtab`, and `.rela.text` are emitted when relevant
+- Validation status: Unit tests verify bytes and section fields; full link/run integration is planned
 
-**GNU Linker (`ld`):**
-- Relationship: Consumer of ELF64 `.o` files produced by the assembler
-- Usage: `ld ملف.o -o ملف` links the output into an executable
-- No special configuration needed — assembler produces standard ELF64 object files
+**Windows Linkers:**
+- Relationship: Consumers of PE/COFF `.obj` files
+- Current expectation: `.text`, optional `.data`, symbol table, string table, and `.text` relocation table are emitted when relevant
+- Validation status: Unit tests verify bytes and table fields; `link.exe`/`lld-link` validation is planned on Windows CI
 
-**LLVM Linker (`lld`):**
-- Relationship: Alternative linker consumer; compatible with the same ELF64 `.o` format
-- Verification is planned as part of future integration fixtures
+**Baa Compiler (future):**
+- Relationship: Future producer of Arabic assembly source or direct consumer of `libnazm` API
+- Status: Public C API is declared but not implemented
+- Integration decision still open: subprocess invocation vs in-process API
 
-**Microsoft Linker (`link.exe`) / `lld-link`:**
-- Relationship: Consumer of PE/COFF `.obj` files on Windows
-- Usage: `link.exe ملف.obj /out:ملف.exe`
-- Status: Blocked until `src/output/coff.c` is implemented
+## Local Developer Tools
 
-**Baa Compiler (`باء`) — future:**
-- Relationship: The Baa compiler will call the Arabic assembler as its code generation backend
-- Integration method (planned): Either subprocess (`fork`/`exec`) or in-process via `include/nazm.h` library API
-- Trigger: When Baa's compiler backend is modified to emit `.مجمع` files instead of passing C to GCC
-- Status: Not yet integrated — this is the self-hosting milestone
-
-## Environment Configuration
-
-**Development:**
-- Required tools: GCC 11+ or Clang 14+, CMake 3.20+, `ld`
-- No environment variables required
-- Build: `cmake -B build && make -C build`
-
-**Testing:**
-- No external services needed.
-- Unit tests run through CTest and `./build.sh test`.
-- Integration fixtures are planned.
-- Unity test framework is vendored in `tests/vendor/unity/`.
-
-**Production / Distribution:**
-- No runtime environment variables
-- No configuration files
-- Behavior controlled entirely by CLI flags
-
-## Webhooks & Callbacks
-
-Not applicable.
+- `tools/check-markdown.ps1` checks Markdown links and obvious repository paths. It requires PowerShell and is optional in environments that do not have PowerShell installed.
+- `readelf`, `objdump`, `llvm-objdump`, `dumpbin`, or similar tools are useful for manual inspection but are not hard runtime dependencies.
 
 ---
 
-*Integration audit: 2026-05-29*
-*Update when adding/removing external services*
+*Update this file whenever an output format, external linker contract, CI plan, or public API changes.*

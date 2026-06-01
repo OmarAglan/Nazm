@@ -222,6 +222,41 @@ void test_p2_unresolved_label_error_span_points_to_operand(void) {
     TEST_ASSERT_EQUAL_STRING("test", pl.p2.errors.source.name);
 }
 
+
+void test_p1_data_label_has_data_section(void) {
+    Pipeline pl = run(".بيانات\nرسالة: .سلسلة \"x\"");
+    int64_t off = -1;
+    SymbolSection section = SYMBOL_SECTION_UNKNOWN;
+    TEST_ASSERT_TRUE(symtable_lookup_ex(&pl.p1.symtable, "رسالة", &off, &section));
+    TEST_ASSERT_EQUAL_INT64(0, off);
+    TEST_ASSERT_EQUAL_INT(SYMBOL_SECTION_DATA, section);
+}
+
+void test_p1_data_string_size(void) {
+    Pipeline pl = run(".بيانات\nرسالة: .سلسلة \"نَظْم\\n\"");
+    TEST_ASSERT_EQUAL_INT(12, (int)pl.p1.data_size);
+}
+
+void test_p2_data_string_bytes(void) {
+    Pipeline pl = run(".بيانات\nرسالة: .سلسلة \"x\\n\"");
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(3, (int)pl.p2.data_size);
+    TEST_ASSERT_EQUAL_HEX8('x', pl.p2.data_bytes[0]);
+    TEST_ASSERT_EQUAL_HEX8('\n', pl.p2.data_bytes[1]);
+    TEST_ASSERT_EQUAL_HEX8(0, pl.p2.data_bytes[2]);
+}
+
+void test_p2_mov_label_creates_abs64_relocation(void) {
+    Pipeline pl = run(".نص\nاحمل ر2، رسالة\n.بيانات\nرسالة: .سلسلة \"x\"");
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(10, (int)pl.p2.text_size);
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.relocations.count);
+    TEST_ASSERT_EQUAL_INT(RELOC_SECTION_TEXT, pl.p2.relocations.data[0].section);
+    TEST_ASSERT_EQUAL_INT(RELOC_ABS64, pl.p2.relocations.data[0].kind);
+    TEST_ASSERT_EQUAL_INT(2, (int)pl.p2.relocations.data[0].offset);
+    TEST_ASSERT_EQUAL_STRING("رسالة", pl.p2.relocations.data[0].symbol);
+}
+
 /* ── Main ─────────────────────────────────────────────────────────────────── */
 int main(void) {
     UNITY_BEGIN();
@@ -237,6 +272,8 @@ int main(void) {
     RUN_TEST(test_p1_directive_not_counted);
     RUN_TEST(test_p1_duplicate_label_error);
     RUN_TEST(test_p1_duplicate_label_error_span_points_to_duplicate);
+    RUN_TEST(test_p1_data_label_has_data_section);
+    RUN_TEST(test_p1_data_string_size);
 
     /* Pass 2 */
     RUN_TEST(test_p2_ret_bytes);
@@ -250,6 +287,8 @@ int main(void) {
     RUN_TEST(test_p2_full_exit_program);
     RUN_TEST(test_p2_unresolved_label_error);
     RUN_TEST(test_p2_unresolved_label_error_span_points_to_operand);
+    RUN_TEST(test_p2_data_string_bytes);
+    RUN_TEST(test_p2_mov_label_creates_abs64_relocation);
 
     return UNITY_END();
 }

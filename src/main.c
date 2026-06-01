@@ -223,6 +223,7 @@ int main(int argc, char **argv) {
         .data_bytes  = p2.data_bytes,
         .data_size   = p2.data_size,
         .symtable    = &p1.symtable,
+        .relocations = &p2.relocations,
         .source_name = args.source_path,
     };
 

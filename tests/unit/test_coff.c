@@ -26,7 +26,7 @@ static Pipeline run(const char *src) {
     OutputInput oi = {
         .text_bytes=p2.text_bytes, .text_size=p2.text_size,
         .data_bytes=p2.data_bytes, .data_size=p2.data_size,
-        .symtable=&p1.symtable, .source_name="test.مجمع"
+        .symtable=&p1.symtable, .relocations=&p2.relocations, .source_name="test.مجمع"
     };
     OutputResult coff = output_write_coff(&oi, &g_arena);
     return (Pipeline){p1, p2, coff};
@@ -260,6 +260,28 @@ void test_coff_symtab_has_entries(void) {
     TEST_ASSERT_EQUAL_INT(1, (int)sect);
 }
 
+
+void test_coff_data_symbol_uses_data_section(void) {
+    Pipeline pl = run(".نص\nارجع\n.بيانات\nرسالة: .سلسلة \"x\"\n");
+    uint32_t symptr = r32(pl.coff.data + 8);
+    uint32_t nsyms = r32(pl.coff.data + 12);
+    TEST_ASSERT_EQUAL_INT(2, (int)nsyms);
+    const uint8_t *sym1 = pl.coff.data + symptr + 18;
+    TEST_ASSERT_EQUAL_INT(2, (int)r16(sym1 + 12));
+}
+
+void test_coff_text_relocation_for_mov_label(void) {
+    Pipeline pl = run(".نص\nاحمل ر2، رسالة\n.بيانات\nرسالة: .سلسلة \"x\"\n");
+    const uint8_t *text_sh = pl.coff.data + 20;
+    uint32_t reloc_ptr = r32(text_sh + 24);
+    uint16_t reloc_count = r16(text_sh + 32);
+    TEST_ASSERT_EQUAL_INT(1, (int)reloc_count);
+    TEST_ASSERT_TRUE(reloc_ptr > 0);
+    TEST_ASSERT_EQUAL_INT(2, (int)r32(pl.coff.data + reloc_ptr + 0));
+    TEST_ASSERT_EQUAL_INT(1, (int)r32(pl.coff.data + reloc_ptr + 4));
+    TEST_ASSERT_EQUAL_INT(0x0001, (int)r16(pl.coff.data + reloc_ptr + 8));
+}
+
 /* ── Main ────────────────────────────────────────────────────────────────── */
 int main(void) {
     UNITY_BEGIN();
@@ -304,6 +326,8 @@ int main(void) {
 
     /* Symbols */
     RUN_TEST(test_coff_symtab_has_entries);
+    RUN_TEST(test_coff_data_symbol_uses_data_section);
+    RUN_TEST(test_coff_text_relocation_for_mov_label);
 
     return UNITY_END();
 }

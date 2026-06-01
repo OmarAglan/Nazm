@@ -34,6 +34,7 @@ typedef enum {
     OP_MEM_REG,    /* [reg]                     */
     OP_MEM_DISP,   /* [reg + disp]              */
     OP_LABEL,      /* label reference           */
+    OP_STRING,     /* decoded string literal     */
 } OperandKind;
 
 typedef struct {
@@ -46,6 +47,7 @@ typedef struct {
         int64_t     imm;
         struct { RegId base; int32_t disp; } mem;
         const char *label;   /* arena-owned string */
+        struct { const char *data; size_t len; } string;
     };
 } Operand;
 

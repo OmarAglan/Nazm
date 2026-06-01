@@ -144,6 +144,20 @@ void test_parse_mov_reg_label(void) {
     TEST_ASSERT_EQUAL_STRING("رسالة", i.ops[1].label);
 }
 
+
+void test_parse_string_directive_operand(void) {
+    ParseResult r = parse(".بيانات\nرسالة: .سلسلة \"مرحبا\\n\"");
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+    TEST_ASSERT_EQUAL_INT(2, (int)r.instructions.count);
+    Instruction i = instr(&r, 1);
+    TEST_ASSERT_EQUAL_STRING("رسالة", i.label);
+    TEST_ASSERT_EQUAL_STRING(".سلسلة", i.directive);
+    TEST_ASSERT_EQUAL_INT(1, i.op_count);
+    TEST_ASSERT_EQUAL_INT(OP_STRING, i.ops[0].kind);
+    TEST_ASSERT_EQUAL_INT(11, (int)i.ops[0].string.len);
+    TEST_ASSERT_EQUAL_HEX8('\n', i.ops[0].string.data[10]);
+}
+
 /* ── Arithmetic ────────────────────────────────────────────────────────────*/
 
 void test_parse_add(void) {
@@ -515,6 +529,7 @@ int main(void) {
     RUN_TEST(test_parse_mov_mem_neg_disp);
     RUN_TEST(test_parse_mov_mem_negative_arabic_disp);
     RUN_TEST(test_parse_mov_reg_label);
+    RUN_TEST(test_parse_string_directive_operand);
 
     /* Arithmetic */
     RUN_TEST(test_parse_add);
