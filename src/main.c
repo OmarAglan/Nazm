@@ -220,8 +220,8 @@ int main(int argc, char **argv) {
     OutputInput out_input = {
         .text_bytes  = p2.text_bytes,
         .text_size   = p2.text_size,
-        .data_bytes  = NULL,
-        .data_size   = 0,
+        .data_bytes  = p2.data_bytes,
+        .data_size   = p2.data_size,
         .symtable    = &p1.symtable,
         .source_name = args.source_path,
     };

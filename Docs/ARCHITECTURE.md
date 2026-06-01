@@ -68,44 +68,6 @@ without compiling `src/main.c`.
 8. The output layer writes ELF64 or COFF bytes.
 9. The CLI writes the object file and reports success or Arabic diagnostics.
 
-## Pass 1 Contract
-
-Pass 1 consumes the parser-owned `InstructionList` and writes a `Pass1Result`
-whose arena-owned state remains valid for the rest of the assembly pipeline.
-
-Inputs:
-- `InstructionList`: borrowed parser output, including source spans and borrowed
-  source metadata for diagnostics.
-- `Arena *`: allocation lifetime for the `SymbolTable` entries and collected
-  diagnostic messages.
-
-Outputs:
-- `symtable`: maps each label definition to its byte offset in the current
-  `.text` stream.
-- `text_size`: total estimated byte size of real instructions in `.text`.
-- `errors`: Arabic diagnostics, currently for duplicate label definitions.
-
-Responsibilities:
-- Walk instructions in parser order.
-- Insert each label at the current `.text` byte offset before sizing the
-  instruction on that line.
-- Preserve the first label definition and report duplicate labels with the
-  duplicate label source span.
-- Skip `OPCODE_INVALID` entries, including directives and label-only lines.
-- Ask `encoder_instruction_size()` for every real instruction and advance the
-  current offset by that size.
-
-Non-responsibilities:
-- It does not encode machine bytes, resolve label operands, compute
-  PC-relative displacements, emit object files, create relocations, or perform
-  real section switching for directives such as `.بيانات`.
-- It does not mutate the `InstructionList`, operands, or source buffer.
-
-Pass 2 depends on pass 1 size agreement: the final encoded instruction length
-must match the size returned through `encoder_instruction_size()`, because pass
-2 uses pass 1 offsets and `text_size` to resolve labels and size the `.text`
-buffer.
-
 ## Key Data Structures
 
 **Token**

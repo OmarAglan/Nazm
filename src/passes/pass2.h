@@ -2,7 +2,7 @@
 /*
  * passes/pass2.h
  * Pass 2: encode every instruction with resolved addresses.
- * Produces the raw byte buffer for the .text section.
+ * Produces the raw byte buffer for .text and .data sections.
  */
 
 #include "../parser/instruction.h"
@@ -14,6 +14,8 @@
 typedef struct {
     uint8_t   *text_bytes;   /* .text section bytes (arena-owned) */
     size_t     text_size;
+    uint8_t   *data_bytes;   /* .data section bytes (NULL if empty) */
+    size_t     data_size;
     ErrorList  errors;
 } Pass2Result;
 
