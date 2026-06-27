@@ -1,6 +1,6 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-06-01
+**Analysis Date:** 2026-06-27
 
 This file describes the repository as it exists now. Planned directories are
 marked explicitly so release checks do not treat them as implemented behavior.
@@ -99,11 +99,13 @@ Nazm/
 **examples/diagnostics/**
 - Holds intentional-error `.مجمع` files used to demonstrate Arabic source-context diagnostics.
 
-**tests/integration/** *(planned)*
-- Will hold full-pipeline tests once object output contracts are stable.
+**Planned integration-test area**
+- A future directory under `tests` will hold full-pipeline tests once object
+  output contracts are stable.
 
-**tests/fixtures/** *(planned)*
-- Will hold `.مجمع` source fixtures and expected byte/object outputs.
+**Planned fixture area**
+- A future directory under `tests` will hold `.مجمع` source fixtures and
+  expected byte/object outputs.
 
 ## Key File Locations
 
@@ -126,6 +128,13 @@ Nazm/
 **Developer checks**
 - `tools/check-markdown.ps1` - validates local Markdown links and obvious
   inline repository paths.
+
+**Architecture and integration documents**
+- `Docs/ARCHITECTURE.md` - current pipeline and component ownership.
+- `Docs/BAA_INTEGRATION.md` - Baa handoff, coverage matrix, migration stages,
+  and bootstrap release gates.
+- `Docs/INTEGRATIONS.md` - external tools, linkers, and deployment contracts.
+- `Docs/CONCERNS.md` - confirmed defects, limitations, and coverage gaps.
 
 ## Naming Conventions
 

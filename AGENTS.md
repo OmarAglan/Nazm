@@ -15,13 +15,19 @@
 **Decision Style:** Prefer outcome-first execution. Use the workflow below as the default operating model, scaling depth to the risk of the task. Keep strict rules for byte correctness, memory ownership, Arabic diagnostics, C11 portability, and destructive operations.
 
 **Project Facts:**
-- Current version is `0.2.0` in `CMakeLists.txt`, `include/nazm.h`, and `nazm --version`.
+- Current version is `0.3.0` in `CMakeLists.txt`, `include/nazm.h`, and `nazm --version`.
 - Nazm is an Arabic-first assembler for x86-64.
 - Primary implementation language is C11, with no runtime external dependencies.
 - Current build system is CMake 3.20+, with `build.sh` as a direct build/test path.
 - Pipeline: source file -> lexer -> parser -> pass1 -> pass2 -> output writer -> object file.
 - Main components: `src/alloc`, `src/unicode`, `src/error`, `src/lexer`, `src/parser`, `src/symtable`, `src/passes`, `src/encoder`, `src/output`, `src/cli`, and `src/main.c`.
 - Public future embedding API lives in `include/nazm.h`.
+- Strategic integration target: Nazm will replace Baa's AT&T/GAS assembly
+  boundary after Baa instruction selection and register allocation; see
+  `Docs/BAA_INTEGRATION.md`.
+- Current roadmap priority is the encoding/object correctness gate. Do not
+  expand instruction breadth while a supported form can emit wrong or
+  truncated bytes silently.
 - Output formats are intended to be ELF64 and PE/COFF.
 - Tests use vendored Unity plus CTest.
 - User-facing diagnostics should be Arabic-first and UTF-8.

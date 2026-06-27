@@ -1,6 +1,64 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-06-01
+**Analysis Date:** 2026-06-27
+
+## Confirmed Correctness Defects
+
+These defects block production use and Baa integration. They take priority over
+new instructions, listing output, API convenience, and packaging.
+
+**`mov r64, imm64` selects a sign-extending encoding for invalid positive
+values:**
+- Issue: `src/encoder/table.c` accepts values through `UINT32_MAX` for
+  `REX.W C7 /0 imm32`.
+- Impact: Values from `INT32_MAX + 1` through `UINT32_MAX` are sign-extended by
+  the processor and load a different 64-bit value. For example,
+  `احمل ر0، 4294967295` produces the value `0xffffffffffffffff`, not
+  `0x00000000ffffffff`.
+- Required fix: Use `C7 /0` only for signed 32-bit values; use `B8+rd imm64`
+  otherwise. Add boundary tests at `INT32_MIN`, `INT32_MAX`,
+  `INT32_MAX + 1`, and `UINT32_MAX`.
+
+**Other immediate paths truncate out-of-range `int64_t` values:**
+- Issue: ALU, `imul`, and `test` forms cast to `int32_t` without first proving
+  that the source value is representable by the selected x86-64 form.
+- Impact: Unsupported source values can silently become different machine
+  operands.
+- Required fix: Centralize signed/unsigned representability checks and reject
+  values that cannot be encoded by one documented instruction form.
+
+**Indirect register `call`/`jmp` sizes disagree between passes:**
+- Issue: `encoder_instruction_size()` returns 3 bytes for every register form,
+  while low registers encode without a REX prefix in 2 bytes.
+- Impact: Pass-one label offsets can be wrong even when the final instruction
+  bytes themselves are valid.
+- Required fix: Account for the actual REX requirement and add forward/backward
+  label tests after both low- and extended-register indirect control flow.
+
+**Pass 2 can silently truncate its text buffer:**
+- Issue: The output buffer is sized from pass-one estimates plus a fixed margin,
+  and byte-copy loops stop at capacity without adding a diagnostic.
+- Impact: Repeated size underestimation can produce a shortened object while
+  assembly appears successful.
+- Required fix: Make size disagreement a hard internal diagnostic, grow buffers
+  safely when appropriate, and never use a bounds condition as silent error
+  recovery.
+
+**Object writers silently cap defined symbols:**
+- Issue: ELF64 and COFF writers use fixed 512-entry stack arrays and collect at
+  most 511 source symbols.
+- Impact: Large valid inputs can lose symbols; relocation counts and emitted
+  relocation records can then disagree.
+- Required fix: Allocate symbol collections from the arena with checked counts,
+  and fail explicitly on every unrepresentable object-format limit.
+
+**Visibility directives have no semantics:**
+- Issue: `.عام` and `.محلي` are parsed and skipped, while current ELF64 and
+  COFF writers emit every defined source symbol with global/external binding.
+- Impact: Source syntax promises distinctions that object files do not honor.
+- Required fix: Store visibility in the symbol table, emit the correct
+  format-specific binding/storage class, and test public and local symbols with
+  real linkers.
 
 ## Tech Debt
 
@@ -42,9 +100,34 @@
 - Current mitigation: `libnazm` builds without `src/main.c`, so the API can be implemented without coupling to CLI file I/O.
 - Fix approach: Add the API implementation and a small C unit test before promising external embedding support.
 
+**Baa backend coverage is substantially larger than Nazm's current subset:**
+- Symptoms: Baa `0.5.6` emits 8/16/32/64-bit integer forms, `setcc`,
+  `movzx`/`movsx`, unsigned division, `cqo`, SSE2 scalar floating-point,
+  external calls/globals, target-specific read-only data, PIC/PIE references,
+  and raw inline GAS.
+- Impact: Replacing `gcc -c` with Nazm today would reject valid Baa output or,
+  where validation is weak, risk wrong objects.
+- Current mitigation: No integration claim is made; GAS remains the external
+  assembler.
+- Fix approach: Follow `Docs/BAA_INTEGRATION.md`: generate a corpus-derived
+  coverage matrix, implement and verify each required form, then run a
+  dual-assembler parity gate.
+
+**Arabic mnemonic spelling and diacritics are not yet a stable language
+contract:**
+- Symptoms: Mnemonics such as `نادِ`, `انفِ`, and `اقفز_مساوٍ` require exact
+  UTF-8 byte spelling, including combining marks.
+- Impact: Users and generated sources can produce visually similar identifiers
+  that fail keyword lookup; editor normalization behavior may vary.
+- Fix approach: Decide and document normalization, preferred unvowelled
+  spellings, compatibility aliases, and whether visually equivalent forms are
+  accepted before freezing the source language.
+
 **No subprocess integration harness yet:**
 - Symptoms: `tests/unit/test_examples.c` assembles checked-in examples through the library pipeline to ELF64 and COFF, but there is no test that executes the `nazm` binary, checks exit codes, and optionally links/runs output.
-- Fix approach: Add `tests/integration/` once the CLI contract and linker availability are stable enough for cross-platform snapshots.
+- Fix approach: Add a subprocess-level test area under `tests` once the CLI
+  contract and linker availability are stable enough for cross-platform
+  snapshots.
 
 ## Recently Resolved From Earlier Audits
 
@@ -68,9 +151,12 @@
 - Recommendation: Before the public API is implemented, decide whether OOM remains fatal or becomes a recoverable diagnostic in API mode.
 
 **Pass 2 relies on pass 1 size agreement:**
-- Risk: If a future encoder path emits a different length from `encoder_instruction_size()`, label displacements and output buffer sizing can drift.
+- Risk: Current indirect register `call`/`jmp` forms already demonstrate a
+  size disagreement; label displacements and output buffer sizing can drift.
 - Files: `src/passes/pass1.c`, `src/passes/pass2.c`, `src/encoder/table.c`.
-- Recommendation: Add an assertion or diagnostic that compares expected and actual encoded lengths for every instruction.
+- Recommendation: Add a mandatory diagnostic that compares expected and actual
+  encoded lengths for every instruction, plus tests that iterate every
+  supported operand form.
 
 ## Performance Bottlenecks
 
@@ -120,6 +206,14 @@
 - Problem: There is no directive equivalent to declaring a symbol external/global enough for linker-level references beyond local labels.
 - Current workaround: Use labels defined in the same source file.
 - Implementation complexity: Medium; this needs parser directives, symbol flags, relocation records, and output-writer support.
+
+**Baa assembly corpus and parity harness:**
+- Problem: Nazm has no checked-in inventory of the instructions, operand
+  widths, directives, symbol forms, and relocations emitted by Baa.
+- Current workaround: Inspect Baa's AT&T output manually.
+- Implementation complexity: Medium; generate assembly for Baa's
+  quick/full/stress corpus on both targets, normalize it into a coverage
+  manifest, then compare GAS and Nazm object semantics.
 
 ## Test Coverage Gaps
 

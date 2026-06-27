@@ -1,6 +1,6 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-06-01
+**Analysis Date:** 2026-06-27
 
 ## Test Framework
 
@@ -77,9 +77,29 @@ Intentional-error examples remain under `examples/diagnostics/` and are not trea
 
 ## Planned Test Areas
 
-- `tests/integration/` is planned for subprocess-level CLI tests.
+- A future integration-test area under `tests` is planned for subprocess-level
+  CLI tests.
 - Link/run tests are planned for at least one ELF64 example on Linux and one COFF example on Windows once CI is available.
 - Shared helper factories are planned only when repeated test setup justifies them.
+
+## Baa Parity Gate
+
+Before Nazm can replace GAS in Baa, testing must expand beyond the current
+hand-written examples:
+
+- Generate Baa assembly from its quick, full, and stress suites for both
+  `x86_64-linux` and `x86_64-windows`.
+- Maintain a coverage manifest for every emitted instruction, operand width,
+  directive, section, symbol form, and relocation.
+- Assemble equivalent programs through GAS and Nazm during migration.
+- Compare linked runtime behavior and object semantics, including public
+  symbols and relocations; byte-for-byte object identity is not required when
+  both encodings are valid.
+- Treat unsupported forms and fallback use as explicit test outcomes, never
+  silent success.
+
+The complete migration and bootstrap requirements live in
+[BAA_INTEGRATION.md](BAA_INTEGRATION.md).
 
 ## Unit Test Style
 

@@ -5,6 +5,10 @@
  * Public API for embedding the assembler inside other tools (e.g. Baa).
  *
  * For standalone CLI use, see src/main.c.
+ *
+ * API STATUS (0.3.0): preview declarations only. The functions below are not
+ * implemented by libnazm yet and must not be advertised as a linkable
+ * embedding interface. See ROADMAP.md and Docs/BAA_INTEGRATION.md.
  */
 
 #include <stddef.h>
@@ -55,14 +59,14 @@ typedef struct {
 
 /**
  * nazm_assemble_file()
- * Assemble an Arabic source file to an in-memory object file.
+ * Preview API: assemble an Arabic source file to an in-memory object file.
  * Caller must call nazm_result_free() on the returned result.
  */
 NazmResult nazm_assemble_file(const char *source_path, NazmOptions opts);
 
 /**
  * nazm_assemble_buffer()
- * Assemble UTF-8 Arabic assembly source from a memory buffer.
+ * Preview API: assemble UTF-8 Arabic assembly source from a memory buffer.
  * `source_name` is used only for diagnostic messages.
  */
 NazmResult nazm_assemble_buffer(const uint8_t *source, size_t source_len,
@@ -70,13 +74,13 @@ NazmResult nazm_assemble_buffer(const uint8_t *source, size_t source_len,
 
 /**
  * nazm_result_free()
- * Release all memory owned by a NazmResult.
+ * Preview API: release all memory owned by a NazmResult.
  */
 void nazm_result_free(NazmResult *result);
 
 /**
  * nazm_default_options()
- * Return a NazmOptions struct with sensible defaults for the current platform.
+ * Preview API: return options with sensible defaults for the current platform.
  */
 NazmOptions nazm_default_options(void);
 

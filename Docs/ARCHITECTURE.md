@@ -1,6 +1,6 @@
 # Architecture
 
-**Analysis Date:** 2026-06-01
+**Analysis Date:** 2026-06-27
 
 ## Pattern Overview
 
@@ -20,6 +20,15 @@ The public embedding API in `include/nazm.h` is present as a contract, but its
 functions are still roadmap work. The current implemented entry point is the
 CLI binary target `nazm`; the `libnazm` target now builds from library sources
 without compiling `src/main.c`.
+
+Nazm's planned compiler integration is with Baa after Baa instruction
+selection and register allocation. Baa will initially emit Arabic `.مجمع`
+text, and Nazm will own parsing that text, validating operand forms, encoding
+bytes, planning relocations, and writing ELF64/COFF objects. Baa remains
+responsible for language semantics, Machine IR, register allocation, ABI
+lowering, and function frame construction. See
+[BAA_INTEGRATION.md](BAA_INTEGRATION.md) for the migration and bootstrap
+contract.
 
 ## Layer Responsibilities
 
@@ -101,6 +110,30 @@ without compiling `src/main.c`.
 - Defined in `src/output/output.h`.
 - Carries object bytes produced by an output writer.
 
+## Compiler Integration Boundary
+
+The intended Baa handoff is:
+
+```text
+Baa Machine IR after register allocation
+  -> Baa Arabic Nazm emitter
+  -> UTF-8 .مجمع text
+  -> Nazm lexer/parser/passes/encoder
+  -> ELF64 or COFF object
+  -> system linker
+```
+
+This boundary preserves Arabic assembly as an inspectable compiler artifact.
+An in-process API may later accept the same UTF-8 buffer and return object bytes
+without temporary files. A future structured instruction API is acceptable
+only if it is tested for semantic parity with the textual path; it must not
+create a second undocumented encoding contract.
+
+The Baa integration does not make pass 2 responsible for ABI lowering.
+Prologues, epilogues, calling-convention register choices, shadow space, and
+stack alignment are already represented in Baa's post-register-allocation
+machine stream before Nazm sees the source.
+
 ## Ownership Model
 
 - Arena allocation is central for pipeline objects where established.
@@ -127,6 +160,10 @@ Planned or limited:
 - Stable in-process API behavior for `include/nazm.h`.
 - Verified end-to-end linker compatibility across ELF64 and COFF on CI.
 - Relocation support for external symbols and call/jump forms.
+- Baa-required 8/16/32/64-bit, `setcc`/extension, SSE2, section, and relocation
+  coverage.
+- Dual-assembler parity against Baa's current GAS output before default-on
+  integration.
 - Subprocess CLI integration tests and link/run fixtures.
 - Listing output and richer CLI exit-code coverage.
 
