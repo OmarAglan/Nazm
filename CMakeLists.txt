@@ -59,6 +59,7 @@ set(NAZM_LIBRARY_SOURCES
     src/output/output.c
     src/output/elf64.c
     src/output/coff.c
+    src/output/symbols.c
 
     src/cli/args.c
 )

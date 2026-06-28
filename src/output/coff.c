@@ -1,5 +1,5 @@
 #include "coff.h"
-#include "../symtable/symtable.h"
+#include "symbols.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -160,51 +160,12 @@ static void write_reloc(Buf *out,
     buf_write(out, reloc, sizeof(reloc));
 }
 
-typedef struct {
-    const char    *name;
-    int64_t        offset;
-    SymbolSection  section;
-    uint32_t       string_offset;
-} CoffSymbol;
-
-static int collect_symbols(const SymbolTable *symtable, CoffSymbol *symbols, int max_symbols) {
-    int count = 0;
-
-    for (int bucket = 0; bucket < SYMTABLE_BUCKETS && count < max_symbols; bucket++) {
-        for (SymEntry *e = symtable->buckets[bucket]; e != NULL && count < max_symbols; e = e->next) {
-            if (!e->defined) {
-                continue;
-            }
-
-            symbols[count].name = e->name;
-            symbols[count].offset = e->offset;
-            symbols[count].section = e->section;
-            symbols[count].string_offset = 0;
-            count++;
-        }
-    }
-
-    return count;
-}
-
 static int16_t coff_section_number(SymbolSection section, bool has_data) {
     if (section == SYMBOL_SECTION_DATA && has_data) {
         return 2;
     }
 
     return 1;
-}
-
-static uint32_t symbol_index_for_name(const CoffSymbol *symbols,
-                                      int symbol_count,
-                                      const char *name) {
-    for (int i = 0; i < symbol_count; i++) {
-        if (strcmp(symbols[i].name, name) == 0) {
-            return (uint32_t)(i + 1); /* index 0 is the .file symbol */
-        }
-    }
-
-    return 0;
 }
 
 static uint16_t coff_relocation_type(RelocationKind kind) {
@@ -218,12 +179,12 @@ static uint16_t coff_relocation_type(RelocationKind kind) {
     return COFF_REL_AMD64_ADDR64;
 }
 
-static uint32_t count_text_relocations(const RelocationList *relocations) {
+static size_t count_text_relocations(const RelocationList *relocations) {
     if (relocations == NULL) {
         return 0;
     }
 
-    uint32_t count = 0;
+    size_t count = 0;
     for (size_t i = 0; i < relocations->count; i++) {
         if (relocations->data[i].section == RELOC_SECTION_TEXT) {
             count++;
@@ -233,28 +194,104 @@ static uint32_t count_text_relocations(const RelocationList *relocations) {
     return count;
 }
 
+static bool symbol_names_fit_coff_strtab(const OutputSymbolList *symbols,
+                                         const char *source_name) {
+    size_t size = 4;
+    size_t source_len = strlen(source_name);
+
+    if (source_len > 8) {
+        if (source_len >= UINT32_MAX ||
+            size > (size_t)UINT32_MAX - source_len - 1) {
+            return false;
+        }
+        size += source_len + 1;
+    }
+
+    for (size_t i = 0; i < symbols->count; i++) {
+        size_t name_len = strlen(symbols->data[i].name);
+        if (name_len <= 8) {
+            continue;
+        }
+        if (name_len >= UINT32_MAX ||
+            size > (size_t)UINT32_MAX - name_len - 1) {
+            return false;
+        }
+        size += name_len + 1;
+    }
+
+    return true;
+}
+
+static bool coff_relocations_have_symbols(const RelocationList *relocations,
+                                          const OutputSymbolList *symbols) {
+    if (relocations == NULL) {
+        return true;
+    }
+
+    for (size_t i = 0; i < relocations->count; i++) {
+        const Relocation *reloc = &relocations->data[i];
+        if (reloc->section != RELOC_SECTION_TEXT) {
+            continue;
+        }
+
+        uint32_t symbol_index;
+        if (!output_symbols_find_index(symbols, reloc->symbol, &symbol_index)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
     bool has_data = in->data_bytes != NULL && in->data_size > 0;
     int nsections = has_data ? 2 : 1;
 
-    CoffSymbol symbols[512];
-    int symbol_count = collect_symbols(in->symtable, symbols, 511);
+    OutputSymbolList symbols;
+    if (!output_symbols_collect(in->symtable, arena, &symbols)) {
+        return (OutputResult){
+            .ok = false,
+            .error_message = "عدد الرموز يتجاوز حد صيغة COFF",
+        };
+    }
+
+    const char *fname = in->source_name ? in->source_name : "unknown";
+    if (!symbol_names_fit_coff_strtab(&symbols, fname)) {
+        return (OutputResult){
+            .ok = false,
+            .error_message = "جدول أسماء الرموز يتجاوز حد صيغة COFF",
+        };
+    }
+    if (!coff_relocations_have_symbols(in->relocations, &symbols)) {
+        return (OutputResult){
+            .ok = false,
+            .error_message = "إزاحة COFF تشير إلى رمز غير موجود",
+        };
+    }
+
+    size_t text_reloc_count_size = count_text_relocations(in->relocations);
+    if (text_reloc_count_size > UINT16_MAX) {
+        return (OutputResult){
+            .ok = false,
+            .error_message = "عدد إزاحات قسم النص يتجاوز حد صيغة COFF",
+        };
+    }
+    uint32_t text_reloc_count = (uint32_t)text_reloc_count_size;
 
     Strtab strtab;
     strtab_init(&strtab, arena);
 
-    const char *fname = in->source_name ? in->source_name : "unknown";
     size_t fname_len = strlen(fname);
     uint32_t fname_offset = fname_len > 8 ? strtab_add(&strtab, fname) : 0;
 
-    for (int i = 0; i < symbol_count; i++) {
-        size_t name_len = strlen(symbols[i].name);
-        symbols[i].string_offset = name_len > 8 ? strtab_add(&strtab, symbols[i].name) : 0;
+    for (size_t i = 0; i < symbols.count; i++) {
+        size_t name_len = strlen(symbols.data[i].name);
+        symbols.data[i].name_offset =
+            name_len > 8 ? strtab_add(&strtab, symbols.data[i].name) : 0;
     }
     strtab_finalise(&strtab);
 
-    int total_symbols = 1 + symbol_count;
-    uint32_t text_reloc_count = count_text_relocations(in->relocations);
+    uint32_t total_symbols = (uint32_t)(1 + symbols.count);
 
     uint32_t hdr_size = 20;
     uint32_t shdrs_size = (uint32_t)(nsections * 40);
@@ -268,7 +305,7 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
     Buf out;
     buf_init(&out, arena,
              hdr_size + shdrs_size + in->text_size + in->data_size
-             + text_reloc_count * 10 + (size_t)total_symbols * 18
+             + (size_t)text_reloc_count * 10 + (size_t)total_symbols * 18
              + strtab.buf.size + 16);
 
     uint8_t hdr[20] = {0};
@@ -316,9 +353,13 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
                 continue;
             }
 
-            uint32_t symbol_index = symbol_index_for_name(symbols, symbol_count, reloc->symbol);
-            if (symbol_index == 0) {
-                continue;
+            uint32_t symbol_index;
+            if (!output_symbols_find_index(
+                    &symbols, reloc->symbol, &symbol_index)) {
+                return (OutputResult){
+                    .ok = false,
+                    .error_message = "إزاحة COFF تشير إلى رمز غير موجود",
+                };
             }
 
             write_reloc(&out,
@@ -337,14 +378,14 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
               COFF_SYM_TYPE_NULL,
               COFF_SYM_CLASS_STATIC);
 
-    for (int i = 0; i < symbol_count; i++) {
-        size_t name_len = strlen(symbols[i].name);
+    for (size_t i = 0; i < symbols.count; i++) {
+        size_t name_len = strlen(symbols.data[i].name);
         write_sym(&out,
-                  symbols[i].name,
+                  symbols.data[i].name,
                   name_len,
-                  symbols[i].string_offset,
-                  (uint32_t)symbols[i].offset,
-                  coff_section_number(symbols[i].section, has_data),
+                  symbols.data[i].name_offset,
+                  (uint32_t)symbols.data[i].offset,
+                  coff_section_number(symbols.data[i].section, has_data),
                   COFF_SYM_TYPE_NULL,
                   COFF_SYM_CLASS_EXTERNAL);
     }

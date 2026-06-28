@@ -7,14 +7,6 @@
 These defects block production use and Baa integration. They take priority over
 new instructions, listing output, API convenience, and packaging.
 
-**Object writers silently cap defined symbols:**
-- Issue: ELF64 and COFF writers use fixed 512-entry stack arrays and collect at
-  most 511 source symbols.
-- Impact: Large valid inputs can lose symbols; relocation counts and emitted
-  relocation records can then disagree.
-- Required fix: Allocate symbol collections from the arena with checked counts,
-  and fail explicitly on every unrepresentable object-format limit.
-
 **Visibility directives have no semantics:**
 - Issue: `.عام` and `.محلي` are parsed and skipped, while current ELF64 and
   COFF writers emit every defined source symbol with global/external binding.
@@ -94,6 +86,10 @@ contract:**
 
 ## Recently Resolved From Earlier Audits
 
+- ELF64 and COFF no longer cap defined symbols at 511. Shared output code counts
+  every defined symbol, allocates the exact arena-owned collection, checks
+  symbol/string-table format bounds, and rejects relocations to missing
+  symbols. Both writer suites pin a relocation to symbol index 513.
 - Native Windows source and output paths no longer depend on the active ANSI
   code page. The executable converts `wmain` arguments to UTF-8, while
   `src/io/` converts filesystem paths back to UTF-16 for wide CRT calls.

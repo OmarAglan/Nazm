@@ -56,6 +56,9 @@ contract.
 **Output backends**
 - Contains `src/output/`.
 - Owns wrapping encoded bytes into ELF64 or PE/COFF object structures.
+- Shares exact, arena-owned defined-symbol collection through
+  `src/output/symbols.c`; writers reject unrepresentable tables and
+  relocations whose symbols are absent.
 - Object format logic must stay out of the lexer, parser, and encoder.
 
 **Driver and CLI**

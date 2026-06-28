@@ -7,6 +7,8 @@
 #include "output/coff.h"
 #include "symtable/symtable.h"
 #include "alloc/arena.h"
+
+#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 
@@ -34,6 +36,30 @@ static Pipeline run(const char *src) {
 
 static uint16_t r16(const uint8_t *p){ return (uint16_t)((uint16_t)p[0]|(uint16_t)p[1]<<8); }
 static uint32_t r32(const uint8_t *p){ return (uint32_t)p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24; }
+
+static const char *insert_many_symbols(SymbolTable *symtable, size_t count) {
+    char name[32];
+
+    for (size_t i = 0; i < count; i++) {
+        snprintf(name, sizeof(name), "symbol_%04zu", i);
+        if (!symtable_insert(symtable, name, (int64_t)i)) {
+            return NULL;
+        }
+    }
+
+    const char *last = NULL;
+    for (int bucket = 0; bucket < SYMTABLE_BUCKETS; bucket++) {
+        for (SymEntry *entry = symtable->buckets[bucket];
+             entry != NULL;
+             entry = entry->next) {
+            if (entry->defined) {
+                last = entry->name;
+            }
+        }
+    }
+
+    return last;
+}
 
 /* ── COFF file header ────────────────────────────────────────────────────── */
 
@@ -282,6 +308,74 @@ void test_coff_text_relocation_for_mov_label(void) {
     TEST_ASSERT_EQUAL_INT(0x0001, (int)r16(pl.coff.data + reloc_ptr + 8));
 }
 
+void test_coff_preserves_symbols_and_relocation_beyond_old_limit(void) {
+    SymbolTable symtable;
+    symtable_init(&symtable, &g_arena);
+    const char *last_symbol = insert_many_symbols(&symtable, 513);
+    TEST_ASSERT_NOT_NULL(last_symbol);
+
+    uint8_t text[8] = {0};
+    Relocation relocation = {
+        .section = RELOC_SECTION_TEXT,
+        .kind = RELOC_ABS64,
+        .offset = 0,
+        .symbol = last_symbol,
+    };
+    RelocationList relocations = {
+        .data = &relocation,
+        .count = 1,
+        .capacity = 1,
+    };
+    OutputInput input = {
+        .text_bytes = text,
+        .text_size = sizeof(text),
+        .symtable = &symtable,
+        .relocations = &relocations,
+        .source_name = "many-symbols.مجمع",
+    };
+
+    OutputResult result = output_write_coff(&input, &g_arena);
+
+    TEST_ASSERT_TRUE(result.ok);
+    TEST_ASSERT_EQUAL_INT(514, (int)r32(result.data + 12));
+
+    const uint8_t *text_section = result.data + 20;
+    uint32_t relocation_offset = r32(text_section + 24);
+    TEST_ASSERT_EQUAL_INT(1, (int)r16(text_section + 32));
+    TEST_ASSERT_EQUAL_INT(
+        513, (int)r32(result.data + relocation_offset + 4));
+}
+
+void test_coff_rejects_relocation_to_missing_symbol(void) {
+    SymbolTable symtable;
+    symtable_init(&symtable, &g_arena);
+
+    uint8_t text[8] = {0};
+    Relocation relocation = {
+        .section = RELOC_SECTION_TEXT,
+        .kind = RELOC_ABS64,
+        .offset = 0,
+        .symbol = "مفقود",
+    };
+    RelocationList relocations = {
+        .data = &relocation,
+        .count = 1,
+        .capacity = 1,
+    };
+    OutputInput input = {
+        .text_bytes = text,
+        .text_size = sizeof(text),
+        .symtable = &symtable,
+        .relocations = &relocations,
+        .source_name = "missing.مجمع",
+    };
+
+    OutputResult result = output_write_coff(&input, &g_arena);
+
+    TEST_ASSERT_FALSE(result.ok);
+    TEST_ASSERT_NOT_NULL(result.error_message);
+}
+
 /* ── Main ────────────────────────────────────────────────────────────────── */
 int main(void) {
     UNITY_BEGIN();
@@ -328,6 +422,8 @@ int main(void) {
     RUN_TEST(test_coff_symtab_has_entries);
     RUN_TEST(test_coff_data_symbol_uses_data_section);
     RUN_TEST(test_coff_text_relocation_for_mov_label);
+    RUN_TEST(test_coff_preserves_symbols_and_relocation_beyond_old_limit);
+    RUN_TEST(test_coff_rejects_relocation_to_missing_symbol);
 
     return UNITY_END();
 }

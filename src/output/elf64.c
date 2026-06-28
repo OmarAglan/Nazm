@@ -1,5 +1,5 @@
 #include "elf64.h"
-#include "../symtable/symtable.h"
+#include "symbols.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -197,33 +197,6 @@ static void write_rela(OutBuf *ob,
     outbuf_write(ob, rela, sizeof(rela));
 }
 
-typedef struct {
-    const char    *name;
-    int64_t        offset;
-    SymbolSection  section;
-    uint32_t       name_offset;
-} ElfSymbol;
-
-static int collect_symbols(const SymbolTable *symtable, ElfSymbol *symbols, int max_symbols) {
-    int count = 0;
-
-    for (int bucket = 0; bucket < SYMTABLE_BUCKETS && count < max_symbols; bucket++) {
-        for (SymEntry *e = symtable->buckets[bucket]; e != NULL && count < max_symbols; e = e->next) {
-            if (!e->defined) {
-                continue;
-            }
-
-            symbols[count].name = e->name;
-            symbols[count].offset = e->offset;
-            symbols[count].section = e->section;
-            symbols[count].name_offset = 0;
-            count++;
-        }
-    }
-
-    return count;
-}
-
 static uint16_t symbol_section_index(SymbolSection section,
                                      int text_index,
                                      int data_index) {
@@ -234,16 +207,54 @@ static uint16_t symbol_section_index(SymbolSection section,
     return (uint16_t)text_index;
 }
 
-static uint32_t symbol_index_for_name(const ElfSymbol *symbols,
-                                      int symbol_count,
-                                      const char *name) {
-    for (int i = 0; i < symbol_count; i++) {
-        if (strcmp(symbols[i].name, name) == 0) {
-            return (uint32_t)(i + 1); /* symbol 0 is the null entry */
+static bool symbol_names_fit_elf_strtab(const OutputSymbolList *symbols) {
+    size_t size = 1;
+
+    for (size_t i = 0; i < symbols->count; i++) {
+        size_t name_len = strlen(symbols->data[i].name);
+        if (name_len >= UINT32_MAX ||
+            size > (size_t)UINT32_MAX - name_len - 1) {
+            return false;
+        }
+        size += name_len + 1;
+    }
+
+    return true;
+}
+
+static bool elf_relocations_have_symbols(const RelocationList *relocations,
+                                         const OutputSymbolList *symbols) {
+    if (relocations == NULL) {
+        return true;
+    }
+
+    for (size_t i = 0; i < relocations->count; i++) {
+        const Relocation *reloc = &relocations->data[i];
+        if (reloc->section != RELOC_SECTION_TEXT) {
+            continue;
+        }
+
+        uint32_t symbol_index;
+        if (!output_symbols_find_index(symbols, reloc->symbol, &symbol_index)) {
+            return false;
         }
     }
 
-    return 0;
+    return true;
+}
+
+static bool has_text_relocations(const RelocationList *relocations) {
+    if (relocations == NULL) {
+        return false;
+    }
+
+    for (size_t i = 0; i < relocations->count; i++) {
+        if (relocations->data[i].section == RELOC_SECTION_TEXT) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static uint32_t elf_relocation_type(RelocationKind kind) {
@@ -259,7 +270,27 @@ static uint32_t elf_relocation_type(RelocationKind kind) {
 
 OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     bool has_data = in->data_bytes != NULL && in->data_size > 0;
-    bool has_rela_text = in->relocations != NULL && in->relocations->count > 0;
+    bool has_rela_text = has_text_relocations(in->relocations);
+
+    OutputSymbolList symbols;
+    if (!output_symbols_collect(in->symtable, arena, &symbols)) {
+        return (OutputResult){
+            .ok = false,
+            .error_message = "عدد الرموز يتجاوز حد صيغة ELF64",
+        };
+    }
+    if (!symbol_names_fit_elf_strtab(&symbols)) {
+        return (OutputResult){
+            .ok = false,
+            .error_message = "جدول أسماء الرموز يتجاوز حد صيغة ELF64",
+        };
+    }
+    if (!elf_relocations_have_symbols(in->relocations, &symbols)) {
+        return (OutputResult){
+            .ok = false,
+            .error_message = "إزاحة ELF64 تشير إلى رمز غير موجود",
+        };
+    }
 
     int sh_null = 0;
     int sh_text = 1;
@@ -311,24 +342,24 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     StrTab strtab;
     strtab_init(&strtab, arena);
 
-    ElfSymbol symbols[512];
-    int symbol_count = collect_symbols(in->symtable, symbols, 511);
-    for (int i = 0; i < symbol_count; i++) {
-        symbols[i].name_offset = strtab_add(&strtab, symbols[i].name);
+    for (size_t i = 0; i < symbols.count; i++) {
+        symbols.data[i].name_offset =
+            strtab_add(&strtab, symbols.data[i].name);
     }
 
     align_outbuf(&ob, 8);
     size_t symtab_off = ob.size;
     write_sym(&ob, 0, 0, 0, 0, 0, 0);
 
-    for (int i = 0; i < symbol_count; i++) {
+    for (size_t i = 0; i < symbols.count; i++) {
         uint8_t info = (uint8_t)((STB_GLOBAL << 4) | STT_NOTYPE);
         write_sym(&ob,
-                  symbols[i].name_offset,
+                  symbols.data[i].name_offset,
                   info,
                   STV_DEFAULT,
-                  symbol_section_index(symbols[i].section, sh_text, sh_data),
-                  (uint64_t)symbols[i].offset,
+                  symbol_section_index(
+                      symbols.data[i].section, sh_text, sh_data),
+                  (uint64_t)symbols.data[i].offset,
                   0);
     }
     size_t symtab_size = ob.size - symtab_off;
@@ -345,9 +376,13 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                 continue;
             }
 
-            uint32_t symbol_index = symbol_index_for_name(symbols, symbol_count, reloc->symbol);
-            if (symbol_index == 0) {
-                continue;
+            uint32_t symbol_index;
+            if (!output_symbols_find_index(
+                    &symbols, reloc->symbol, &symbol_index)) {
+                return (OutputResult){
+                    .ok = false,
+                    .error_message = "إزاحة ELF64 تشير إلى رمز غير موجود",
+                };
             }
 
             write_rela(&ob,

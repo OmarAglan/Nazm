@@ -7,6 +7,8 @@
 #include "output/elf64.h"
 #include "symtable/symtable.h"
 #include "alloc/arena.h"
+
+#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 
@@ -48,6 +50,45 @@ static uint32_t rd32(const uint8_t *p) {
 }
 static uint16_t rd16(const uint8_t *p) {
     return (uint16_t)((uint16_t)p[0]|(uint16_t)p[1]<<8);
+}
+
+static const uint8_t *find_elf_section(const OutputResult *result,
+                                       uint32_t section_type) {
+    uint64_t shoff = rd64(result->data + 40);
+    uint16_t count = rd16(result->data + 60);
+
+    for (uint16_t i = 0; i < count; i++) {
+        const uint8_t *section = result->data + shoff + (size_t)i * 64;
+        if (rd32(section + 4) == section_type) {
+            return section;
+        }
+    }
+
+    return NULL;
+}
+
+static const char *insert_many_symbols(SymbolTable *symtable, size_t count) {
+    char name[32];
+
+    for (size_t i = 0; i < count; i++) {
+        snprintf(name, sizeof(name), "symbol_%04zu", i);
+        if (!symtable_insert(symtable, name, (int64_t)i)) {
+            return NULL;
+        }
+    }
+
+    const char *last = NULL;
+    for (int bucket = 0; bucket < SYMTABLE_BUCKETS; bucket++) {
+        for (SymEntry *entry = symtable->buckets[bucket];
+             entry != NULL;
+             entry = entry->next) {
+            if (entry->defined) {
+                last = entry->name;
+            }
+        }
+    }
+
+    return last;
 }
 
 /* ── ELF header checks ────────────────────────────────────────────────────── */
@@ -240,6 +281,76 @@ void test_elf_rela_text_for_mov_label(void) {
     TEST_ASSERT_EQUAL_INT(1, (int)(info & 0xffffffffu)); /* R_X86_64_64 */
 }
 
+void test_elf_preserves_symbols_and_relocation_beyond_old_limit(void) {
+    SymbolTable symtable;
+    symtable_init(&symtable, &g_arena);
+    const char *last_symbol = insert_many_symbols(&symtable, 513);
+    TEST_ASSERT_NOT_NULL(last_symbol);
+
+    uint8_t text[8] = {0};
+    Relocation relocation = {
+        .section = RELOC_SECTION_TEXT,
+        .kind = RELOC_ABS64,
+        .offset = 0,
+        .symbol = last_symbol,
+    };
+    RelocationList relocations = {
+        .data = &relocation,
+        .count = 1,
+        .capacity = 1,
+    };
+    OutputInput input = {
+        .text_bytes = text,
+        .text_size = sizeof(text),
+        .symtable = &symtable,
+        .relocations = &relocations,
+        .source_name = "many-symbols.مجمع",
+    };
+
+    OutputResult result = output_write_elf64(&input, &g_arena);
+
+    TEST_ASSERT_TRUE(result.ok);
+    const uint8_t *symtab = find_elf_section(&result, 2);
+    TEST_ASSERT_NOT_NULL(symtab);
+    TEST_ASSERT_EQUAL_INT(514, (int)(rd64(symtab + 32) / 24));
+
+    const uint8_t *rela = find_elf_section(&result, 4);
+    TEST_ASSERT_NOT_NULL(rela);
+    uint64_t rela_offset = rd64(rela + 24);
+    uint64_t info = rd64(result.data + rela_offset + 8);
+    TEST_ASSERT_EQUAL_INT(513, (int)(info >> 32));
+}
+
+void test_elf_rejects_relocation_to_missing_symbol(void) {
+    SymbolTable symtable;
+    symtable_init(&symtable, &g_arena);
+
+    uint8_t text[8] = {0};
+    Relocation relocation = {
+        .section = RELOC_SECTION_TEXT,
+        .kind = RELOC_ABS64,
+        .offset = 0,
+        .symbol = "مفقود",
+    };
+    RelocationList relocations = {
+        .data = &relocation,
+        .count = 1,
+        .capacity = 1,
+    };
+    OutputInput input = {
+        .text_bytes = text,
+        .text_size = sizeof(text),
+        .symtable = &symtable,
+        .relocations = &relocations,
+        .source_name = "missing.مجمع",
+    };
+
+    OutputResult result = output_write_elf64(&input, &g_arena);
+
+    TEST_ASSERT_FALSE(result.ok);
+    TEST_ASSERT_NOT_NULL(result.error_message);
+}
+
 /* ── Main ─────────────────────────────────────────────────────────────────── */
 int main(void) {
     UNITY_BEGIN();
@@ -265,6 +376,8 @@ int main(void) {
     RUN_TEST(test_elf_data_section_exists_when_data_emitted);
     RUN_TEST(test_elf_data_symbol_uses_data_section_index);
     RUN_TEST(test_elf_rela_text_for_mov_label);
+    RUN_TEST(test_elf_preserves_symbols_and_relocation_beyond_old_limit);
+    RUN_TEST(test_elf_rejects_relocation_to_missing_symbol);
 
     return UNITY_END();
 }

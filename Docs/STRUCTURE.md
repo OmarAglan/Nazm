@@ -87,8 +87,10 @@ Nazm/
   limit belong here.
 
 **src/output/**
-- `output.c`, `output.h`, `elf64.c`, `elf64.h`, `coff.c`, `coff.h`
-- Owns object file serialization for ELF64 and PE/COFF.
+- `output.c`, `output.h`, `elf64.c`, `elf64.h`, `coff.c`, `coff.h`,
+  `symbols.c`, `symbols.h`
+- Owns object file serialization for ELF64 and PE/COFF. `symbols.c` provides
+  exact arena-owned symbol collection and shared relocation lookup.
 
 **src/cli/**
 - `args.c`, `args.h`
