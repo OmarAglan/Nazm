@@ -20,6 +20,12 @@ static void check(EncodedInstruction e,
     TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, e.bytes, len);
 }
 
+static void check_error(OpcodeEnum opcode, Operand *ops, int op_count) {
+    EncodedInstruction e = encoder_encode(opcode, ops, op_count, 0);
+    TEST_ASSERT_TRUE(e.error);
+    TEST_ASSERT_EQUAL_INT(0, e.len);
+}
+
 #define ENC(op, ...) do { \
     Operand _ops[] = { __VA_ARGS__ }; \
     int _n = (int)(sizeof(_ops)/sizeof(_ops[0])); \
@@ -50,6 +56,18 @@ void test_enc_int_0x80(void) {
     ENC(OPCODE_INT, imm_op(0x80));
 }
 
+void test_enc_int_0xff(void) {
+    uint8_t expected[]={0xCD,0xFF};
+    ENC(OPCODE_INT, imm_op(UINT8_MAX));
+}
+
+void test_enc_int_rejects_out_of_range_immediates(void) {
+    Operand negative[]={imm_op(-1)};
+    Operand too_large[]={imm_op((int64_t)UINT8_MAX + 1)};
+    check_error(OPCODE_INT, negative, 1);
+    check_error(OPCODE_INT, too_large, 1);
+}
+
 /* ── MOV reg, imm ─────────────────────────────────────────────────────────── */
 void test_enc_mov_rax_42(void) {
     /* REX.W(48) C7 /0(C0) 2A000000 */
@@ -72,6 +90,46 @@ void test_enc_mov_r8_imm(void) {
     /* REX.W+REX.B (49) C7 C0 2A000000 */
     uint8_t expected[]={0x49,0xC7,0xC0,0x2A,0x00,0x00,0x00};
     ENC(OPCODE_MOV, reg_op(REG_R8), imm_op(42));
+}
+
+void test_enc_mov_rax_int32_min(void) {
+    uint8_t expected[]={0x48,0xC7,0xC0,0x00,0x00,0x00,0x80};
+    ENC(OPCODE_MOV, reg_op(REG_RAX), imm_op(INT32_MIN));
+}
+
+void test_enc_mov_rax_int32_max(void) {
+    uint8_t expected[]={0x48,0xC7,0xC0,0xFF,0xFF,0xFF,0x7F};
+    ENC(OPCODE_MOV, reg_op(REG_RAX), imm_op(INT32_MAX));
+}
+
+void test_enc_mov_rax_int32_max_plus_one_uses_imm64(void) {
+    uint8_t expected[]={
+        0x48,0xB8,0x00,0x00,0x00,0x80,0x00,0x00,0x00,0x00
+    };
+    ENC(OPCODE_MOV, reg_op(REG_RAX), imm_op((int64_t)INT32_MAX + 1));
+}
+
+void test_enc_mov_rax_uint32_max_uses_imm64(void) {
+    uint8_t expected[]={
+        0x48,0xB8,0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x00
+    };
+    ENC(OPCODE_MOV, reg_op(REG_RAX), imm_op(UINT32_MAX));
+}
+
+void test_enc_mov_rax_int64_boundaries(void) {
+    uint8_t expected_min[]={
+        0x48,0xB8,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x80
+    };
+    Operand min_ops[]={reg_op(REG_RAX), imm_op(INT64_MIN)};
+    check(encoder_encode(OPCODE_MOV, min_ops, 2, 0),
+          expected_min, (int)sizeof(expected_min));
+
+    uint8_t expected_max[]={
+        0x48,0xB8,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x7F
+    };
+    Operand max_ops[]={reg_op(REG_RAX), imm_op(INT64_MAX)};
+    check(encoder_encode(OPCODE_MOV, max_ops, 2, 0),
+          expected_max, (int)sizeof(expected_max));
 }
 
 /* ── MOV reg, reg ─────────────────────────────────────────────────────────── */
@@ -129,6 +187,25 @@ void test_enc_add_rax_imm32(void) {
     /* REX.W(48) 81 C0 00010000  (imm32 form, 256) */
     uint8_t expected[]={0x48,0x81,0xC0,0x00,0x01,0x00,0x00};
     ENC(OPCODE_ADD, reg_op(REG_RAX), imm_op(256));
+}
+
+void test_enc_add_rax_int32_boundaries(void) {
+    uint8_t expected_min[]={0x48,0x81,0xC0,0x00,0x00,0x00,0x80};
+    Operand min_ops[]={reg_op(REG_RAX), imm_op(INT32_MIN)};
+    check(encoder_encode(OPCODE_ADD, min_ops, 2, 0),
+          expected_min, (int)sizeof(expected_min));
+
+    uint8_t expected_max[]={0x48,0x81,0xC0,0xFF,0xFF,0xFF,0x7F};
+    Operand max_ops[]={reg_op(REG_RAX), imm_op(INT32_MAX)};
+    check(encoder_encode(OPCODE_ADD, max_ops, 2, 0),
+          expected_max, (int)sizeof(expected_max));
+}
+
+void test_enc_add_rax_rejects_out_of_range_imm32(void) {
+    Operand below[]={reg_op(REG_RAX), imm_op((int64_t)INT32_MIN - 1)};
+    Operand above[]={reg_op(REG_RAX), imm_op((int64_t)INT32_MAX + 1)};
+    check_error(OPCODE_ADD, below, 2);
+    check_error(OPCODE_ADD, above, 2);
 }
 
 /* ── SUB ──────────────────────────────────────────────────────────────────── */
@@ -203,6 +280,20 @@ void test_enc_shr_rdx_3(void) {
     ENC(OPCODE_SHR, reg_op(REG_RDX), imm_op(3));
 }
 
+void test_enc_shift_imm8_boundary(void) {
+    uint8_t expected[]={0x48,0xC1,0xE0,0xFF};
+    ENC(OPCODE_SHL, reg_op(REG_RAX), imm_op(UINT8_MAX));
+}
+
+void test_enc_shift_rejects_out_of_range_imm8(void) {
+    Operand negative[]={reg_op(REG_RAX), imm_op(-1)};
+    Operand too_large[]={
+        reg_op(REG_RAX), imm_op((int64_t)UINT8_MAX + 1)
+    };
+    check_error(OPCODE_SHL, negative, 2);
+    check_error(OPCODE_SHL, too_large, 2);
+}
+
 /* ── JMP / CALL (relative label) ─────────────────────────────────────────── */
 void test_enc_jmp_forward(void) {
     /* E9 + rel32 (disp=10) */
@@ -257,6 +348,21 @@ void test_enc_imul_rax_rcx_imm8(void) {
     ENC(OPCODE_IMUL, reg_op(REG_RAX), reg_op(REG_RCX), imm_op(3));
 }
 
+void test_enc_imul_imm32_boundary(void) {
+    uint8_t expected[]={0x48,0x69,0xC1,0xFF,0xFF,0xFF,0x7F};
+    ENC(OPCODE_IMUL,
+        reg_op(REG_RAX), reg_op(REG_RCX), imm_op(INT32_MAX));
+}
+
+void test_enc_imul_rejects_out_of_range_imm32(void) {
+    Operand ops[]={
+        reg_op(REG_RAX),
+        reg_op(REG_RCX),
+        imm_op((int64_t)INT32_MAX + 1)
+    };
+    check_error(OPCODE_IMUL, ops, 3);
+}
+
 /* ── IDIV ─────────────────────────────────────────────────────────────────── */
 void test_enc_idiv_rcx(void) {
     /* REX.W(48) F7 F9 (/7=IDIV) */
@@ -271,6 +377,19 @@ void test_enc_test_rax_rax(void) {
     ENC(OPCODE_TEST, reg_op(REG_RAX), reg_op(REG_RAX));
 }
 
+void test_enc_test_imm32_boundary(void) {
+    uint8_t expected[]={0x48,0xF7,0xC0,0x00,0x00,0x00,0x80};
+    ENC(OPCODE_TEST, reg_op(REG_RAX), imm_op(INT32_MIN));
+}
+
+void test_enc_test_rejects_out_of_range_imm32(void) {
+    Operand ops[]={
+        reg_op(REG_RAX),
+        imm_op((int64_t)INT32_MIN - 1)
+    };
+    check_error(OPCODE_TEST, ops, 2);
+}
+
 /* ── Instruction sizes ────────────────────────────────────────────────────── */
 void test_size_ret(void)     { TEST_ASSERT_EQUAL_INT(1, encoder_instruction_size(OPCODE_RET, NULL, 0)); }
 void test_size_nop(void)     { TEST_ASSERT_EQUAL_INT(1, encoder_instruction_size(OPCODE_NOP, NULL, 0)); }
@@ -278,6 +397,13 @@ void test_size_syscall(void) { TEST_ASSERT_EQUAL_INT(2, encoder_instruction_size
 void test_size_mov_reg_imm32(void) {
     Operand ops[]={reg_op(REG_RAX), imm_op(42)};
     TEST_ASSERT_EQUAL_INT(7, encoder_instruction_size(OPCODE_MOV, ops, 2));
+}
+void test_size_mov_reg_imm64(void) {
+    Operand ops[]={
+        reg_op(REG_RAX),
+        imm_op((int64_t)INT32_MAX + 1)
+    };
+    TEST_ASSERT_EQUAL_INT(10, encoder_instruction_size(OPCODE_MOV, ops, 2));
 }
 void test_size_mov_reg_reg(void) {
     Operand ops[]={reg_op(REG_RAX), reg_op(REG_RBX)};
@@ -294,6 +420,27 @@ void test_size_jcc_label(void) {
 void test_size_add_imm8(void) {
     Operand ops[]={reg_op(REG_RAX), imm_op(1)};
     TEST_ASSERT_EQUAL_INT(4, encoder_instruction_size(OPCODE_ADD, ops, 2));
+}
+void test_size_rejects_unrepresentable_immediates(void) {
+    Operand add_ops[]={
+        reg_op(REG_RAX),
+        imm_op((int64_t)INT32_MAX + 1)
+    };
+    Operand int_ops[]={imm_op((int64_t)UINT8_MAX + 1)};
+    Operand shift_ops[]={
+        reg_op(REG_RAX),
+        imm_op((int64_t)UINT8_MAX + 1)
+    };
+
+    TEST_ASSERT_EQUAL_INT(
+        MAX_INSTRUCTION_BYTES,
+        encoder_instruction_size(OPCODE_ADD, add_ops, 2));
+    TEST_ASSERT_EQUAL_INT(
+        MAX_INSTRUCTION_BYTES,
+        encoder_instruction_size(OPCODE_INT, int_ops, 1));
+    TEST_ASSERT_EQUAL_INT(
+        MAX_INSTRUCTION_BYTES,
+        encoder_instruction_size(OPCODE_SHL, shift_ops, 2));
 }
 void test_size_push(void) {
     Operand ops[]={reg_op(REG_RAX)};
@@ -313,11 +460,18 @@ int main(void) {
     RUN_TEST(test_enc_hlt);
     RUN_TEST(test_enc_syscall);
     RUN_TEST(test_enc_int_0x80);
+    RUN_TEST(test_enc_int_0xff);
+    RUN_TEST(test_enc_int_rejects_out_of_range_immediates);
 
     RUN_TEST(test_enc_mov_rax_42);
     RUN_TEST(test_enc_mov_rcx_0);
     RUN_TEST(test_enc_mov_rdx_neg1);
     RUN_TEST(test_enc_mov_r8_imm);
+    RUN_TEST(test_enc_mov_rax_int32_min);
+    RUN_TEST(test_enc_mov_rax_int32_max);
+    RUN_TEST(test_enc_mov_rax_int32_max_plus_one_uses_imm64);
+    RUN_TEST(test_enc_mov_rax_uint32_max_uses_imm64);
+    RUN_TEST(test_enc_mov_rax_int64_boundaries);
     RUN_TEST(test_enc_mov_rax_rbx);
     RUN_TEST(test_enc_mov_r9_r10);
     RUN_TEST(test_enc_mov_rax_mem_rcx);
@@ -332,6 +486,8 @@ int main(void) {
     RUN_TEST(test_enc_add_rax_rbx);
     RUN_TEST(test_enc_add_rax_imm8);
     RUN_TEST(test_enc_add_rax_imm32);
+    RUN_TEST(test_enc_add_rax_int32_boundaries);
+    RUN_TEST(test_enc_add_rax_rejects_out_of_range_imm32);
     RUN_TEST(test_enc_sub_rsp_imm8);
     RUN_TEST(test_enc_sub_rsp_imm32);
     RUN_TEST(test_enc_xor_rax_rax);
@@ -343,6 +499,8 @@ int main(void) {
     RUN_TEST(test_enc_shl_rax_1);
     RUN_TEST(test_enc_shl_rax_2);
     RUN_TEST(test_enc_shr_rdx_3);
+    RUN_TEST(test_enc_shift_imm8_boundary);
+    RUN_TEST(test_enc_shift_rejects_out_of_range_imm8);
 
     RUN_TEST(test_enc_jmp_forward);
     RUN_TEST(test_enc_jmp_backward);
@@ -354,17 +512,23 @@ int main(void) {
 
     RUN_TEST(test_enc_imul_rax_rcx);
     RUN_TEST(test_enc_imul_rax_rcx_imm8);
+    RUN_TEST(test_enc_imul_imm32_boundary);
+    RUN_TEST(test_enc_imul_rejects_out_of_range_imm32);
     RUN_TEST(test_enc_idiv_rcx);
     RUN_TEST(test_enc_test_rax_rax);
+    RUN_TEST(test_enc_test_imm32_boundary);
+    RUN_TEST(test_enc_test_rejects_out_of_range_imm32);
 
     RUN_TEST(test_size_ret);
     RUN_TEST(test_size_nop);
     RUN_TEST(test_size_syscall);
     RUN_TEST(test_size_mov_reg_imm32);
+    RUN_TEST(test_size_mov_reg_imm64);
     RUN_TEST(test_size_mov_reg_reg);
     RUN_TEST(test_size_jmp_label);
     RUN_TEST(test_size_jcc_label);
     RUN_TEST(test_size_add_imm8);
+    RUN_TEST(test_size_rejects_unrepresentable_immediates);
     RUN_TEST(test_size_push);
     RUN_TEST(test_size_push_r8);
 

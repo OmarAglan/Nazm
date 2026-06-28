@@ -4,6 +4,27 @@
 void setUp(void) {}
 void tearDown(void) {}
 
+void test_immediate_fits_i8_boundaries(void) {
+    TEST_ASSERT_TRUE(immediate_fits_i8(INT8_MIN));
+    TEST_ASSERT_TRUE(immediate_fits_i8(INT8_MAX));
+    TEST_ASSERT_FALSE(immediate_fits_i8((int64_t)INT8_MIN - 1));
+    TEST_ASSERT_FALSE(immediate_fits_i8((int64_t)INT8_MAX + 1));
+}
+
+void test_immediate_fits_i32_boundaries(void) {
+    TEST_ASSERT_TRUE(immediate_fits_i32(INT32_MIN));
+    TEST_ASSERT_TRUE(immediate_fits_i32(INT32_MAX));
+    TEST_ASSERT_FALSE(immediate_fits_i32((int64_t)INT32_MIN - 1));
+    TEST_ASSERT_FALSE(immediate_fits_i32((int64_t)INT32_MAX + 1));
+}
+
+void test_immediate_fits_u8_boundaries(void) {
+    TEST_ASSERT_TRUE(immediate_fits_u8(0));
+    TEST_ASSERT_TRUE(immediate_fits_u8(UINT8_MAX));
+    TEST_ASSERT_FALSE(immediate_fits_u8(-1));
+    TEST_ASSERT_FALSE(immediate_fits_u8((int64_t)UINT8_MAX + 1));
+}
+
 void test_emit_imm8(void) {
     uint8_t buf[1];
     TEST_ASSERT_EQUAL_INT(1, emit_imm8(buf, 0x42));
@@ -57,6 +78,9 @@ void test_emit_imm64_zero(void) {
 
 int main(void) {
     UNITY_BEGIN();
+    RUN_TEST(test_immediate_fits_i8_boundaries);
+    RUN_TEST(test_immediate_fits_i32_boundaries);
+    RUN_TEST(test_immediate_fits_u8_boundaries);
     RUN_TEST(test_emit_imm8);
     RUN_TEST(test_emit_imm8_negative);
     RUN_TEST(test_emit_imm32_little_endian);

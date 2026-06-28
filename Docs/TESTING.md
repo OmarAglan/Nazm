@@ -7,7 +7,7 @@
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
 - `build.sh test` is the direct no-CMake path and currently runs the same 15 unit-test suites registered for CTest.
-- Current total: 272 Unity tests across the 15 suites.
+- Current total: 293 Unity tests across the 15 suites.
 
 ## Run Commands
 

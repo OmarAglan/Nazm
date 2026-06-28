@@ -133,6 +133,19 @@ void test_p2_mov_rax_42(void) {
     TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, pl.p2.text_bytes, 7);
 }
 
+void test_p2_mov_rax_uint32_max_preserves_value(void) {
+    Pipeline pl = run("احمل ر0، 4294967295");
+    uint8_t expected[]={
+        0x48,0xB8,0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x00
+    };
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(10, (int)pl.p1.text_size);
+    TEST_ASSERT_EQUAL_INT(10, (int)pl.p2.text_size);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, pl.p2.text_bytes, 10);
+}
+
 void test_p2_xor_rax_rax(void) {
     Pipeline pl = run("خالف ر0، ر0");
     uint8_t expected[]={0x48,0x31,0xC0};
@@ -280,6 +293,7 @@ int main(void) {
     RUN_TEST(test_p2_nop_bytes);
     RUN_TEST(test_p2_syscall_bytes);
     RUN_TEST(test_p2_mov_rax_42);
+    RUN_TEST(test_p2_mov_rax_uint32_max_preserves_value);
     RUN_TEST(test_p2_xor_rax_rax);
     RUN_TEST(test_p2_push_pop_sequence);
     RUN_TEST(test_p2_backward_jump_resolved);

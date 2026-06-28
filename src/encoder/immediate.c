@@ -1,5 +1,17 @@
 #include "immediate.h"
 
+bool immediate_fits_i8(int64_t val) {
+    return val >= INT8_MIN && val <= INT8_MAX;
+}
+
+bool immediate_fits_i32(int64_t val) {
+    return val >= INT32_MIN && val <= INT32_MAX;
+}
+
+bool immediate_fits_u8(int64_t val) {
+    return val >= 0 && val <= UINT8_MAX;
+}
+
 int emit_imm8(uint8_t *buf, int8_t val) {
     buf[0] = (uint8_t)val;
     return 1;

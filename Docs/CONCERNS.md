@@ -1,31 +1,11 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-06-27
+**Analysis Date:** 2026-06-28
 
 ## Confirmed Correctness Defects
 
 These defects block production use and Baa integration. They take priority over
 new instructions, listing output, API convenience, and packaging.
-
-**`mov r64, imm64` selects a sign-extending encoding for invalid positive
-values:**
-- Issue: `src/encoder/table.c` accepts values through `UINT32_MAX` for
-  `REX.W C7 /0 imm32`.
-- Impact: Values from `INT32_MAX + 1` through `UINT32_MAX` are sign-extended by
-  the processor and load a different 64-bit value. For example,
-  `احمل ر0، 4294967295` produces the value `0xffffffffffffffff`, not
-  `0x00000000ffffffff`.
-- Required fix: Use `C7 /0` only for signed 32-bit values; use `B8+rd imm64`
-  otherwise. Add boundary tests at `INT32_MIN`, `INT32_MAX`,
-  `INT32_MAX + 1`, and `UINT32_MAX`.
-
-**Other immediate paths truncate out-of-range `int64_t` values:**
-- Issue: ALU, `imul`, and `test` forms cast to `int32_t` without first proving
-  that the source value is representable by the selected x86-64 form.
-- Impact: Unsupported source values can silently become different machine
-  operands.
-- Required fix: Centralize signed/unsigned representability checks and reject
-  values that cannot be encoded by one documented instruction form.
 
 **Indirect register `call`/`jmp` sizes disagree between passes:**
 - Issue: `encoder_instruction_size()` returns 3 bytes for every register form,
@@ -131,6 +111,15 @@ contract:**
 
 ## Recently Resolved From Earlier Audits
 
+- Immediate representability checks are centralized in
+  `src/encoder/immediate.c`: `mov r64, imm` uses the sign-extending `C7` form
+  only for signed 32-bit values and switches to `B8+rd imm64` otherwise.
+- ALU, `imul`, `test`, `int`, and immediate-shift forms now reject values that
+  cannot be represented by their signed 8/32-bit or unsigned 8-bit fields,
+  rather than narrowing them silently.
+- Encoder and full pass tests cover immediate boundaries through `INT64_MIN`
+  and `INT64_MAX`, including the former wrong-value case
+  `احمل ر0، 4294967295`.
 - COFF output is no longer a stub; it has field-level tests for headers, sections, symbols, data, and relocations.
 - `.بيانات` now emits real `.data` bytes in pass 2 and in both ELF64 and COFF writers.
 - `.سلسلة "..."` is tokenized, parsed, sized, and emitted as UTF-8 plus a trailing null byte.

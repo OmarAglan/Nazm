@@ -1,9 +1,15 @@
 #pragma once
 /*
  * encoder/immediate.h
- * Little-endian immediate value emitters.
+ * Immediate representability checks and little-endian emitters.
  */
+#include <stdbool.h>
 #include <stdint.h>
+
+/* Return whether `val` can be represented without truncation. */
+bool immediate_fits_i8(int64_t val);
+bool immediate_fits_i32(int64_t val);
+bool immediate_fits_u8(int64_t val);
 
 /* Write `val` into `buf` in little-endian order. Returns bytes written. */
 int emit_imm8 (uint8_t *buf, int8_t  val);

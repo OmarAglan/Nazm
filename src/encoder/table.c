@@ -182,7 +182,7 @@ static EncodedInstruction enc_mov(const Operand *ops, int n) {
     /* MOV r/m64, imm32 (sign-extended)  — REX.W C7 /0 id */
     if (dst->kind == OP_REG && src->kind == OP_IMM) {
         int64_t v = src->imm;
-        if (v >= -2147483648LL && v <= 4294967295LL) {
+        if (immediate_fits_i32(v)) {
             /* 32-bit immediate fits in sign-extended imm32 */
             emit_rex(&b, true, false, false, rex_b(dst->reg));
             emit(&b, 0xC7);
@@ -235,7 +235,7 @@ static int size_mov(const Operand *ops, int n) {
     const Operand *dst = &ops[0], *src = &ops[1];
     if (dst->kind == OP_REG && src->kind == OP_IMM) {
         int64_t v = src->imm;
-        if (v >= -2147483648LL && v <= 4294967295LL)
+        if (immediate_fits_i32(v))
             return 1 + 1 + 1 + 4; /* REX + C7 + ModRM + imm32 = 7 */
         return 1 + 1 + 8;          /* REX + B8+r + imm64 = 10 */
     }
@@ -297,7 +297,10 @@ static EncodedInstruction enc_alu(const Operand *ops, int n,
     }
     if (dst->kind == OP_REG && src->kind == OP_IMM) {
         int64_t v = src->imm;
-        if (v >= -128 && v <= 127) {
+        if (!immediate_fits_i32(v)) {
+            return make_error();
+        }
+        if (immediate_fits_i8(v)) {
             /* 83 /ext ib — sign-extended imm8 */
             emit_rex(&b, true, false, false, rex_b(dst->reg));
             emit(&b, 0x83);
@@ -329,7 +332,8 @@ static int size_alu(const Operand *ops, int n) {
     const Operand *dst = &ops[0], *src = &ops[1];
     if (dst->kind == OP_REG && src->kind == OP_REG) return 3;
     if (dst->kind == OP_REG && src->kind == OP_IMM) {
-        return (src->imm >= -128 && src->imm <= 127) ? 4 : 7;
+        if (!immediate_fits_i32(src->imm)) return MAX_INSTRUCTION_BYTES;
+        return immediate_fits_i8(src->imm) ? 4 : 7;
     }
     if (dst->kind == OP_REG && operand_is_mem(src)) {
         RegId base = src->mem.base;
@@ -376,7 +380,10 @@ static EncodedInstruction enc_imul(const Operand *ops, int n) {
     if (n == 3 && ops[0].kind == OP_REG && ops[1].kind == OP_REG
                && ops[2].kind == OP_IMM) {
         int64_t v = ops[2].imm;
-        if (v >= -128 && v <= 127) {
+        if (!immediate_fits_i32(v)) {
+            return make_error();
+        }
+        if (immediate_fits_i8(v)) {
             emit_rex(&b, true, rex_r(ops[0].reg), false, rex_b(ops[1].reg));
             emit(&b, 0x6B);
             emit(&b, modrm_byte(3, rf(ops[0].reg), rf(ops[1].reg)));
@@ -411,6 +418,9 @@ static EncodedInstruction enc_shift(const Operand *ops, int n, uint8_t ext) {
     RegId r = ops[0].reg;
     if (ops[1].kind == OP_IMM) {
         int64_t v = ops[1].imm;
+        if (!immediate_fits_u8(v)) {
+            return make_error();
+        }
         if (v == 1) {
             /* D1 /ext — shift by 1 */
             emit_rex(&b, true, false, false, rex_b(r));
@@ -437,9 +447,11 @@ static EncodedInstruction enc_shift(const Operand *ops, int n, uint8_t ext) {
 
 static int size_shift(const Operand *ops, int n) {
     if (n != 2 || ops[0].kind != OP_REG) return MAX_INSTRUCTION_BYTES;
-    if (ops[1].kind == OP_IMM)
+    if (ops[1].kind == OP_IMM) {
+        if (!immediate_fits_u8(ops[1].imm)) return MAX_INSTRUCTION_BYTES;
         return (ops[1].imm == 1) ? 3 : 4;
-    if (ops[1].kind == OP_REG) return 3;
+    }
+    if (ops[1].kind == OP_REG && ops[1].reg == REG_RCX) return 3;
     return MAX_INSTRUCTION_BYTES;
 }
 
@@ -454,6 +466,9 @@ static EncodedInstruction enc_test(const Operand *ops, int n) {
         return from_buf(&b);
     }
     if (ops[0].kind == OP_REG && ops[1].kind == OP_IMM) {
+        if (!immediate_fits_i32(ops[1].imm)) {
+            return make_error();
+        }
         /* TEST r/m64, imm32  — REX.W F7 /0 id */
         emit_rex(&b, true, false, false, rex_b(ops[0].reg));
         emit(&b, 0xF7);
@@ -554,6 +569,7 @@ static EncodedInstruction enc_syscall(void) {
 
 static EncodedInstruction enc_int(const Operand *ops, int n) {
     if (n != 1 || ops[0].kind != OP_IMM) return make_error();
+    if (!immediate_fits_u8(ops[0].imm)) return make_error();
     Buf b = {0};
     emit(&b, 0xCD);
     emit(&b, (uint8_t)ops[0].imm);
@@ -648,8 +664,11 @@ int encoder_instruction_size(OpcodeEnum opcode,
     case OPCODE_CMP:     return size_alu(ops, op_count);
     case OPCODE_IMUL:
         if (op_count==2) return 4;
-        if (op_count==3)
-            return (ops[2].imm>=-128&&ops[2].imm<=127) ? 4 : 7;
+        if (op_count==3 && ops[2].kind==OP_IMM) {
+            if (!immediate_fits_i32(ops[2].imm))
+                return MAX_INSTRUCTION_BYTES;
+            return immediate_fits_i8(ops[2].imm) ? 4 : 7;
+        }
         return MAX_INSTRUCTION_BYTES;
     case OPCODE_IDIV:    return 3;
     case OPCODE_INC:
@@ -657,7 +676,11 @@ int encoder_instruction_size(OpcodeEnum opcode,
     case OPCODE_NEG:
     case OPCODE_NOT:     return 3;
     case OPCODE_TEST:
-        return (op_count==2&&ops[1].kind==OP_IMM) ? 7 : 3;
+        if (op_count != 2) return MAX_INSTRUCTION_BYTES;
+        if (ops[1].kind == OP_IMM)
+            return immediate_fits_i32(ops[1].imm)
+                 ? 7 : MAX_INSTRUCTION_BYTES;
+        return ops[1].kind == OP_REG ? 3 : MAX_INSTRUCTION_BYTES;
     case OPCODE_SHL:
     case OPCODE_SHR:
     case OPCODE_SAR:     return size_shift(ops, op_count);
@@ -676,7 +699,10 @@ int encoder_instruction_size(OpcodeEnum opcode,
     case OPCODE_SYSCALL: return 2;
     case OPCODE_NOP:     return 1;
     case OPCODE_HLT:     return 1;
-    case OPCODE_INT:     return 2;
+    case OPCODE_INT:
+        return (op_count==1 && ops[0].kind==OP_IMM
+                && immediate_fits_u8(ops[0].imm))
+             ? 2 : MAX_INSTRUCTION_BYTES;
     default:             return MAX_INSTRUCTION_BYTES;
     }
 }
