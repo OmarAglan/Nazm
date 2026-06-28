@@ -1,5 +1,6 @@
 #include "unity.h"
 #include "alloc/arena.h"
+#include "io/file.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "passes/pass1.h"
@@ -22,7 +23,7 @@ typedef struct {
 } FileBytes;
 
 static void read_file(const char *path, FileBytes *out) {
-    FILE *file = fopen(path, "rb");
+    FILE *file = io_fopen_utf8(path, "rb");
     TEST_ASSERT_NOT_NULL(file);
 
     TEST_ASSERT_EQUAL_INT(0, fseek(file, 0, SEEK_END));

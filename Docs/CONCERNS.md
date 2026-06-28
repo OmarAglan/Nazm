@@ -94,6 +94,11 @@ contract:**
 
 ## Recently Resolved From Earlier Audits
 
+- Native Windows source and output paths no longer depend on the active ANSI
+  code page. The executable converts `wmain` arguments to UTF-8, while
+  `src/io/` converts filesystem paths back to UTF-16 for wide CRT calls.
+  `test_io.c`, the Arabic example suite, and a manual CLI source/output probe
+  cover the path.
 - Indirect register `call`/`jmp` sizing now matches actual x86-64 output:
   2 bytes for low registers and 3 bytes when an extended register requires REX.
   Pipeline tests pin labels after both forms to their exact offsets.
@@ -202,7 +207,10 @@ contract:**
 - Priority: High for encoder confidence.
 
 **CLI end-to-end behavior:**
-- What's covered: `tests/unit/test_cli_args.c` covers argument parsing; `tests/unit/test_examples.c` covers the library pipeline on examples; `tests/unit/test_diagnostics.c` covers rendered Arabic diagnostic shape.
+- What's covered: `tests/unit/test_cli_args.c` covers argument parsing;
+  `tests/unit/test_io.c` covers Arabic path I/O and Windows argv conversion;
+  `tests/unit/test_examples.c` covers the library pipeline on examples; and
+  `tests/unit/test_diagnostics.c` covers rendered Arabic diagnostic shape.
 - What's not covered: Executing `nazm` on fixture files and checking exit codes/output files through a dedicated subprocess integration harness.
 
 ---

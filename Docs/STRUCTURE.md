@@ -14,6 +14,7 @@ Nazm/
 │   ├── cli/              # CLI option parsing
 │   ├── encoder/          # x86-64 byte encoding helpers and table
 │   ├── error/            # Error collection and reporting
+│   ├── io/               # Portable UTF-8 filesystem boundary
 │   ├── lexer/            # Arabic UTF-8 tokenization and keywords
 │   ├── output/           # ELF64 and PE/COFF writers
 │   ├── parser/           # Token stream to InstructionList
@@ -54,6 +55,12 @@ Nazm/
 - `error.c`, `error.h`
 - Owns diagnostic storage, source-span handling, source-context attachment, and Arabic-first reporting helpers.
 
+**src/io/**
+- `file.c`, `file.h`
+- Owns UTF-8 path opening/removal and Windows UTF-16 command-line conversion.
+  Temporary conversion strings are heap-owned and released inside this module
+  or by its paired argv cleanup function.
+
 **src/lexer/**
 - `lexer.c`, `lexer.h`, `keywords.c`, `keywords.h`
 - Owns source tokenization, Arabic keywords, registers, immediates, directives,
@@ -85,13 +92,15 @@ Nazm/
 
 **src/cli/**
 - `args.c`, `args.h`
-- Owns CLI option parsing. `src/main.c` owns file I/O and pipeline orchestration.
+- Owns CLI option parsing. `src/main.c` owns pipeline orchestration and uses
+  `src/io/` for filesystem operations.
 
 **tests/unit/**
 - Current unit tests: `test_arena.c`, `test_unicode.c`, `test_symtable.c`,
   `test_keywords.c`, `test_immediate.c`, `test_rex.c`, `test_lexer.c`,
   `test_parser.c`, `test_encoder.c`, `test_passes.c`, `test_elf64.c`,
-  `test_coff.c`, `test_cli_args.c`, `test_diagnostics.c`, and `test_examples.c`.
+  `test_coff.c`, `test_cli_args.c`, `test_diagnostics.c`, `test_io.c`, and
+  `test_examples.c`.
 
 **examples/**
 - Holds good Arabic `.مجمع` examples such as `مرحبا.مجمع`, `خروج.مجمع`, `حلقة.مجمع`, and `بيانات.مجمع`.

@@ -1,13 +1,14 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-06-27
+**Analysis Date:** 2026-06-28
 
 ## Test Framework
 
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
-- `build.sh test` is the direct no-CMake path and currently runs the same 15 unit-test suites registered for CTest.
-- Current total: 299 Unity tests across the 15 suites.
+- `build.sh test` is the direct no-CMake path and currently runs the same 16 unit-test suites registered for CTest.
+- Current total: 301 portable Unity tests across the 16 suites, plus one
+  Windows-only UTF-16-to-UTF-8 argv test.
 
 ## Run Commands
 
@@ -43,6 +44,7 @@ tests/
     test_encoder.c
     test_examples.c
     test_immediate.c
+    test_io.c
     test_keywords.c
     test_lexer.c
     test_parser.c
@@ -70,6 +72,14 @@ CTest registers the unit tests listed in `tests/CMakeLists.txt` using the `unit_
 `tests/unit/test_examples.c` assembles every good source file in `examples/*.مجمع` through the library pipeline and writes object bytes in memory for both ELF64 and COFF. This catches broken checked-in examples without needing to execute the `nazm` subprocess.
 
 Intentional-error examples remain under `examples/diagnostics/` and are not treated as successful assembly fixtures.
+
+## UTF-8 Filesystem Tests
+
+`tests/unit/test_io.c` writes and reads an Arabic temporary filename, exercises
+`output_write_file()` with that path, and removes the fixture through the same
+UTF-8 boundary. On Windows it also verifies UTF-16 command-line argument
+conversion. `test_examples.c` opens the checked-in Arabic source paths through
+that boundary.
 
 ## Diagnostic Snapshot Style
 

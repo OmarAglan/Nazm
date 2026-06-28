@@ -13,11 +13,14 @@ The Arabic assembler is a self-contained native binary. It reads files from disk
 **Input — Source Files:**
 - Format: UTF-8 text files with extension `.مجمع`
 - Location: Provided by user on the command line
-- Read via: `fopen()` / `fread()` in `src/main.c`
+- Read via: `io_fopen_utf8()` / `fread()`; Windows paths are converted to
+  UTF-16 and opened with `_wfopen`
 - Limit: CLI rejects files larger than 100 MiB before allocating the full buffer
 
 **Output — Object Files:**
 - Formats: ELF64 via `-f elf64`, PE/COFF object via `-f coff`
+- Written through the same UTF-8 path boundary; buffered close failures are
+  reported as I/O failure
 - Current section support: `.text` always, `.data` when data bytes exist, `.rela.text`/COFF text relocations when the source needs current supported relocations
 - Current symbol support: defined labels with section-aware `.text`/`.data`
   indexes; `.عام`/`.محلي` visibility is parsed but not yet honored, and current

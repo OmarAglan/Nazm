@@ -7,8 +7,14 @@
 set -e
 CC=${CC:-gcc}
 CFLAGS="-std=c11 -Wall -Wextra -Wno-unused-parameter -Isrc -Iinclude -Itests/vendor/unity"
+LDFLAGS=""
+
+case "$($CC -dumpmachine 2>/dev/null || true)" in
+  *mingw*) LDFLAGS="-municode" ;;
+esac
 
 SRC="src/alloc/arena.c src/unicode/arabic.c src/error/error.c \
+     src/io/file.c \
      src/lexer/lexer.c src/lexer/keywords.c \
      src/parser/parser.c \
      src/symtable/symtable.c \
@@ -18,12 +24,12 @@ SRC="src/alloc/arena.c src/unicode/arabic.c src/error/error.c \
      src/output/output.c src/output/elf64.c src/output/coff.c \
      src/cli/args.c"
 
-TESTS="test_arena test_unicode test_symtable test_keywords test_immediate test_rex test_lexer test_parser test_encoder test_passes test_elf64 test_cli_args test_diagnostics test_coff test_examples"
+TESTS="test_arena test_unicode test_symtable test_keywords test_immediate test_rex test_lexer test_parser test_encoder test_passes test_elf64 test_cli_args test_diagnostics test_coff test_io test_examples"
 
 case "${1:-build}" in
   build)
     echo "بناء nazm..."
-    $CC $CFLAGS $SRC src/main.c -o nazm
+    $CC $CFLAGS $SRC src/main.c -o nazm $LDFLAGS
     echo "✓ ./nazm جاهز"
     ;;
   test)

@@ -38,6 +38,7 @@ set(NAZM_LIBRARY_SOURCES
     src/alloc/arena.c
     src/unicode/arabic.c
     src/error/error.c
+    src/io/file.c
 
     src/lexer/lexer.c
     src/lexer/keywords.c
@@ -69,6 +70,10 @@ set(NAZM_SOURCES
 
 # ── Assembler binary ─────────────────────────────────────────────────────────
 add_executable(nazm ${NAZM_SOURCES})
+
+if(MINGW)
+    target_link_options(nazm PRIVATE -municode)
+endif()
 
 target_include_directories(nazm PRIVATE
     ${CMAKE_SOURCE_DIR}/src

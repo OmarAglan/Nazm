@@ -1,6 +1,8 @@
 #include "output.h"
 #include "elf64.h"
 #include "coff.h"
+#include "../io/file.h"
+
 #include <stdio.h>
 
 OutputResult output_write(OutputFormat format,
@@ -14,9 +16,10 @@ OutputResult output_write(OutputFormat format,
 
 bool output_write_file(const char *path, const OutputResult *result) {
     if (!result->ok) return false;
-    FILE *f = fopen(path, "wb");
+    FILE *f = io_fopen_utf8(path, "wb");
     if (!f) return false;
     size_t written = fwrite(result->data, 1, result->size, f);
-    fclose(f);
-    return written == result->size;
+    bool ok = written == result->size;
+    if (fclose(f) != 0) ok = false;
+    return ok;
 }

@@ -16,6 +16,7 @@
 #include "alloc/arena.h"
 #include "cli/args.h"
 #include "error/error.h"
+#include "io/file.h"
 #include "lexer/lexer.h"
 #include "output/output.h"
 #include "parser/parser.h"
@@ -46,7 +47,7 @@ typedef struct {
 } ReadFileResult;
 
 static ReadFileResult read_file(const char *path) {
-    FILE *f = fopen(path, "rb");
+    FILE *f = io_fopen_utf8(path, "rb");
 
     if (f == NULL) {
         return (ReadFileResult){ .status = READ_FILE_OPEN_FAILED };
@@ -155,7 +156,7 @@ static bool print_errors_if_any(const ErrorList *errors) {
 
 /* ── Entry point ────────────────────────────────────────────────────────── */
 
-int main(int argc, char **argv) {
+static int nazm_main_utf8(int argc, char **argv) {
     CliArgs args = cli_parse(argc, argv);
 
     if (args.help) {
@@ -244,5 +245,24 @@ int main(int argc, char **argv) {
 
     return cleanup_and_return(&arena, source_file.data, 0);
 }
+
+#ifdef _WIN32
+int wmain(int argc, wchar_t **wide_argv) {
+    char **argv = io_utf8_argv_from_wide(argc, wide_argv);
+    if (argv == NULL) {
+        fprintf(stderr,
+                "خطأ: تعذّر تحويل معاملات سطر الأوامر إلى UTF-8\n");
+        return 2;
+    }
+
+    int exit_code = nazm_main_utf8(argc, argv);
+    io_free_utf8_argv(argv, argc);
+    return exit_code;
+}
+#else
+int main(int argc, char **argv) {
+    return nazm_main_utf8(argc, argv);
+}
+#endif
 
 #endif /* NAZM_LIBRARY_BUILD */

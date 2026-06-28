@@ -60,8 +60,17 @@ contract.
 
 **Driver and CLI**
 - Contains `src/main.c` and `src/cli/`.
-- Owns argument parsing, file I/O, pipeline orchestration, user-facing messages,
-  and process exit codes.
+- Owns argument parsing, pipeline orchestration, user-facing messages, and
+  process exit codes.
+- Uses `src/io/` as the UTF-8 filesystem boundary. On Windows the executable
+  receives UTF-16 arguments through `wmain`, converts them once to heap-owned
+  UTF-8 strings, and releases them after the pipeline returns.
+
+**Filesystem boundary**
+- Contains `src/io/`.
+- Owns opening and removing UTF-8 paths. Windows converts paths to UTF-16 and
+  uses wide CRT calls; other platforms use the ordinary C file APIs.
+- Conversion buffers are heap-owned internally and never enter arena lifetime.
 
 ## Current Data Flow
 

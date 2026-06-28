@@ -20,7 +20,7 @@
 - Primary implementation language is C11, with no runtime external dependencies.
 - Current build system is CMake 3.20+, with `build.sh` as a direct build/test path.
 - Pipeline: source file -> lexer -> parser -> pass1 -> pass2 -> output writer -> object file.
-- Main components: `src/alloc`, `src/unicode`, `src/error`, `src/lexer`, `src/parser`, `src/symtable`, `src/passes`, `src/encoder`, `src/output`, `src/cli`, and `src/main.c`.
+- Main components: `src/alloc`, `src/unicode`, `src/error`, `src/io`, `src/lexer`, `src/parser`, `src/symtable`, `src/passes`, `src/encoder`, `src/output`, `src/cli`, and `src/main.c`.
 - Public future embedding API lives in `include/nazm.h`.
 - Strategic integration target: Nazm will replace Baa's AT&T/GAS assembly
   boundary after Baa instruction selection and register allocation; see
@@ -60,7 +60,7 @@ For focused code work, inspect the owning module before editing:
 - Labels and addresses: `src/symtable/*`, `src/passes/*`.
 - Machine bytes: `src/encoder/*`.
 - Object files: `src/output/*`.
-- CLI behavior: `src/cli/*`, `src/main.c`.
+- Filesystem paths: `src/io/*`; CLI behavior: `src/cli/*`, `src/main.c`.
 - Public API: `include/nazm.h`.
 
 **Goal:** Build enough context to make a safe, narrow change without spending time on unrelated areas.
@@ -182,7 +182,9 @@ Rules:
 - Pass 2 owns final address resolution, data emission, relocation collection, and calling the encoder.
 - Encoder owns raw x86-64 bytes only; it should not parse source text.
 - Output writers own object-file layout only; they should not reinterpret Arabic syntax.
-- CLI owns file I/O, argument parsing, phase orchestration, and exit codes.
+- The I/O boundary owns portable UTF-8 filesystem paths and Windows command-line
+  conversion.
+- CLI owns argument parsing, phase orchestration, and exit codes.
 
 ### 2.2 Component Responsibilities
 
@@ -191,6 +193,7 @@ Rules:
 | `src/alloc` | Arena allocator and allocation lifetime support. |
 | `src/unicode` | UTF-8 and Arabic codepoint classification. |
 | `src/error` | Error collection and Arabic diagnostic printing. |
+| `src/io` | UTF-8 filesystem paths and Windows UTF-16 command-line conversion. |
 | `src/lexer` | Tokenizing Arabic assembly source and recognizing mnemonics. |
 | `src/parser` | Building `InstructionList` and operand structures. |
 | `src/symtable` | Mapping labels to section-aware offsets and detecting symbol issues. |
