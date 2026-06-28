@@ -7,23 +7,6 @@
 These defects block production use and Baa integration. They take priority over
 new instructions, listing output, API convenience, and packaging.
 
-**Indirect register `call`/`jmp` sizes disagree between passes:**
-- Issue: `encoder_instruction_size()` returns 3 bytes for every register form,
-  while low registers encode without a REX prefix in 2 bytes.
-- Impact: Pass-one label offsets can be wrong even when the final instruction
-  bytes themselves are valid.
-- Required fix: Account for the actual REX requirement and add forward/backward
-  label tests after both low- and extended-register indirect control flow.
-
-**Pass 2 can silently truncate its text buffer:**
-- Issue: The output buffer is sized from pass-one estimates plus a fixed margin,
-  and byte-copy loops stop at capacity without adding a diagnostic.
-- Impact: Repeated size underestimation can produce a shortened object while
-  assembly appears successful.
-- Required fix: Make size disagreement a hard internal diagnostic, grow buffers
-  safely when appropriate, and never use a bounds condition as silent error
-  recovery.
-
 **Object writers silently cap defined symbols:**
 - Issue: ELF64 and COFF writers use fixed 512-entry stack arrays and collect at
   most 511 source symbols.
@@ -111,6 +94,13 @@ contract:**
 
 ## Recently Resolved From Earlier Audits
 
+- Indirect register `call`/`jmp` sizing now matches actual x86-64 output:
+  2 bytes for low registers and 3 bytes when an extended register requires REX.
+  Pipeline tests pin labels after both forms to their exact offsets.
+- Pass 2 allocates `.text` and `.data` to the exact pass-one totals, checks
+  every encoded instruction length, rejects capacity overflow, and verifies
+  final section totals. A disagreement now produces an Arabic internal
+  diagnostic instead of truncated output.
 - Immediate representability checks are centralized in
   `src/encoder/immediate.c`: `mov r64, imm` uses the sign-extending `C7` form
   only for signed 32-bit values and switches to `B8+rd imm64` otherwise.
@@ -138,14 +128,6 @@ contract:**
 - Risk: Library-style callers cannot recover from allocation failure because `arena_alloc()` exits on OOM.
 - File: `src/alloc/arena.c`.
 - Recommendation: Before the public API is implemented, decide whether OOM remains fatal or becomes a recoverable diagnostic in API mode.
-
-**Pass 2 relies on pass 1 size agreement:**
-- Risk: Current indirect register `call`/`jmp` forms already demonstrate a
-  size disagreement; label displacements and output buffer sizing can drift.
-- Files: `src/passes/pass1.c`, `src/passes/pass2.c`, `src/encoder/table.c`.
-- Recommendation: Add a mandatory diagnostic that compares expected and actual
-  encoded lengths for every instruction, plus tests that iterate every
-  supported operand form.
 
 ## Performance Bottlenecks
 

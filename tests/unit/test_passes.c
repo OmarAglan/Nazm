@@ -27,6 +27,22 @@ static Pipeline run(const char *src) {
     return (Pipeline){ p1, p2 };
 }
 
+static Pass2Result run_with_forced_capacities(const char *src,
+                                              size_t text_size,
+                                              size_t data_size) {
+    SourceBuffer sb = {
+        .data = (const uint8_t *)src,
+        .len = strlen(src),
+        .name = "test",
+    };
+    LexResult lr = lexer_lex(&sb, &g_arena);
+    ParseResult pr = parser_parse(&lr.tokens, &g_arena);
+    Pass1Result p1 = pass1_run(&pr.instructions, &g_arena);
+    p1.text_size = text_size;
+    p1.data_size = data_size;
+    return pass2_run(&pr.instructions, &p1, &g_arena);
+}
+
 /* ── Pass 1: symbol table ─────────────────────────────────────────────────── */
 
 void test_p1_single_label_at_zero(void) {
@@ -197,6 +213,35 @@ void test_p2_forward_jump_resolved(void) {
     TEST_ASSERT_EQUAL_INT(1, disp);
 }
 
+void test_indirect_control_flow_sizes_keep_label_offsets_exact(void) {
+    Pipeline pl = run(
+        "اقفز ر0\n"
+        "بعد_قفز:\n"
+        "نادِ ر8\n"
+        "بعد_نداء:\n"
+        "ارجع\n"
+    );
+    int64_t after_jmp = -1;
+    int64_t after_call = -1;
+    uint8_t expected[]={
+        0xFF,0xE0,
+        0x41,0xFF,0xD0,
+        0xC3
+    };
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_TRUE(
+        symtable_lookup(&pl.p1.symtable, "بعد_قفز", &after_jmp));
+    TEST_ASSERT_TRUE(
+        symtable_lookup(&pl.p1.symtable, "بعد_نداء", &after_call));
+    TEST_ASSERT_EQUAL_INT64(2, after_jmp);
+    TEST_ASSERT_EQUAL_INT64(5, after_call);
+    TEST_ASSERT_EQUAL_INT(6, (int)pl.p1.text_size);
+    TEST_ASSERT_EQUAL_INT(6, (int)pl.p2.text_size);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, pl.p2.text_bytes, 6);
+}
+
 void test_p2_full_exit_program(void) {
     /* Linux exit(0) syscall:
      *   mov rax, 60   (syscall number)
@@ -270,6 +315,27 @@ void test_p2_mov_label_creates_abs64_relocation(void) {
     TEST_ASSERT_EQUAL_STRING("رسالة", pl.p2.relocations.data[0].symbol);
 }
 
+void test_p2_text_capacity_mismatch_is_hard_error(void) {
+    Pass2Result p2 = run_with_forced_capacities("ارجع", 0, 0);
+    TEST_ASSERT_TRUE(error_has_any(&p2.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        p2.errors.errors[0].message,
+        "تجاوز خرج النص"));
+    TEST_ASSERT_EQUAL_INT(0, (int)p2.text_size);
+}
+
+void test_p2_data_capacity_mismatch_is_hard_error(void) {
+    Pass2Result p2 = run_with_forced_capacities(
+        ".بيانات\n.بايت ١",
+        0,
+        0);
+    TEST_ASSERT_TRUE(error_has_any(&p2.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        p2.errors.errors[0].message,
+        "تجاوز خرج البيانات"));
+    TEST_ASSERT_EQUAL_INT(0, (int)p2.data_size);
+}
+
 /* ── Main ─────────────────────────────────────────────────────────────────── */
 int main(void) {
     UNITY_BEGIN();
@@ -298,11 +364,14 @@ int main(void) {
     RUN_TEST(test_p2_push_pop_sequence);
     RUN_TEST(test_p2_backward_jump_resolved);
     RUN_TEST(test_p2_forward_jump_resolved);
+    RUN_TEST(test_indirect_control_flow_sizes_keep_label_offsets_exact);
     RUN_TEST(test_p2_full_exit_program);
     RUN_TEST(test_p2_unresolved_label_error);
     RUN_TEST(test_p2_unresolved_label_error_span_points_to_operand);
     RUN_TEST(test_p2_data_string_bytes);
     RUN_TEST(test_p2_mov_label_creates_abs64_relocation);
+    RUN_TEST(test_p2_text_capacity_mismatch_is_hard_error);
+    RUN_TEST(test_p2_data_capacity_mismatch_is_hard_error);
 
     return UNITY_END();
 }

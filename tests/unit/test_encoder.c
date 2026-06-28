@@ -313,6 +313,30 @@ void test_enc_call_rel(void) {
     ENC_JMP(OPCODE_CALL, 0);
 }
 
+void test_enc_jmp_register_sizes(void) {
+    uint8_t expected_rax[]={0xFF,0xE0};
+    Operand rax_ops[]={reg_op(REG_RAX)};
+    check(encoder_encode(OPCODE_JMP, rax_ops, 1, 0),
+          expected_rax, (int)sizeof(expected_rax));
+
+    uint8_t expected_r8[]={0x41,0xFF,0xE0};
+    Operand r8_ops[]={reg_op(REG_R8)};
+    check(encoder_encode(OPCODE_JMP, r8_ops, 1, 0),
+          expected_r8, (int)sizeof(expected_r8));
+}
+
+void test_enc_call_register_sizes(void) {
+    uint8_t expected_rax[]={0xFF,0xD0};
+    Operand rax_ops[]={reg_op(REG_RAX)};
+    check(encoder_encode(OPCODE_CALL, rax_ops, 1, 0),
+          expected_rax, (int)sizeof(expected_rax));
+
+    uint8_t expected_r8[]={0x41,0xFF,0xD0};
+    Operand r8_ops[]={reg_op(REG_R8)};
+    check(encoder_encode(OPCODE_CALL, r8_ops, 1, 0),
+          expected_r8, (int)sizeof(expected_r8));
+}
+
 /* ── Jcc (conditional) ───────────────────────────────────────────────────── */
 void test_enc_je(void) {
     /* 0F 84 + rel32 */
@@ -413,6 +437,19 @@ void test_size_jmp_label(void) {
     Operand ops[]={{.kind=OP_LABEL,.label="x"}};
     TEST_ASSERT_EQUAL_INT(5, encoder_instruction_size(OPCODE_JMP, ops, 1));
 }
+void test_size_indirect_jmp_and_call_registers(void) {
+    Operand rax_ops[]={reg_op(REG_RAX)};
+    Operand r8_ops[]={reg_op(REG_R8)};
+
+    TEST_ASSERT_EQUAL_INT(
+        2, encoder_instruction_size(OPCODE_JMP, rax_ops, 1));
+    TEST_ASSERT_EQUAL_INT(
+        3, encoder_instruction_size(OPCODE_JMP, r8_ops, 1));
+    TEST_ASSERT_EQUAL_INT(
+        2, encoder_instruction_size(OPCODE_CALL, rax_ops, 1));
+    TEST_ASSERT_EQUAL_INT(
+        3, encoder_instruction_size(OPCODE_CALL, r8_ops, 1));
+}
 void test_size_jcc_label(void) {
     Operand ops[]={{.kind=OP_LABEL,.label="x"}};
     TEST_ASSERT_EQUAL_INT(6, encoder_instruction_size(OPCODE_JE, ops, 1));
@@ -505,6 +542,8 @@ int main(void) {
     RUN_TEST(test_enc_jmp_forward);
     RUN_TEST(test_enc_jmp_backward);
     RUN_TEST(test_enc_call_rel);
+    RUN_TEST(test_enc_jmp_register_sizes);
+    RUN_TEST(test_enc_call_register_sizes);
     RUN_TEST(test_enc_je);
     RUN_TEST(test_enc_jne);
     RUN_TEST(test_enc_jl);
@@ -526,6 +565,7 @@ int main(void) {
     RUN_TEST(test_size_mov_reg_imm64);
     RUN_TEST(test_size_mov_reg_reg);
     RUN_TEST(test_size_jmp_label);
+    RUN_TEST(test_size_indirect_jmp_and_call_registers);
     RUN_TEST(test_size_jcc_label);
     RUN_TEST(test_size_add_imm8);
     RUN_TEST(test_size_rejects_unrepresentable_immediates);

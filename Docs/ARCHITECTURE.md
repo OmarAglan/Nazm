@@ -74,6 +74,9 @@ contract.
    `SymbolTable`.
 7. Pass 2 walks the instruction list again, requests final instruction bytes
    from `src/encoder/`, emits `.data` bytes, and records relocation entries.
+   Pass-one section totals are hard capacities: pass 2 verifies every encoded
+   instruction length and the final `.text`/`.data` totals, and reports an
+   Arabic internal diagnostic instead of truncating output on disagreement.
 8. The output layer writes ELF64 or COFF bytes, including sections, symbols, string tables, and current relocation records.
 9. The CLI writes the object file and reports success or Arabic diagnostics.
 
@@ -174,6 +177,8 @@ Planned or limited:
 - Bad source should produce diagnostics rather than crashes or guessed bytes.
 - Encoder failures and unsupported forms must be explicit because silent wrong
   machine code is worse than rejecting a feature.
+- Pass-size disagreement and section-capacity overflow are internal errors;
+  neither may produce a partially successful object file.
 
 ---
 

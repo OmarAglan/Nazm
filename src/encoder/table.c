@@ -686,10 +686,12 @@ int encoder_instruction_size(OpcodeEnum opcode,
     case OPCODE_SAR:     return size_shift(ops, op_count);
     /* All jumps/calls use near 32-bit form = 5 bytes (E9/E8 rel32)
      * or 6 bytes for Jcc (0F xx rel32).
-     * Register forms are 2-3 bytes but handled conservatively here. */
+     * Register forms are 2 bytes, plus REX for r8-r15. */
     case OPCODE_JMP:
     case OPCODE_CALL:
-        return (op_count==1&&ops[0].kind==OP_REG) ? 3 : 5;
+        if (op_count==1 && ops[0].kind==OP_REG)
+            return reg_needs_rex(ops[0].reg) ? 3 : 2;
+        return 5;
     case OPCODE_JE:  case OPCODE_JNE:
     case OPCODE_JG:  case OPCODE_JGE:
     case OPCODE_JL:  case OPCODE_JLE:
