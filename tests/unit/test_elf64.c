@@ -230,6 +230,30 @@ void test_elf_symtab_has_label_entry(void) {
     TEST_ASSERT_EQUAL_INT(0, (int)value);
 }
 
+void test_elf_symbol_bindings_and_local_order(void) {
+    OutputResult r = assemble_elf(
+        ".عام مدخل\n"
+        ".محلي مساعد\n"
+        "مدخل:\n"
+        "ارجع\n"
+        "مساعد:\n"
+        "ارجع\n");
+    TEST_ASSERT_TRUE(r.ok);
+
+    const uint8_t *symtab = find_elf_section(&r, 2);
+    TEST_ASSERT_NOT_NULL(symtab);
+    uint64_t sym_off = rd64(symtab + 24);
+
+    /* Null + one local precede the first global symbol. */
+    TEST_ASSERT_EQUAL_INT(2, (int)rd32(symtab + 44));
+    const uint8_t *local = r.data + sym_off + 24;
+    const uint8_t *global = r.data + sym_off + 48;
+    TEST_ASSERT_EQUAL_INT(0, local[4] >> 4);  /* STB_LOCAL */
+    TEST_ASSERT_EQUAL_INT(1, global[4] >> 4); /* STB_GLOBAL */
+    TEST_ASSERT_EQUAL_INT(1, (int)rd64(local + 8));
+    TEST_ASSERT_EQUAL_INT(0, (int)rd64(global + 8));
+}
+
 void test_elf_empty_program(void) {
     OutputResult r = assemble_elf(".نص");
     TEST_ASSERT_TRUE(r.ok);
@@ -371,6 +395,7 @@ int main(void) {
 
     RUN_TEST(test_elf_symtab_section_exists);
     RUN_TEST(test_elf_symtab_has_label_entry);
+    RUN_TEST(test_elf_symbol_bindings_and_local_order);
     RUN_TEST(test_elf_empty_program);
     RUN_TEST(test_elf_minimum_size);
     RUN_TEST(test_elf_data_section_exists_when_data_emitted);

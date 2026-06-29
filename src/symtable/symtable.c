@@ -35,15 +35,24 @@ bool symtable_insert_section(SymbolTable *st,
                              SymbolSection section,
                              int64_t offset) {
     uint32_t idx = hash_str(name) % SYMTABLE_BUCKETS;
+    SymEntry *e = find_entry(st, name);
 
-    if (find_entry(st, name) != NULL) {
-        return false;
+    if (e != NULL) {
+        if (e->defined) {
+            return false;
+        }
+
+        e->offset = offset;
+        e->section = section;
+        e->defined = true;
+        return true;
     }
 
-    SymEntry *e = ARENA_ALLOC(st->arena, SymEntry);
+    e = ARENA_ALLOC(st->arena, SymEntry);
     e->name    = arena_strdup(st->arena, name);
     e->offset  = offset;
     e->section = section;
+    e->binding = SYMBOL_BINDING_LOCAL;
     e->defined = true;
     e->next    = st->buckets[idx];
 
@@ -54,6 +63,33 @@ bool symtable_insert_section(SymbolTable *st,
 
 bool symtable_insert(SymbolTable *st, const char *name, int64_t offset) {
     return symtable_insert_section(st, name, SYMBOL_SECTION_TEXT, offset);
+}
+
+bool symtable_declare_binding(SymbolTable *st,
+                              const char *name,
+                              SymbolBinding binding) {
+    uint32_t idx = hash_str(name) % SYMTABLE_BUCKETS;
+    SymEntry *e = find_entry(st, name);
+
+    if (e == NULL) {
+        e = ARENA_ALLOC(st->arena, SymEntry);
+        e->name = arena_strdup(st->arena, name);
+        e->section = SYMBOL_SECTION_UNKNOWN;
+        e->binding = binding;
+        e->binding_declared = true;
+        e->next = st->buckets[idx];
+        st->buckets[idx] = e;
+        st->count++;
+        return true;
+    }
+
+    if (e->binding_declared && e->binding != binding) {
+        return false;
+    }
+
+    e->binding = binding;
+    e->binding_declared = true;
+    return true;
 }
 
 bool symtable_lookup_ex(const SymbolTable *st,
@@ -79,6 +115,21 @@ bool symtable_lookup_ex(const SymbolTable *st,
 
 bool symtable_lookup(const SymbolTable *st, const char *name, int64_t *out_offset) {
     return symtable_lookup_ex(st, name, out_offset, NULL);
+}
+
+bool symtable_lookup_binding(const SymbolTable *st,
+                             const char *name,
+                             SymbolBinding *out_binding) {
+    SymEntry *e = find_entry(st, name);
+
+    if (e == NULL || !e->defined) {
+        return false;
+    }
+
+    if (out_binding != NULL) {
+        *out_binding = e->binding;
+    }
+    return true;
 }
 
 bool symtable_patch(SymbolTable *st, const char *name, int64_t offset) {

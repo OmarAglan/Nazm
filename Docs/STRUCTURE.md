@@ -73,7 +73,8 @@ Nazm/
 
 **src/symtable/**
 - `symtable.c`, `symtable.h`
-- Owns the current section-aware label-to-offset table.
+- Owns the section-aware label-to-offset table and local/global binding
+  declarations, including declarations that precede label definition.
 
 **src/passes/**
 - `pass1.c`, `pass1.h`, `pass2.c`, `pass2.h`

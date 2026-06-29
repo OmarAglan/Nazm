@@ -380,6 +380,10 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
 
     for (size_t i = 0; i < symbols.count; i++) {
         size_t name_len = strlen(symbols.data[i].name);
+        uint8_t storage =
+            symbols.data[i].binding == SYMBOL_BINDING_GLOBAL
+                ? COFF_SYM_CLASS_EXTERNAL
+                : COFF_SYM_CLASS_STATIC;
         write_sym(&out,
                   symbols.data[i].name,
                   name_len,
@@ -387,7 +391,7 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
                   (uint32_t)symbols.data[i].offset,
                   coff_section_number(symbols.data[i].section, has_data),
                   COFF_SYM_TYPE_NULL,
-                  COFF_SYM_CLASS_EXTERNAL);
+                  storage);
     }
 
     buf_write(&out, strtab.buf.data, strtab.buf.size);

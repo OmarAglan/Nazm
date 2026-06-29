@@ -196,7 +196,7 @@ Rules:
 | `src/io` | UTF-8 filesystem paths and Windows UTF-16 command-line conversion. |
 | `src/lexer` | Tokenizing Arabic assembly source and recognizing mnemonics. |
 | `src/parser` | Building `InstructionList` and operand structures. |
-| `src/symtable` | Mapping labels to section-aware offsets and detecting symbol issues. |
+| `src/symtable` | Mapping labels to section-aware offsets and local/global bindings, and detecting symbol issues. |
 | `src/passes` | Two-pass assembly logic, address/data sizing, relocation collection, and final encoding coordination. |
 | `src/encoder` | x86-64 encoding tables and helpers: REX, ModRM, SIB, immediates. |
 | `src/output` | ELF64 and PE/COFF object serialization. |

@@ -30,6 +30,7 @@
 #define SHF_ALLOC       0x2
 #define SHF_EXECINSTR   0x4
 
+#define STB_LOCAL       0
 #define STB_GLOBAL      1
 #define STT_NOTYPE      0
 #define STV_DEFAULT     0
@@ -352,7 +353,10 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     write_sym(&ob, 0, 0, 0, 0, 0, 0);
 
     for (size_t i = 0; i < symbols.count; i++) {
-        uint8_t info = (uint8_t)((STB_GLOBAL << 4) | STT_NOTYPE);
+        uint8_t binding = symbols.data[i].binding == SYMBOL_BINDING_GLOBAL
+            ? STB_GLOBAL
+            : STB_LOCAL;
+        uint8_t info = (uint8_t)((binding << 4) | STT_NOTYPE);
         write_sym(&ob,
                   symbols.data[i].name_offset,
                   info,
@@ -464,7 +468,7 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                (uint64_t)symtab_off,
                (uint64_t)symtab_size,
                (uint32_t)sh_strtab,
-               1,
+               (uint32_t)(symbols.local_count + 1),
                8,
                24);
 

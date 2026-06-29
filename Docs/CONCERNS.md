@@ -2,19 +2,6 @@
 
 **Analysis Date:** 2026-06-28
 
-## Confirmed Correctness Defects
-
-These defects block production use and Baa integration. They take priority over
-new instructions, listing output, API convenience, and packaging.
-
-**Visibility directives have no semantics:**
-- Issue: `.عام` and `.محلي` are parsed and skipped, while current ELF64 and
-  COFF writers emit every defined source symbol with global/external binding.
-- Impact: Source syntax promises distinctions that object files do not honor.
-- Required fix: Store visibility in the symbol table, emit the correct
-  format-specific binding/storage class, and test public and local symbols with
-  real linkers.
-
 ## Tech Debt
 
 **Instruction encoding table is a monolithic C file:**
@@ -86,6 +73,13 @@ contract:**
 
 ## Recently Resolved From Earlier Audits
 
+- `.عام` and `.محلي` now persist binding in the symbol table before or after
+  label definition. Unannotated labels are local, conflicting or undefined
+  declarations diagnose in Arabic, ELF64 emits local-first
+  `STB_LOCAL`/`STB_GLOBAL` entries with correct `sh_info`, and COFF emits
+  `STATIC`/`EXTERNAL`. Unit tests cover both formats; GNU `readelf` and
+  `objdump` also recognized the expected bindings in generated example
+  objects. Link/run acceptance remains tracked separately.
 - ELF64 and COFF no longer cap defined symbols at 511. Shared output code counts
   every defined symbol, allocates the exact arena-owned collection, checks
   symbol/string-table format bounds, and rejects relocations to missing

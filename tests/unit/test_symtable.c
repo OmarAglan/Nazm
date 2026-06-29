@@ -64,11 +64,59 @@ void test_symtable_patch(void) {
     arena_free(&a);
 }
 
+void test_symtable_binding_declaration_before_definition(void) {
+    Arena a = arena_create(4096);
+    SymbolTable st;
+    symtable_init(&st, &a);
+
+    TEST_ASSERT_TRUE(symtable_declare_binding(
+        &st, "مدخل", SYMBOL_BINDING_GLOBAL));
+    TEST_ASSERT_TRUE(symtable_insert(&st, "مدخل", 7));
+
+    SymbolBinding binding = SYMBOL_BINDING_LOCAL;
+    TEST_ASSERT_TRUE(symtable_lookup_binding(&st, "مدخل", &binding));
+    TEST_ASSERT_EQUAL_INT(SYMBOL_BINDING_GLOBAL, binding);
+
+    arena_free(&a);
+}
+
+void test_symtable_binding_declaration_after_definition(void) {
+    Arena a = arena_create(4096);
+    SymbolTable st;
+    symtable_init(&st, &a);
+
+    TEST_ASSERT_TRUE(symtable_insert(&st, "مدخل", 7));
+    TEST_ASSERT_TRUE(symtable_declare_binding(
+        &st, "مدخل", SYMBOL_BINDING_GLOBAL));
+
+    SymbolBinding binding = SYMBOL_BINDING_LOCAL;
+    TEST_ASSERT_TRUE(symtable_lookup_binding(&st, "مدخل", &binding));
+    TEST_ASSERT_EQUAL_INT(SYMBOL_BINDING_GLOBAL, binding);
+
+    arena_free(&a);
+}
+
+void test_symtable_rejects_conflicting_explicit_bindings(void) {
+    Arena a = arena_create(4096);
+    SymbolTable st;
+    symtable_init(&st, &a);
+
+    TEST_ASSERT_TRUE(symtable_declare_binding(
+        &st, "مدخل", SYMBOL_BINDING_GLOBAL));
+    TEST_ASSERT_FALSE(symtable_declare_binding(
+        &st, "مدخل", SYMBOL_BINDING_LOCAL));
+
+    arena_free(&a);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_symtable_insert_and_lookup);
     RUN_TEST(test_symtable_rejects_duplicates);
     RUN_TEST(test_symtable_missing_returns_false);
     RUN_TEST(test_symtable_patch);
+    RUN_TEST(test_symtable_binding_declaration_before_definition);
+    RUN_TEST(test_symtable_binding_declaration_after_definition);
+    RUN_TEST(test_symtable_rejects_conflicting_explicit_bindings);
     return UNITY_END();
 }

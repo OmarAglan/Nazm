@@ -17,11 +17,18 @@ typedef enum {
     SYMBOL_SECTION_DATA,
 } SymbolSection;
 
+typedef enum {
+    SYMBOL_BINDING_LOCAL = 0,
+    SYMBOL_BINDING_GLOBAL,
+} SymbolBinding;
+
 typedef struct SymEntry {
     const char      *name;
     int64_t          offset;
     SymbolSection    section;
+    SymbolBinding    binding;
     bool             defined;
+    bool             binding_declared;
     struct SymEntry *next;
 } SymEntry;
 
@@ -37,9 +44,20 @@ bool symtable_insert_section(SymbolTable *st,
                              const char *name,
                              SymbolSection section,
                              int64_t offset);
+/*
+ * Declare explicit visibility. Repeating the same declaration is allowed;
+ * conflicting explicit declarations return false. A declaration may precede
+ * the label definition.
+ */
+bool symtable_declare_binding(SymbolTable *st,
+                              const char *name,
+                              SymbolBinding binding);
 bool symtable_lookup(const SymbolTable *st, const char *name, int64_t *out_offset);
 bool symtable_lookup_ex(const SymbolTable *st,
                         const char *name,
                         int64_t *out_offset,
                         SymbolSection *out_section);
+bool symtable_lookup_binding(const SymbolTable *st,
+                             const char *name,
+                             SymbolBinding *out_binding);
 bool symtable_patch(SymbolTable *st, const char *name, int64_t offset);

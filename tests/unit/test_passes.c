@@ -120,6 +120,65 @@ void test_p1_duplicate_label_error_span_points_to_duplicate(void) {
     TEST_ASSERT_EQUAL_STRING("test", pl.p1.errors.source.name);
 }
 
+void test_p1_visibility_before_and_after_definition(void) {
+    Pipeline pl = run(
+        ".عام مدخل\n"
+        "مدخل:\n"
+        "ارجع\n"
+        "مساعد:\n"
+        ".محلي مساعد\n"
+        "ارجع\n");
+    SymbolBinding entry_binding = SYMBOL_BINDING_LOCAL;
+    SymbolBinding helper_binding = SYMBOL_BINDING_GLOBAL;
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_TRUE(symtable_lookup_binding(
+        &pl.p1.symtable, "مدخل", &entry_binding));
+    TEST_ASSERT_TRUE(symtable_lookup_binding(
+        &pl.p1.symtable, "مساعد", &helper_binding));
+    TEST_ASSERT_EQUAL_INT(SYMBOL_BINDING_GLOBAL, entry_binding);
+    TEST_ASSERT_EQUAL_INT(SYMBOL_BINDING_LOCAL, helper_binding);
+}
+
+void test_p1_unannotated_label_is_local(void) {
+    Pipeline pl = run("داخلي:\nارجع");
+    SymbolBinding binding = SYMBOL_BINDING_GLOBAL;
+
+    TEST_ASSERT_TRUE(symtable_lookup_binding(
+        &pl.p1.symtable, "داخلي", &binding));
+    TEST_ASSERT_EQUAL_INT(SYMBOL_BINDING_LOCAL, binding);
+}
+
+void test_p1_conflicting_visibility_is_error(void) {
+    Pipeline pl = run(
+        ".عام مدخل\n"
+        ".محلي مدخل\n"
+        "مدخل:\n"
+        "ارجع\n");
+
+    TEST_ASSERT_TRUE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        pl.p1.errors.errors[0].message, "تعارض في رؤية الوسم"));
+    TEST_ASSERT_EQUAL_INT(2, pl.p1.errors.errors[0].line);
+}
+
+void test_p1_visibility_requires_one_label(void) {
+    Pipeline pl = run(".عام 1\nارجع");
+
+    TEST_ASSERT_TRUE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        pl.p1.errors.errors[0].message, "يتطلب اسم وسم واحداً"));
+}
+
+void test_p1_visibility_target_must_be_defined(void) {
+    Pipeline pl = run(".عام غير_معرف\nارجع");
+
+    TEST_ASSERT_TRUE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        pl.p1.errors.errors[0].message, "وسم غير معرّف"));
+    TEST_ASSERT_EQUAL_INT(1, pl.p1.errors.errors[0].line);
+}
+
 /* ── Pass 2: byte output ──────────────────────────────────────────────────── */
 
 void test_p2_ret_bytes(void) {
@@ -351,6 +410,11 @@ int main(void) {
     RUN_TEST(test_p1_directive_not_counted);
     RUN_TEST(test_p1_duplicate_label_error);
     RUN_TEST(test_p1_duplicate_label_error_span_points_to_duplicate);
+    RUN_TEST(test_p1_visibility_before_and_after_definition);
+    RUN_TEST(test_p1_unannotated_label_is_local);
+    RUN_TEST(test_p1_conflicting_visibility_is_error);
+    RUN_TEST(test_p1_visibility_requires_one_label);
+    RUN_TEST(test_p1_visibility_target_must_be_defined);
     RUN_TEST(test_p1_data_label_has_data_section);
     RUN_TEST(test_p1_data_string_size);
 

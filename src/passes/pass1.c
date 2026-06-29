@@ -43,6 +43,84 @@ int data_directive_size(const Instruction *instr) {
     return 0;
 }
 
+static bool visibility_directive_binding(const Instruction *instr,
+                                         SymbolBinding *out_binding) {
+    if (instr->directive == NULL) {
+        return false;
+    }
+    if (strcmp(instr->directive, ".عام") == 0) {
+        *out_binding = SYMBOL_BINDING_GLOBAL;
+        return true;
+    }
+    if (strcmp(instr->directive, ".محلي") == 0) {
+        *out_binding = SYMBOL_BINDING_LOCAL;
+        return true;
+    }
+    return false;
+}
+
+static void add_visibility_error(ErrorList *errors,
+                                 Arena *arena,
+                                 const InstructionList *instructions,
+                                 const Instruction *instr,
+                                 const char *message) {
+    int line = instr->line;
+    int col = instr->col;
+    int end_col = instr->end_col;
+
+    if (instr->op_count > 0) {
+        line = instr->ops[0].line;
+        col = instr->ops[0].col;
+        end_col = instr->ops[0].end_col;
+    }
+
+    error_add_span(errors,
+                   arena,
+                   instructions->source_name
+                       ? instructions->source_name
+                       : "unknown",
+                   line,
+                   col,
+                   end_col,
+                   message);
+}
+
+static void report_undefined_visibility_symbols(
+    const InstructionList *instructions,
+    SymbolTable *symtable,
+    ErrorList *errors,
+    Arena *arena) {
+    for (int bucket = 0; bucket < SYMTABLE_BUCKETS; bucket++) {
+        for (const SymEntry *entry = symtable->buckets[bucket];
+             entry != NULL;
+             entry = entry->next) {
+            if (entry->defined || !entry->binding_declared) {
+                continue;
+            }
+
+            for (size_t i = 0; i < instructions->count; i++) {
+                const Instruction *instr = &instructions->data[i];
+                SymbolBinding ignored;
+                if (!visibility_directive_binding(instr, &ignored) ||
+                    instr->op_count != 1 ||
+                    instr->ops[0].kind != OP_LABEL ||
+                    strcmp(instr->ops[0].label, entry->name) != 0) {
+                    continue;
+                }
+
+                char message[256];
+                snprintf(message,
+                         sizeof(message),
+                         "توجيه الرؤية يشير إلى وسم غير معرّف: '%s'",
+                         entry->name);
+                add_visibility_error(
+                    errors, arena, instructions, instr, message);
+                break;
+            }
+        }
+    }
+}
+
 Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
     Pass1Result result = {0};
     symtable_init(&result.symtable, arena);
@@ -63,8 +141,32 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
         if (instr->directive) {
             if (strcmp(instr->directive, ".نص") == 0)     { in_data = false; continue; }
             if (strcmp(instr->directive, ".بيانات") == 0) { in_data = true;  continue; }
-            if (strcmp(instr->directive, ".عام")   == 0 ||
-                strcmp(instr->directive, ".محلي")  == 0)  { continue; }
+
+            SymbolBinding binding;
+            if (visibility_directive_binding(instr, &binding)) {
+                if (instr->op_count != 1 ||
+                    instr->ops[0].kind != OP_LABEL) {
+                    char message[192];
+                    snprintf(message,
+                             sizeof(message),
+                             "التوجيه '%s' يتطلب اسم وسم واحداً",
+                             instr->directive);
+                    add_visibility_error(
+                        &result.errors, arena, instructions, instr, message);
+                } else if (!symtable_declare_binding(
+                               &result.symtable,
+                               instr->ops[0].label,
+                               binding)) {
+                    char message[256];
+                    snprintf(message,
+                             sizeof(message),
+                             "تعارض في رؤية الوسم '%s': لا يمكن جمع '.عام' و'.محلي'",
+                             instr->ops[0].label);
+                    add_visibility_error(
+                        &result.errors, arena, instructions, instr, message);
+                }
+                continue;
+            }
 
             /* Data-emitting directive */
             int dsz = in_data ? data_directive_size(instr) : 0;
@@ -115,6 +217,9 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
         if (sz <= 0) sz = MAX_INSTRUCTION_BYTES;
         text_offset += (size_t)sz;
     }
+
+    report_undefined_visibility_symbols(
+        instructions, &result.symtable, &result.errors, arena);
 
     result.text_size = text_offset;
     result.data_size = data_offset;

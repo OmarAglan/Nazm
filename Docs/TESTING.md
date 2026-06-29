@@ -7,7 +7,7 @@
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
 - `build.sh test` is the direct no-CMake path and currently runs the same 16 unit-test suites registered for CTest.
-- Current total: 305 portable Unity tests across the 16 suites, plus one
+- Current total: 315 portable Unity tests across the 16 suites, plus one
   Windows-only UTF-16-to-UTF-8 argv test.
 
 ## Run Commands
@@ -68,6 +68,9 @@ CTest registers the unit tests listed in `tests/CMakeLists.txt` using the `unit_
 - Both writer suites build 513-symbol tables, verify the complete emitted count
   and relocation index beyond the old 511-symbol cap, and reject relocations
   to missing symbols.
+- Pass and writer tests cover default-local binding, `.عام`/`.محلي` before and
+  after definition, conflicting and undefined declarations, ELF64 local-first
+  ordering and `sh_info`, and COFF storage classes.
 - When adding an object section, symbol kind, or relocation kind, update both writer tests unless the feature is intentionally one-format-only.
 
 ## Example Pipeline Tests

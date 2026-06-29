@@ -23,8 +23,9 @@ The Arabic assembler is a self-contained native binary. It reads files from disk
   reported as I/O failure
 - Current section support: `.text` always, `.data` when data bytes exist, `.rela.text`/COFF text relocations when the source needs current supported relocations
 - Current symbol support: defined labels with section-aware `.text`/`.data`
-  indexes; `.عام`/`.محلي` visibility is parsed but not yet honored, and current
-  writers bind all emitted source symbols globally
+  indexes and real local/global binding. Labels are local by default; `.عام`
+  emits ELF64 `STB_GLOBAL` or COFF `EXTERNAL`, while `.محلي` emits ELF64
+  `STB_LOCAL` or COFF `STATIC`
 - Current relocation support: absolute address relocations for loading a local label into a register, such as `احمل ر0، رسالة`
 - Location: Path provided with `-o` flag, defaults to input filename with `.o` extension
 - Written via: `src/output/elf64.c` or `src/output/coff.c`

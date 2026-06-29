@@ -15,12 +15,14 @@ typedef struct {
     const char    *name;
     int64_t        offset;
     SymbolSection  section;
+    SymbolBinding  binding;
     uint32_t       name_offset;
 } OutputSymbol;
 
 typedef struct {
     OutputSymbol *data;
     size_t        count;
+    size_t        local_count;
 } OutputSymbolList;
 
 /*

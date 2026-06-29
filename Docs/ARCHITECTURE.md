@@ -44,7 +44,11 @@ contract.
 - Contains `src/passes/` and `src/symtable/`.
 - Pass 1 owns instruction-size assumptions, data-size accounting, current section tracking, and label offsets.
 - Pass 2 owns final traversal of parsed instructions, calls into the encoder, emits data bytes, and records the currently supported relocation forms.
-- Symbol lookup and insertion belong to `src/symtable/`, including whether a label belongs to `.text` or `.data`.
+- Symbol lookup and insertion belong to `src/symtable/`, including whether a
+  label belongs to `.text` or `.data` and whether its binding is local or
+  global. Labels default to local; `.عام` and `.محلي` may declare binding
+  before or after definition, while conflicting or undefined declarations are
+  pass-one errors.
 
 **Encoder**
 - Contains `src/encoder/`.
@@ -57,8 +61,8 @@ contract.
 - Contains `src/output/`.
 - Owns wrapping encoded bytes into ELF64 or PE/COFF object structures.
 - Shares exact, arena-owned defined-symbol collection through
-  `src/output/symbols.c`; writers reject unrepresentable tables and
-  relocations whose symbols are absent.
+  `src/output/symbols.c`; local symbols precede globals for ELF64, and writers
+  reject unrepresentable tables and relocations whose symbols are absent.
 - Object format logic must stay out of the lexer, parser, and encoder.
 
 **Driver and CLI**

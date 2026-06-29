@@ -19,6 +19,30 @@ static size_t count_defined_symbols(const SymbolTable *symtable) {
     return count;
 }
 
+static size_t collect_binding(const SymbolTable *symtable,
+                              SymbolBinding binding,
+                              OutputSymbol *symbols,
+                              size_t index) {
+    for (int bucket = 0; bucket < SYMTABLE_BUCKETS; bucket++) {
+        for (const SymEntry *entry = symtable->buckets[bucket];
+             entry != NULL;
+             entry = entry->next) {
+            if (!entry->defined || entry->binding != binding) {
+                continue;
+            }
+
+            symbols[index].name = entry->name;
+            symbols[index].offset = entry->offset;
+            symbols[index].section = entry->section;
+            symbols[index].binding = entry->binding;
+            symbols[index].name_offset = 0;
+            index++;
+        }
+    }
+
+    return index;
+}
+
 bool output_symbols_collect(const SymbolTable *symtable,
                             Arena *arena,
                             OutputSymbolList *out) {
@@ -42,25 +66,17 @@ bool output_symbols_collect(const SymbolTable *symtable,
         symbols = ARENA_ALLOC_N(arena, OutputSymbol, count);
     }
 
-    size_t index = 0;
-    for (int bucket = 0; bucket < SYMTABLE_BUCKETS; bucket++) {
-        for (const SymEntry *entry = symtable->buckets[bucket];
-             entry != NULL;
-             entry = entry->next) {
-            if (!entry->defined) {
-                continue;
-            }
-
-            symbols[index].name = entry->name;
-            symbols[index].offset = entry->offset;
-            symbols[index].section = entry->section;
-            symbols[index].name_offset = 0;
-            index++;
-        }
+    size_t local_count = collect_binding(
+        symtable, SYMBOL_BINDING_LOCAL, symbols, 0);
+    size_t index = collect_binding(
+        symtable, SYMBOL_BINDING_GLOBAL, symbols, local_count);
+    if (index != count) {
+        return false;
     }
 
     out->data = symbols;
-    out->count = count;
+    out->count = index;
+    out->local_count = local_count;
     return true;
 }
 
