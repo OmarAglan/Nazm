@@ -7,7 +7,7 @@
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
 - `build.sh test` is the direct no-CMake path and currently runs the same 17 unit-test suites registered for CTest.
-- Current total: 327 portable Unity tests across the 17 suites, plus one
+- Current total: 333 portable Unity tests across the 17 suites, plus one
   Windows-only UTF-16-to-UTF-8 argv test.
 - CTest additionally registers `differential_encoder_gas` when GNU `as` and
   `objcopy` are available.
@@ -76,6 +76,15 @@ The parser, encoder, and pass suites separately pin signed-32-bit displacement
 boundaries: memory operands and all 12 relative control-flow opcodes accept
 `INT32_MIN`/`INT32_MAX`, reject the adjacent overflow values, and preserve the
 source span of pass-two branch diagnostics.
+
+## Unicode Contract Tests
+
+`test_unicode.c` rejects non-shortest UTF-8, surrogate encodings, values above
+U+10FFFF, truncation, and invalid continuation bytes. `test_keywords.c` pins
+canonical diacritics and the absence of normalization/unvowelled aliases.
+`test_lexer.c` verifies malformed UTF-8 diagnostics and preserves canonically
+equivalent but byte-distinct label spellings as separate identifiers. The
+language contract is documented in `Docs/UNICODE.md`.
 
 ## GNU Assembler Differential Test
 

@@ -37,6 +37,9 @@ contract.
 - The lexer owns UTF-8 source tokenization, Arabic mnemonic recognition,
   register names, numeric immediates, directives, labels, comments, and
   punctuation.
+- Nazm 0.3 performs exact UTF-8 keyword and identifier comparison without
+  Unicode normalization or implicit unvowelled aliases; malformed UTF-8 scalar
+  encodings are lexer errors. See [UNICODE.md](UNICODE.md).
 - The parser owns `InstructionList` creation, operand classification, directive
   recognition, operand count checks, comma checks, signed-32-bit memory
   displacement validation, and basic error recovery.

@@ -7,15 +7,19 @@
 
 static Arena    g_arena;
 
-static LexResult lex(const char *src) {
+static LexResult lex_bytes(const uint8_t *data, size_t len) {
     arena_free(&g_arena);
     g_arena = arena_create(64 * 1024);
     SourceBuffer sb = {
-        .data = (const uint8_t *)src,
-        .len  = strlen(src),
+        .data = data,
+        .len  = len,
         .name = "test",
     };
     return lexer_lex(&sb, &g_arena);
+}
+
+static LexResult lex(const char *src) {
+    return lex_bytes((const uint8_t *)src, strlen(src));
 }
 
 /* Return the nth non-NEWLINE, non-EOF token */
@@ -176,6 +180,19 @@ void test_lex_label_definition(void) {
     Token t = tok(&r, 0);
     TEST_ASSERT_EQUAL_INT(TOKEN_LABEL_DEF, t.type);
     TEST_ASSERT_EQUAL_STRING("البداية", t.value);
+}
+
+void test_lex_canonically_equivalent_labels_remain_distinct(void) {
+    LexResult r = lex("أ:\nأ:");
+
+    Token precomposed = tok(&r, 0);
+    Token decomposed = tok(&r, 1);
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+    TEST_ASSERT_EQUAL_INT(TOKEN_LABEL_DEF, precomposed.type);
+    TEST_ASSERT_EQUAL_INT(TOKEN_LABEL_DEF, decomposed.type);
+    TEST_ASSERT_EQUAL_STRING("أ", precomposed.value);
+    TEST_ASSERT_EQUAL_STRING("أ", decomposed.value);
+    TEST_ASSERT_TRUE(strcmp(precomposed.value, decomposed.value) != 0);
 }
 
 void test_lex_label_reference(void) {
@@ -389,6 +406,15 @@ void test_lex_unknown_char_source_span(void) {
     TEST_ASSERT_NOT_NULL(strstr(e.message, "محرف غير معروف"));
 }
 
+void test_lex_rejects_invalid_utf8(void) {
+    const uint8_t overlong[] = { 0xC0, 0xAF };
+    LexResult r = lex_bytes(overlong, sizeof(overlong));
+
+    TEST_ASSERT_TRUE(error_has_any(&r.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        r.errors.errors[0].message, "محرف غير معروف"));
+}
+
 void test_lex_bad_hex_reports_error(void) {
     LexResult r = lex("0x");
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
@@ -460,6 +486,7 @@ int main(void) {
 
     /* Labels */
     RUN_TEST(test_lex_label_definition);
+    RUN_TEST(test_lex_canonically_equivalent_labels_remain_distinct);
     RUN_TEST(test_lex_label_reference);
     RUN_TEST(test_lex_label_def_then_mnemonic);
 
@@ -494,6 +521,7 @@ int main(void) {
     /* Errors */
     RUN_TEST(test_lex_mnemonic_source_span);
     RUN_TEST(test_lex_unknown_char_source_span);
+    RUN_TEST(test_lex_rejects_invalid_utf8);
     RUN_TEST(test_lex_bad_hex_reports_error);
     RUN_TEST(test_lex_bad_binary_reports_error);
     RUN_TEST(test_lex_continues_after_error);

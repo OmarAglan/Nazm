@@ -18,18 +18,32 @@ uint32_t utf8_next_codepoint(const uint8_t *src, size_t src_len, size_t *offset)
     int bytes;
     uint32_t cp;
 
-    if      ((b0 & 0xE0) == 0xC0) { bytes = 2; cp = b0 & 0x1F; }
-    else if ((b0 & 0xF0) == 0xE0) { bytes = 3; cp = b0 & 0x0F; }
-    else if ((b0 & 0xF8) == 0xF0) { bytes = 4; cp = b0 & 0x07; }
+    if      (b0 >= 0xC2 && b0 <= 0xDF) { bytes = 2; cp = b0 & 0x1F; }
+    else if (b0 >= 0xE0 && b0 <= 0xEF) { bytes = 3; cp = b0 & 0x0F; }
+    else if (b0 >= 0xF0 && b0 <= 0xF4) { bytes = 4; cp = b0 & 0x07; }
     else { (*offset)++; return 0xFFFD; }
 
-    if (*offset + bytes > src_len) { (*offset)++; return 0xFFFD; }
+    if (src_len - *offset < (size_t)bytes) {
+        (*offset)++;
+        return 0xFFFD;
+    }
 
     for (int i = 1; i < bytes; i++) {
         uint8_t b = src[*offset + i];
         if ((b & 0xC0) != 0x80) { (*offset)++; return 0xFFFD; }
         cp = (cp << 6) | (b & 0x3F);
     }
+
+    uint32_t minimum = bytes == 2 ? 0x80u
+                     : bytes == 3 ? 0x800u
+                                  : 0x10000u;
+    if (cp < minimum ||
+        (cp >= 0xD800 && cp <= 0xDFFF) ||
+        cp > 0x10FFFF) {
+        (*offset)++;
+        return 0xFFFD;
+    }
+
     *offset += bytes;
     return cp;
 }

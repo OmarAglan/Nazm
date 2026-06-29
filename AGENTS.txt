@@ -31,6 +31,9 @@
 - Output formats are intended to be ELF64 and PE/COFF.
 - Tests use vendored Unity plus CTest.
 - User-facing diagnostics should be Arabic-first and UTF-8.
+- Nazm 0.3 compares mnemonic and label UTF-8 bytes exactly; do not add
+  normalization or unvowelled aliases without an explicit language-contract
+  change. See `Docs/UNICODE.md`.
 - Arena allocation is central to pipeline data ownership; do not free arena-owned objects individually.
 - Documentation under `Docs/` contains both current facts and planned architecture; verify against source before claiming behavior.
 

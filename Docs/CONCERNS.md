@@ -55,16 +55,6 @@
   coverage matrix, implement and verify each required form, then run a
   dual-assembler parity gate.
 
-**Arabic mnemonic spelling and diacritics are not yet a stable language
-contract:**
-- Symptoms: Mnemonics such as `نادِ`, `انفِ`, and `اقفز_مساوٍ` require exact
-  UTF-8 byte spelling, including combining marks.
-- Impact: Users and generated sources can produce visually similar identifiers
-  that fail keyword lookup; editor normalization behavior may vary.
-- Fix approach: Decide and document normalization, preferred unvowelled
-  spellings, compatibility aliases, and whether visually equivalent forms are
-  accepted before freezing the source language.
-
 **No subprocess integration harness yet:**
 - Symptoms: `tests/unit/test_examples.c` assembles checked-in examples through the library pipeline to ELF64 and COFF, but there is no test that executes the `nazm` binary, checks exit codes, and optionally links/runs output.
 - Fix approach: Add a subprocess-level test area under `tests` once the CLI
@@ -73,6 +63,10 @@ contract:**
 
 ## Recently Resolved From Earlier Audits
 
+- `Docs/UNICODE.md` now freezes the 0.3 source contract: exact canonical
+  mnemonic bytes, required listed diacritics, no normalization or implicit
+  aliases, and byte-exact label identity. Tests pin precomposed/decomposed
+  distinctions, while the decoder rejects malformed and non-scalar UTF-8.
 - Memory displacements and relative control-flow targets no longer narrow to
   `int32_t` silently. Parser memory operands and encoder/pass-two `rel32`
   paths enforce signed-32-bit bounds; pass 2 reports overflow at the target
