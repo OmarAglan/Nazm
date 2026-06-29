@@ -55,11 +55,14 @@
   coverage matrix, implement and verify each required form, then run a
   dual-assembler parity gate.
 
-**No subprocess integration harness yet:**
-- Symptoms: `tests/unit/test_examples.c` assembles checked-in examples through the library pipeline to ELF64 and COFF, but there is no test that executes the `nazm` binary, checks exit codes, and optionally links/runs output.
-- Fix approach: Add a subprocess-level test area under `tests` once the CLI
-  contract and linker availability are stable enough for cross-platform
-  snapshots.
+**Subprocess acceptance does not link or run objects yet:**
+- Current coverage: `tests/integration/cli_acceptance.cmake` executes `nazm`,
+  checks public exit codes, uses Arabic source/output paths, and validates ELF64
+  and AMD64 COFF signatures.
+- Remaining gap: The harness does not yet pass the objects to platform linkers
+  and execute the resulting programs.
+- Fix approach: Extend the acceptance layer with Linux ELF64 and Windows COFF
+  link/run cases when those linkers are available in CI.
 
 ## Recently Resolved From Earlier Audits
 
@@ -204,7 +207,9 @@
   `tests/unit/test_io.c` covers Arabic path I/O and Windows argv conversion;
   `tests/unit/test_examples.c` covers the library pipeline on examples; and
   `tests/unit/test_diagnostics.c` covers rendered Arabic diagnostic shape.
-- What's not covered: Executing `nazm` on fixture files and checking exit codes/output files through a dedicated subprocess integration harness.
+  `tests/integration/cli_acceptance.cmake` executes the binary, checks exit
+  codes, and validates ELF64/COFF output files written through Arabic paths.
+- What's not covered: Linking and running those objects with platform toolchains.
 
 ---
 

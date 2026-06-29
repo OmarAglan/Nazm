@@ -39,6 +39,17 @@ add_nazm_test(NAME test_io       SOURCES unit/test_io.c)
 add_nazm_test(NAME test_examples SOURCES unit/test_examples.c)
 set_tests_properties(unit_test_examples PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
+# ── CLI acceptance test ──────────────────────────────────────────────────────
+add_test(
+    NAME integration_cli
+    COMMAND ${CMAKE_COMMAND}
+        -DNAZM_EXE=$<TARGET_FILE:nazm>
+        -DGOOD_SOURCE=${CMAKE_SOURCE_DIR}/examples/خروج.مجمع
+        -DBAD_SOURCE=${CMAKE_SOURCE_DIR}/examples/diagnostics/1.مجمع
+        -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/cli-work
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/cli_acceptance.cmake
+)
+
 # ── Differential encoder test ────────────────────────────────────────────────
 find_program(NAZM_GNU_AS NAMES as)
 find_program(NAZM_OBJCOPY NAMES objcopy llvm-objcopy)

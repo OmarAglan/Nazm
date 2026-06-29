@@ -11,6 +11,8 @@
   Windows-only UTF-16-to-UTF-8 argv test.
 - CTest additionally registers `differential_encoder_gas` when GNU `as` and
   `objcopy` are available.
+- CTest registers `integration_cli`, which launches the built `nazm` executable
+  and checks its public exit-code and object-file behavior.
 
 ## Run Commands
 
@@ -37,6 +39,8 @@ Current workspace note: the commands above require the matching toolchain on `PA
 ```text
 tests/
   CMakeLists.txt
+  integration/
+    cli_acceptance.cmake
   unit/
     test_arena.c
     test_cli_args.c
@@ -115,6 +119,21 @@ more correct merely because it is shorter.
 
 Intentional-error examples remain under `examples/diagnostics/` and are not treated as successful assembly fixtures.
 
+## CLI Acceptance Test
+
+`tests/integration/cli_acceptance.cmake` launches the built `nazm` executable
+rather than calling library functions. It checks `--help`, `--version`, exit
+code `2` for invalid arguments, exit code `1` for invalid source, and successful
+ELF64 and COFF assembly. The successful source and both output files use Arabic
+path components. The test inspects the ELF magic and AMD64 COFF machine bytes,
+so a zero exit code without the expected object format is not accepted.
+
+Run it alone with:
+
+```bash
+ctest --test-dir build --output-on-failure -R integration_cli
+```
+
 ## UTF-8 Filesystem Tests
 
 `tests/unit/test_io.c` writes and reads an Arabic temporary filename, exercises
@@ -129,8 +148,6 @@ that boundary.
 
 ## Planned Test Areas
 
-- A future integration-test area under `tests` is planned for subprocess-level
-  CLI tests.
 - Link/run tests are planned for at least one ELF64 example on Linux and one COFF example on Windows once CI is available.
 - Shared helper factories are planned only when repeated test setup justifies them.
 
