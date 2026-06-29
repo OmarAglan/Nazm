@@ -11,7 +11,7 @@ source bytes (.مجمع)
   -> lexer: UTF-8 Arabic text to TokenArray
   -> parser: TokenArray to InstructionList
   -> pass1: instruction/data sizes and section-aware SymbolTable
-  -> pass2: encoded .text/.data bytes plus relocation records
+  -> pass2: encoded .text/.data bytes, emission spans, and relocation records
   -> output writer: ELF64 or COFF object bytes
   -> CLI result
 ```
@@ -76,6 +76,8 @@ contract.
 - Contains `src/main.c` and `src/cli/`.
 - Owns argument parsing, pipeline orchestration, user-facing messages, and
   process exit codes.
+- `src/cli/listing.c` renders optional UTF-8 source listings from pass-two
+  emission spans. It never calls the encoder or recomputes instruction sizes.
 - Uses `src/io/` as the UTF-8 filesystem boundary. On Windows the executable
   receives UTF-16 arguments through `wmain`, converts them once to heap-owned
   UTF-8 strings, and releases them after the pipeline returns.
@@ -96,12 +98,14 @@ contract.
 6. Pass 1 walks the instruction list, estimates sizes, and records labels in a
    `SymbolTable`.
 7. Pass 2 walks the instruction list again, requests final instruction bytes
-   from `src/encoder/`, emits `.data` bytes, and records relocation entries.
+   from `src/encoder/`, emits `.data` bytes, records one section/offset/size
+   span per parsed statement, and records relocation entries.
    Pass-one section totals are hard capacities: pass 2 verifies every encoded
    instruction length and the final `.text`/`.data` totals, and reports an
    Arabic internal diagnostic instead of truncating output on disagreement.
 8. The output layer writes ELF64 or COFF bytes, including sections, symbols, string tables, and current relocation records.
-9. The CLI writes the object file and reports success or Arabic diagnostics.
+9. The CLI writes the object file, optionally writes a UTF-8 listing from the
+   exact pass-two spans, and reports success or Arabic diagnostics.
 
 ## Key Data Structures
 
@@ -131,6 +135,13 @@ contract.
 - Defined in `src/passes/pass2.h`.
 - Carries relocation records produced by pass 2 for output writers.
 - Current implemented kind: absolute 64-bit relocation for direct label-address loads from `.text`.
+
+**EmissionSpan**
+- Defined in `src/passes/pass2.h`.
+- `Pass2Result` carries one arena-owned entry per parsed `Instruction`, including
+  section-relative offset and emitted byte count.
+- The CLI listing renderer uses these entries as its byte/offset authority;
+  zero-byte labels and directives remain visible without inventing bytes.
 
 **OutputBuffer**
 - Defined in `src/output/output.h`.

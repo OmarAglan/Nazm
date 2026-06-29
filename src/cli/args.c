@@ -66,6 +66,16 @@ CliArgs cli_parse(int argc, char **argv) {
             args.output_path = argv[i];
             continue;
         }
+        if (strcmp(a, "-l") == 0 || strcmp(a, "--listing") == 0) {
+            if (++i >= argc) {
+                args.valid     = false;
+                args.error_msg =
+                    "خطأ: خيار listing يتطلب مسار الملف";
+                return args;
+            }
+            args.listing_path = argv[i];
+            continue;
+        }
         if (strcmp(a, "-f") == 0) {
             if (++i >= argc) {
                 args.valid     = false;
@@ -110,6 +120,8 @@ void cli_print_usage(const char *prog) {
         "الاستخدام: %s [خيارات] <ملف.مجمع>\n\n"
         "الخيارات:\n"
         "  -o <ملف>        مسار ملف الإخراج (افتراضي: نفس الاسم بامتداد .o)\n"
+        "  -l <ملف>        كتابة listing يربط أسطر المصدر بالبايتات\n"
+        "  --listing <ملف> الاسم المطوّل للخيار -l\n"
         "  -f elf64|coff   صيغة الإخراج (افتراضي: حسب النظام)\n"
         "  -v              إخراج تفصيلي\n"
         "  --version       عرض الإصدار وهدف البناء\n"

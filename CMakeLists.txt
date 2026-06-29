@@ -62,6 +62,7 @@ set(NAZM_LIBRARY_SOURCES
     src/output/symbols.c
 
     src/cli/args.c
+    src/cli/listing.c
 )
 
 set(NAZM_SOURCES

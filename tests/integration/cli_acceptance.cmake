@@ -12,6 +12,7 @@ set(ARABIC_SOURCE_DIR "${WORK_DIR}/مسار-عربي")
 set(ARABIC_SOURCE "${ARABIC_SOURCE_DIR}/مصدر-اختبار.مجمع")
 set(ELF_OUTPUT "${ARABIC_SOURCE_DIR}/ناتج-اختبار.o")
 set(COFF_OUTPUT "${ARABIC_SOURCE_DIR}/ناتج-اختبار.obj")
+set(LISTING_OUTPUT "${ARABIC_SOURCE_DIR}/قائمة-اختبار.lst")
 file(MAKE_DIRECTORY "${ARABIC_SOURCE_DIR}")
 file(COPY_FILE "${GOOD_SOURCE}" "${ARABIC_SOURCE}" ONLY_IF_DIFFERENT)
 
@@ -76,7 +77,11 @@ if(NOT ASSEMBLY_ERROR_RESULT STREQUAL "1")
 endif()
 
 execute_process(
-    COMMAND "${NAZM_EXE}" -f elf64 -o "${ELF_OUTPUT}" "${ARABIC_SOURCE}"
+    COMMAND "${NAZM_EXE}"
+        -f elf64
+        -o "${ELF_OUTPUT}"
+        --listing "${LISTING_OUTPUT}"
+        "${ARABIC_SOURCE}"
     RESULT_VARIABLE ELF_RESULT
     OUTPUT_VARIABLE ELF_STDOUT
     ERROR_VARIABLE ELF_STDERR
@@ -92,6 +97,14 @@ endif()
 file(READ "${ELF_OUTPUT}" ELF_MAGIC LIMIT 4 HEX)
 if(NOT ELF_MAGIC STREQUAL "7f454c46")
     message(FATAL_ERROR "Unexpected ELF64 magic: ${ELF_MAGIC}")
+endif()
+if(NOT EXISTS "${LISTING_OUTPUT}")
+    message(FATAL_ERROR "Listing output was not created at its Arabic path")
+endif()
+file(READ "${LISTING_OUTPUT}" LISTING_TEXT)
+if(NOT LISTING_TEXT MATCHES "48 C7 C0 3C 00 00 00")
+    message(FATAL_ERROR
+        "Listing output did not contain the expected first instruction bytes")
 endif()
 
 execute_process(
@@ -112,6 +125,22 @@ endif()
 file(READ "${COFF_OUTPUT}" COFF_MAGIC LIMIT 2 HEX)
 if(NOT COFF_MAGIC STREQUAL "6486")
     message(FATAL_ERROR "Unexpected AMD64 COFF machine bytes: ${COFF_MAGIC}")
+endif()
+
+execute_process(
+    COMMAND "${NAZM_EXE}"
+        -o "${ARABIC_SOURCE_DIR}/تصادم.o"
+        --listing "${ARABIC_SOURCE}"
+        "${ARABIC_SOURCE}"
+    RESULT_VARIABLE COLLISION_RESULT
+    OUTPUT_VARIABLE COLLISION_STDOUT
+    ERROR_VARIABLE COLLISION_STDERR
+    ENCODING UTF-8
+)
+if(NOT COLLISION_RESULT STREQUAL "2")
+    message(FATAL_ERROR
+        "Colliding source/listing paths returned ${COLLISION_RESULT}, expected 2\n"
+        "${COLLISION_STDOUT}\n${COLLISION_STDERR}")
 endif()
 
 message(STATUS

@@ -6,8 +6,8 @@
 
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
-- `build.sh test` is the direct no-CMake path and currently runs the same 17 unit-test suites registered for CTest.
-- Current total: 333 portable Unity tests across the 17 suites, plus one
+- `build.sh test` is the direct no-CMake path and currently runs the same 18 unit-test suites registered for CTest.
+- Current total: 341 portable Unity tests across the 18 suites, plus one
   Windows-only UTF-16-to-UTF-8 argv test.
 - CTest additionally registers `differential_encoder_gas` when GNU `as` and
   `objcopy` are available.
@@ -54,6 +54,7 @@ tests/
     test_io.c
     test_keywords.c
     test_lexer.c
+    test_listing.c
     test_parser.c
     test_passes.c
     test_rex.c
@@ -126,8 +127,13 @@ rather than calling library functions. It checks `--help`, the version and
 compile target reported by `--version`, exit code `2` for invalid arguments,
 exit code `1` for invalid source, and successful ELF64 and COFF assembly. The
 successful source and both output files use Arabic path components. The test
-inspects the ELF magic and AMD64 COFF machine bytes, so a zero exit code without
-the expected object format is not accepted.
+inspects the ELF magic and AMD64 COFF machine bytes, checks listing bytes, and
+rejects colliding source/listing paths, so a zero exit code without the expected
+artifacts is not accepted.
+
+`tests/unit/test_listing.c` separately pins pass-two emission spans for `.text`
+and `.data`, exact rendered instruction/data bytes, 16-byte wrapping, and
+rejection of a missing or mismatched emission map.
 
 Run it alone with:
 

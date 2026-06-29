@@ -5,6 +5,7 @@
  *
  * Usage: nazm [options] <source.مجمع>
  *   -o <output>          output file path (default: input with .o extension)
+ *   -l, --listing <file> write a source/byte listing
  *   -f elf64|coff        output format (default: platform native)
  *   -v                   verbose output
  *   --version            print version/build target and exit
@@ -17,6 +18,7 @@
 typedef struct {
     const char  *source_path;
     const char  *output_path;
+    const char  *listing_path;
     OutputFormat format;
     bool         verbose;
     bool         help;

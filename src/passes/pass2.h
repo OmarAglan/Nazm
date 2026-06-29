@@ -36,10 +36,18 @@ typedef struct {
 } RelocationList;
 
 typedef struct {
+    SymbolSection section;
+    size_t        offset;
+    size_t        size;
+} EmissionSpan;
+
+typedef struct {
     uint8_t        *text_bytes;   /* .text section bytes (arena-owned) */
     size_t          text_size;
     uint8_t        *data_bytes;   /* .data section bytes (NULL if empty) */
     size_t          data_size;
+    EmissionSpan   *emissions;    /* one arena-owned span per instruction */
+    size_t          emission_count;
     RelocationList  relocations;
     ErrorList       errors;
 } Pass2Result;

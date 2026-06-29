@@ -37,6 +37,7 @@ add_nazm_test(NAME test_diagnostics SOURCES unit/test_diagnostics.c)
 add_nazm_test(NAME test_coff     SOURCES unit/test_coff.c)
 add_nazm_test(NAME test_io       SOURCES unit/test_io.c)
 add_nazm_test(NAME test_examples SOURCES unit/test_examples.c)
+add_nazm_test(NAME test_listing  SOURCES unit/test_listing.c)
 set_tests_properties(unit_test_examples PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 # ── CLI acceptance test ──────────────────────────────────────────────────────

@@ -58,6 +58,34 @@ void test_cli_parses_coff_format(void) {
     TEST_ASSERT_EQUAL_INT(OUTPUT_FORMAT_COFF, args.format);
 }
 
+void test_cli_parses_short_listing_path(void) {
+    char *argv[] = {
+        "nazm", "-l", "program.lst", "main.مجمع"
+    };
+    CliArgs args = parse_args(4, argv);
+
+    TEST_ASSERT_TRUE(args.valid);
+    TEST_ASSERT_EQUAL_STRING("program.lst", args.listing_path);
+}
+
+void test_cli_parses_long_listing_path(void) {
+    char *argv[] = {
+        "nazm", "--listing", "قائمة.lst", "main.مجمع"
+    };
+    CliArgs args = parse_args(4, argv);
+
+    TEST_ASSERT_TRUE(args.valid);
+    TEST_ASSERT_EQUAL_STRING("قائمة.lst", args.listing_path);
+}
+
+void test_cli_rejects_missing_listing_path(void) {
+    char *argv[] = { "nazm", "--listing" };
+    CliArgs args = parse_args(2, argv);
+
+    TEST_ASSERT_FALSE(args.valid);
+    TEST_ASSERT_NOT_NULL(args.error_msg);
+}
+
 void test_cli_rejects_unknown_format(void) {
     char *argv[] = { "nazm", "-f", "raw", "main.مجمع" };
     CliArgs args = parse_args(4, argv);
@@ -110,6 +138,9 @@ int main(void) {
     RUN_TEST(test_cli_accepts_version_without_source);
     RUN_TEST(test_cli_parses_source_output_format_and_verbose);
     RUN_TEST(test_cli_parses_coff_format);
+    RUN_TEST(test_cli_parses_short_listing_path);
+    RUN_TEST(test_cli_parses_long_listing_path);
+    RUN_TEST(test_cli_rejects_missing_listing_path);
     RUN_TEST(test_cli_rejects_unknown_format);
     RUN_TEST(test_cli_rejects_missing_output_path);
     RUN_TEST(test_cli_rejects_multiple_sources);

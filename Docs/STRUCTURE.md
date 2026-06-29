@@ -11,7 +11,7 @@ marked explicitly so release checks do not treat them as implemented behavior.
 Nazm/
 ├── src/                  # C source files
 │   ├── alloc/            # Arena allocator
-│   ├── cli/              # CLI option parsing
+│   ├── cli/              # CLI option parsing and source listing rendering
 │   ├── encoder/          # x86-64 byte encoding helpers and table
 │   ├── error/            # Error collection and reporting
 │   ├── io/               # Portable UTF-8 filesystem boundary
@@ -26,6 +26,7 @@ Nazm/
 │   └── nazm.h            # Public embedding API contract, currently scaffolded
 ├── tests/
 │   ├── differential/     # GNU as byte-comparison corpus and CMake driver
+│   ├── integration/      # Subprocess-level CLI acceptance
 │   ├── unit/             # Unity unit tests named test_*.c
 │   ├── vendor/unity/     # Vendored Unity test framework
 │   └── CMakeLists.txt    # CTest registration
@@ -80,7 +81,8 @@ Nazm/
 **src/passes/**
 - `pass1.c`, `pass1.h`, `pass2.c`, `pass2.h`
 - Owns two-pass assembly coordination: pass 1 computes section-aware offsets/symbols, pass 2
-  drives encoding, data emission, and relocation collection.
+  drives encoding, data emission, per-statement emission spans, and relocation
+  collection.
 
 **src/encoder/**
 - `encoder.c`, `encoder.h`, `table.c`, `modrm.c`, `modrm.h`,
@@ -95,31 +97,33 @@ Nazm/
   exact arena-owned symbol collection and shared relocation lookup.
 
 **src/cli/**
-- `args.c`, `args.h`
-- Owns CLI option parsing. `src/main.c` owns pipeline orchestration and uses
-  `src/io/` for filesystem operations.
+- `args.c`, `args.h`, `listing.c`, `listing.h`
+- Owns CLI option parsing and optional UTF-8 listing rendering from pass-two
+  emission spans. `src/main.c` owns pipeline orchestration and uses `src/io/`
+  for filesystem operations.
 
 **tests/unit/**
 - Current unit tests: `test_arena.c`, `test_unicode.c`, `test_symtable.c`,
   `test_keywords.c`, `test_immediate.c`, `test_rex.c`, `test_lexer.c`,
   `test_parser.c`, `test_encoder.c`, `test_encoder_matrix.c`, `test_passes.c`, `test_elf64.c`,
-  `test_coff.c`, `test_cli_args.c`, `test_diagnostics.c`, `test_io.c`, and
-  `test_examples.c`.
+  `test_coff.c`, `test_cli_args.c`, `test_diagnostics.c`, `test_io.c`,
+  `test_examples.c`, and `test_listing.c`.
 
 **tests/differential/**
 - `gas_reference.s`, `emit_nazm_bytes.c`, `compare_gas.cmake`
 - Assembles a curated equivalent corpus with GNU `as`, extracts `.text` with
   `objcopy`, and compares it byte-for-byte with Nazm encoding output.
 
+**tests/integration/**
+- `cli_acceptance.cmake`
+- Launches the built executable, checks public exit codes and version/help
+  output, and writes ELF64, COFF, and listing files through Arabic paths.
+
 **examples/**
 - Holds good Arabic `.مجمع` examples such as `مرحبا.مجمع`, `خروج.مجمع`, `حلقة.مجمع`, and `بيانات.مجمع`.
 
 **examples/diagnostics/**
 - Holds intentional-error `.مجمع` files used to demonstrate Arabic source-context diagnostics.
-
-**Planned integration-test area**
-- A future directory under `tests` will hold full-pipeline tests once object
-  output contracts are stable.
 
 **Planned fixture area**
 - A future directory under `tests` will hold `.مجمع` source fixtures and
@@ -141,6 +145,7 @@ Nazm/
 - `src/encoder/table.c` - opcode and operand form mapping.
 - `src/passes/pass1.c` - size and symbol pass.
 - `src/passes/pass2.c` - final encoding pass.
+- `src/cli/listing.c` - optional source/byte listing renderer.
 - `src/output/elf64.c` and `src/output/coff.c` - object writers.
 
 **Developer checks**

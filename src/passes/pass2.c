@@ -191,16 +191,38 @@ Pass2Result pass2_run(const InstructionList *instructions,
                       : NULL;
     result.text_size  = 0;
     result.data_size  = 0;
+    result.emission_count = instructions->count;
+    result.emissions = instructions->count > 0
+                     ? ARENA_ALLOC_N(
+                           arena, EmissionSpan, instructions->count)
+                     : NULL;
 
     bool in_data = false;
 
     for (size_t i = 0; i < instructions->count; i++) {
         const Instruction *instr = &instructions->data[i];
+        EmissionSpan *emission = &result.emissions[i];
+        emission->section = in_data
+                          ? SYMBOL_SECTION_DATA
+                          : SYMBOL_SECTION_TEXT;
+        emission->offset = in_data
+                         ? result.data_size
+                         : result.text_size;
 
         /* ── Section switches ── */
         if (instr->directive) {
-            if (strcmp(instr->directive, ".نص") == 0)     { in_data = false; continue; }
-            if (strcmp(instr->directive, ".بيانات") == 0) { in_data = true;  continue; }
+            if (strcmp(instr->directive, ".نص") == 0) {
+                in_data = false;
+                emission->section = SYMBOL_SECTION_TEXT;
+                emission->offset = result.text_size;
+                continue;
+            }
+            if (strcmp(instr->directive, ".بيانات") == 0) {
+                in_data = true;
+                emission->section = SYMBOL_SECTION_DATA;
+                emission->offset = result.data_size;
+                continue;
+            }
             if (strcmp(instr->directive, ".عام")   == 0 ||
                 strcmp(instr->directive, ".محلي")  == 0)  { continue; }
 
@@ -226,6 +248,7 @@ Pass2Result pass2_run(const InstructionList *instructions,
                 }
 
                 size_t actual = result.data_size - before;
+                emission->size = actual;
                 if (actual != (size_t)expected) {
                     char msg[256];
                     snprintf(msg, sizeof(msg),
@@ -352,6 +375,7 @@ Pass2Result pass2_run(const InstructionList *instructions,
                     "خطأ داخلي: تجاوز خرج النص الحجم المحسوب في المرور الأول");
                 return result;
             }
+            emission->size = (size_t)sz;
             continue;
         }
 
@@ -375,6 +399,7 @@ Pass2Result pass2_run(const InstructionList *instructions,
                     "خطأ داخلي: تجاوز خرج النص الحجم المحسوب في المرور الأول");
                 return result;
             }
+            emission->size = (size_t)sz;
             continue;
         }
 
@@ -396,6 +421,7 @@ Pass2Result pass2_run(const InstructionList *instructions,
                 "خطأ داخلي: تجاوز خرج النص الحجم المحسوب في المرور الأول");
             return result;
         }
+        emission->size = (size_t)enc.len;
     }
 
     if (result.text_size != pass1->text_size

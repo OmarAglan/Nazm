@@ -15,6 +15,7 @@
 
 #include "alloc/arena.h"
 #include "cli/args.h"
+#include "cli/listing.h"
 #include "error/error.h"
 #include "io/file.h"
 #include "lexer/lexer.h"
@@ -218,6 +219,15 @@ static int nazm_main_utf8(int argc, char **argv) {
         out_path = make_output_path(&arena, args.source_path);
     }
 
+    if (strcmp(out_path, args.source_path) == 0
+        || (args.listing_path != NULL
+            && (strcmp(args.listing_path, args.source_path) == 0
+                || strcmp(args.listing_path, out_path) == 0))) {
+        fprintf(stderr,
+                "خطأ: يجب أن تختلف مسارات المصدر والملف الكائني وlisting\n");
+        return cleanup_and_return(&arena, source_file.data, 2);
+    }
+
     OutputInput out_input = {
         .text_bytes  = p2.text_bytes,
         .text_size   = p2.text_size,
@@ -239,8 +249,22 @@ static int nazm_main_utf8(int argc, char **argv) {
         return cleanup_and_return(&arena, source_file.data, 2);
     }
 
+    if (args.listing_path != NULL
+        && !listing_write_file(
+               args.listing_path, &parse.instructions, &p2)) {
+        fprintf(stderr,
+                "خطأ: تعذّرت كتابة ملف listing: %s\n",
+                args.listing_path);
+        return cleanup_and_return(&arena, source_file.data, 2);
+    }
+
     if (args.verbose) {
         fprintf(stderr, "نَظْم: كُتب %s (%zu بايت)\n", out_path, out.size);
+        if (args.listing_path != NULL) {
+            fprintf(stderr,
+                    "نَظْم: كُتب listing في %s\n",
+                    args.listing_path);
+        }
     }
 
     return cleanup_and_return(&arena, source_file.data, 0);
