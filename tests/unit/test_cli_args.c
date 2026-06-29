@@ -2,6 +2,8 @@
 #include "cli/args.h"
 #include "nazm.h"
 
+#include <string.h>
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -88,8 +90,16 @@ void test_cli_rejects_unknown_option(void) {
     TEST_ASSERT_NOT_NULL(args.error_msg);
 }
 
-void test_cli_version_string_is_020(void) {
+void test_cli_version_string_is_current(void) {
     TEST_ASSERT_EQUAL_STRING("0.3.0", NAZM_VERSION_STRING);
+}
+
+void test_cli_build_target_describes_architecture_and_system(void) {
+    const char *target = cli_build_target();
+
+    TEST_ASSERT_NOT_NULL(target);
+    TEST_ASSERT_NOT_NULL(strchr(target, '-'));
+    TEST_ASSERT_NOT_EQUAL(0, strcmp("unknown-unknown", target));
 }
 
 int main(void) {
@@ -104,7 +114,8 @@ int main(void) {
     RUN_TEST(test_cli_rejects_missing_output_path);
     RUN_TEST(test_cli_rejects_multiple_sources);
     RUN_TEST(test_cli_rejects_unknown_option);
-    RUN_TEST(test_cli_version_string_is_020);
+    RUN_TEST(test_cli_version_string_is_current);
+    RUN_TEST(test_cli_build_target_describes_architecture_and_system);
 
     return UNITY_END();
 }

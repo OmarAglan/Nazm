@@ -7,7 +7,7 @@
  *   -o <output>          output file path (default: input with .o extension)
  *   -f elf64|coff        output format (default: platform native)
  *   -v                   verbose output
- *   --version            print version and exit
+ *   --version            print version/build target and exit
  *   --help               print usage and exit
  */
 
@@ -28,3 +28,4 @@ typedef struct {
 CliArgs cli_parse(int argc, char **argv);
 void    cli_print_usage(const char *program_name);
 void    cli_print_version(void);
+const char *cli_build_target(void);

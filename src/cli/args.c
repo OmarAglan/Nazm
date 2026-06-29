@@ -10,6 +10,32 @@
   #define DEFAULT_FORMAT OUTPUT_FORMAT_ELF64
 #endif
 
+#if defined(__x86_64__) || defined(_M_X64)
+  #define NAZM_TARGET_ARCH "x86_64"
+#elif defined(__aarch64__) || defined(_M_ARM64)
+  #define NAZM_TARGET_ARCH "aarch64"
+#elif defined(__i386__) || defined(_M_IX86)
+  #define NAZM_TARGET_ARCH "x86"
+#elif defined(__arm__) || defined(_M_ARM)
+  #define NAZM_TARGET_ARCH "arm"
+#else
+  #define NAZM_TARGET_ARCH "unknown"
+#endif
+
+#if defined(_WIN32) || defined(_WIN64)
+  #define NAZM_TARGET_OS "windows"
+#elif defined(__linux__)
+  #define NAZM_TARGET_OS "linux"
+#elif defined(__APPLE__) && defined(__MACH__)
+  #define NAZM_TARGET_OS "macos"
+#elif defined(__FreeBSD__)
+  #define NAZM_TARGET_OS "freebsd"
+#else
+  #define NAZM_TARGET_OS "unknown"
+#endif
+
+#define NAZM_BUILD_TARGET NAZM_TARGET_ARCH "-" NAZM_TARGET_OS
+
 CliArgs cli_parse(int argc, char **argv) {
     CliArgs args = {
         .format  = DEFAULT_FORMAT,
@@ -86,11 +112,17 @@ void cli_print_usage(const char *prog) {
         "  -o <ملف>        مسار ملف الإخراج (افتراضي: نفس الاسم بامتداد .o)\n"
         "  -f elf64|coff   صيغة الإخراج (افتراضي: حسب النظام)\n"
         "  -v              إخراج تفصيلي\n"
-        "  --version       عرض الإصدار\n"
+        "  --version       عرض الإصدار وهدف البناء\n"
         "  --help          عرض هذه الرسالة\n\n",
         prog);
 }
 
 void cli_print_version(void) {
-    fprintf(stdout, "نَظْم %s\n", NAZM_VERSION_STRING);
+    fprintf(stdout, "نَظْم %s (%s)\n",
+            NAZM_VERSION_STRING,
+            cli_build_target());
+}
+
+const char *cli_build_target(void) {
+    return NAZM_BUILD_TARGET;
 }

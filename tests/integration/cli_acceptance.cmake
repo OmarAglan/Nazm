@@ -42,9 +42,11 @@ if(NOT VERSION_RESULT STREQUAL "0")
         "nazm --version failed (${VERSION_RESULT})\n"
         "${VERSION_STDOUT}\n${VERSION_STDERR}")
 endif()
-if(NOT VERSION_STDOUT MATCHES "0\\.3\\.0")
+if(NOT VERSION_STDOUT MATCHES
+        "0\\.3\\.0 \\([A-Za-z0-9_]+-[A-Za-z0-9_]+\\)")
     message(FATAL_ERROR
-        "nazm --version did not report 0.3.0\n${VERSION_STDOUT}")
+        "nazm --version did not report its version and build target\n"
+        "${VERSION_STDOUT}")
 endif()
 
 execute_process(

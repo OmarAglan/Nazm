@@ -122,11 +122,12 @@ Intentional-error examples remain under `examples/diagnostics/` and are not trea
 ## CLI Acceptance Test
 
 `tests/integration/cli_acceptance.cmake` launches the built `nazm` executable
-rather than calling library functions. It checks `--help`, `--version`, exit
-code `2` for invalid arguments, exit code `1` for invalid source, and successful
-ELF64 and COFF assembly. The successful source and both output files use Arabic
-path components. The test inspects the ELF magic and AMD64 COFF machine bytes,
-so a zero exit code without the expected object format is not accepted.
+rather than calling library functions. It checks `--help`, the version and
+compile target reported by `--version`, exit code `2` for invalid arguments,
+exit code `1` for invalid source, and successful ELF64 and COFF assembly. The
+successful source and both output files use Arabic path components. The test
+inspects the ELF magic and AMD64 COFF machine bytes, so a zero exit code without
+the expected object format is not accepted.
 
 Run it alone with:
 
