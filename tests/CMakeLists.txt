@@ -39,5 +39,30 @@ add_nazm_test(NAME test_io       SOURCES unit/test_io.c)
 add_nazm_test(NAME test_examples SOURCES unit/test_examples.c)
 set_tests_properties(unit_test_examples PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-# ── Integration tests ────────────────────────────────────────────────────────
-# (added when pipeline is functional)
+# ── Differential encoder test ────────────────────────────────────────────────
+find_program(NAZM_GNU_AS NAMES as)
+find_program(NAZM_OBJCOPY NAMES objcopy llvm-objcopy)
+
+if(NAZM_GNU_AS AND NAZM_OBJCOPY)
+    add_executable(nazm_differential_emitter
+        differential/emit_nazm_bytes.c
+    )
+    target_link_libraries(nazm_differential_emitter PRIVATE libnazm)
+    target_include_directories(nazm_differential_emitter PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
+    add_test(
+        NAME differential_encoder_gas
+        COMMAND ${CMAKE_COMMAND}
+            -DGNU_AS=${NAZM_GNU_AS}
+            -DOBJCOPY=${NAZM_OBJCOPY}
+            -DREFERENCE_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}/differential/gas_reference.s
+            -DNAZM_EMITTER=$<TARGET_FILE:nazm_differential_emitter>
+            -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/differential-work
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/differential/compare_gas.cmake
+    )
+else()
+    message(STATUS
+        "GNU as/objcopy not found; differential_encoder_gas is unavailable")
+endif()

@@ -25,6 +25,7 @@ Nazm/
 ├── include/
 │   └── nazm.h            # Public embedding API contract, currently scaffolded
 ├── tests/
+│   ├── differential/     # GNU as byte-comparison corpus and CMake driver
 │   ├── unit/             # Unity unit tests named test_*.c
 │   ├── vendor/unity/     # Vendored Unity test framework
 │   └── CMakeLists.txt    # CTest registration
@@ -104,6 +105,11 @@ Nazm/
   `test_parser.c`, `test_encoder.c`, `test_encoder_matrix.c`, `test_passes.c`, `test_elf64.c`,
   `test_coff.c`, `test_cli_args.c`, `test_diagnostics.c`, `test_io.c`, and
   `test_examples.c`.
+
+**tests/differential/**
+- `gas_reference.s`, `emit_nazm_bytes.c`, `compare_gas.cmake`
+- Assembles a curated equivalent corpus with GNU `as`, extracts `.text` with
+  `objcopy`, and compares it byte-for-byte with Nazm encoding output.
 
 **examples/**
 - Holds good Arabic `.مجمع` examples such as `مرحبا.مجمع`, `خروج.مجمع`, `حلقة.مجمع`, and `بيانات.مجمع`.

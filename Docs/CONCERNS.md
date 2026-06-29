@@ -73,6 +73,11 @@ contract:**
 
 ## Recently Resolved From Earlier Audits
 
+- ALU memory-source forms formerly derived their load opcode as the store opcode
+  plus three, producing invalid bytes (`04/2C/24/0C/34/3C`). The GNU `as`
+  differential corpus exposed the mismatch; Nazm now uses the architectural
+  plus-two opcodes (`03/2B/23/0B/33/3B`), pinned by both a focused unit test
+  and a 141-byte external comparison.
 - `.عام` and `.محلي` now persist binding in the symbol table before or after
   label definition. Unannotated labels are local, conflicting or undefined
   declarations diagnose in Arabic, ELF64 emits local-first

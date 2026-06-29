@@ -317,10 +317,10 @@ static EncodedInstruction enc_alu(const Operand *ops, int n,
     }
     if (dst->kind == OP_REG &&
         (src->kind == OP_MEM_REG || src->kind == OP_MEM_DISP)) {
-        /* r64, r/m64 — load form: op_rr+3 typically (e.g. ADD r64,r/m64 = 03) */
+        /* r64, r/m64 — load form is two above the r/m64,r64 opcode. */
         RegId base = src->mem.base;
         int32_t d  = (src->kind == OP_MEM_DISP) ? src->mem.disp : 0;
-        emit_mem(&b, (uint8_t)(op_rr + 3), rf(dst->reg),
+        emit_mem(&b, (uint8_t)(op_rr + 2), rf(dst->reg),
                  rex_r(dst->reg), base, d, true);
         return from_buf(&b);
     }

@@ -7,8 +7,10 @@
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
 - `build.sh test` is the direct no-CMake path and currently runs the same 17 unit-test suites registered for CTest.
-- Current total: 322 portable Unity tests across the 17 suites, plus one
+- Current total: 323 portable Unity tests across the 17 suites, plus one
   Windows-only UTF-16-to-UTF-8 argv test.
+- CTest additionally registers `differential_encoder_gas` when GNU `as` and
+  `objcopy` are available.
 
 ## Run Commands
 
@@ -69,6 +71,16 @@ exercise REX/SIB and displacement widths, immediate-width boundaries, and
 direct/register control flow. Every case requires
 `encoder_instruction_size()` to equal the successful `encoder_encode().len`
 and remain within the 15-byte architectural limit.
+
+## GNU Assembler Differential Test
+
+When GNU `as` and `objcopy` are discoverable at configure time, CTest builds
+`nazm_differential_emitter` and registers `differential_encoder_gas`.
+`tests/differential/gas_reference.s` is a curated corpus of forms for which GNU
+and Nazm intentionally select the same valid encoding; it currently compares
+141 logical `.text` bytes. MinGW COFF alignment NOPs are accepted only as a
+trailing all-`0x90` suffix. This test does not claim that one legal encoding is
+more correct merely because it is shorter.
 
 ## Object Writer Test Style
 

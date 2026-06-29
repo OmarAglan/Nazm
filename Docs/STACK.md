@@ -38,6 +38,8 @@
 **Testing:**
 - Unity (`ThrowTheSwitch/Unity`) — lightweight C unit test framework, single `.c` + `.h` file.
 - CTest registers the current unit suites with `unit_` names.
+- GNU `as` and `objcopy` — optional build-time differential byte oracle; when
+  found, CTest registers `differential_encoder_gas`.
 - Example pipeline coverage exists in `tests/unit/test_examples.c`; subprocess/link integration is planned.
 
 **Build:**

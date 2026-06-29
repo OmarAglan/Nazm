@@ -208,6 +208,34 @@ void test_enc_add_rax_rejects_out_of_range_imm32(void) {
     check_error(OPCODE_ADD, above, 2);
 }
 
+void test_enc_alu_memory_load_opcodes(void) {
+    static const struct {
+        OpcodeEnum opcode;
+        uint8_t    load_opcode;
+    } cases[] = {
+        { OPCODE_ADD, 0x03 },
+        { OPCODE_SUB, 0x2B },
+        { OPCODE_AND, 0x23 },
+        { OPCODE_OR,  0x0B },
+        { OPCODE_XOR, 0x33 },
+        { OPCODE_CMP, 0x3B },
+    };
+    Operand operands[] = {
+        reg_op(REG_R8),
+        mem_op(REG_R9),
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        EncodedInstruction encoded = encoder_encode(
+            cases[i].opcode, operands, 2, 0);
+        TEST_ASSERT_FALSE(encoded.error);
+        TEST_ASSERT_EQUAL_INT(3, encoded.len);
+        TEST_ASSERT_EQUAL_HEX8(0x4D, encoded.bytes[0]);
+        TEST_ASSERT_EQUAL_HEX8(cases[i].load_opcode, encoded.bytes[1]);
+        TEST_ASSERT_EQUAL_HEX8(0x01, encoded.bytes[2]);
+    }
+}
+
 /* ── SUB ──────────────────────────────────────────────────────────────────── */
 void test_enc_sub_rsp_imm8(void) {
     /* REX.W(48) 83 EC 08 */
@@ -525,6 +553,7 @@ int main(void) {
     RUN_TEST(test_enc_add_rax_imm32);
     RUN_TEST(test_enc_add_rax_int32_boundaries);
     RUN_TEST(test_enc_add_rax_rejects_out_of_range_imm32);
+    RUN_TEST(test_enc_alu_memory_load_opcodes);
     RUN_TEST(test_enc_sub_rsp_imm8);
     RUN_TEST(test_enc_sub_rsp_imm32);
     RUN_TEST(test_enc_xor_rax_rax);
