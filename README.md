@@ -206,6 +206,8 @@ Docs/
 - [Docs/ARCHITECTURE.md](Docs/ARCHITECTURE.md): خط الأنابيب والطبقات.
 - [Docs/STRUCTURE.md](Docs/STRUCTURE.md): أماكن الملفات وقواعد إضافة الكود.
 - [Docs/CONVENTIONS.md](Docs/CONVENTIONS.md): أسلوب C، التسمية، الأخطاء، والاختبارات.
+- [Docs/LANGUAGE.md](Docs/LANGUAGE.md): صيغة مصدر 0.3، السجلات، المعاملات،
+  التوجيهات، والأخطاء الشائعة.
 - [Docs/TESTING.md](Docs/TESTING.md): نمط اختبارات Unity وCTest.
 - [Docs/UNICODE.md](Docs/UNICODE.md): عقد UTF-8 والحركات والتطبيع وهوية الوسوم.
 - [Docs/BAA_INTEGRATION.md](Docs/BAA_INTEGRATION.md): عقد التكامل المرحلي مع باء ومسار إعادة التنفيذ والـ bootstrap.

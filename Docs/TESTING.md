@@ -141,6 +141,17 @@ Run it alone with:
 ctest --test-dir build --output-on-failure -R integration_cli
 ```
 
+## Linux CI Acceptance
+
+`.github/workflows/ci.yml` runs the Release build, complete CTest set, and
+`build.sh test` on `ubuntu-latest`. It then assembles `examples/خروج.مجمع`
+through Arabic object/listing paths, checks a known instruction byte sequence,
+links the ELF64 object with GNU `ld -e البداية`, executes it under a five-second
+timeout, and inspects it with `readelf`.
+
+The workflow definition is checked in, but its first successful remote run must
+be observed before the Linux CI roadmap item is marked complete.
+
 ## UTF-8 Filesystem Tests
 
 `tests/unit/test_io.c` writes and reads an Arabic temporary filename, exercises

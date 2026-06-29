@@ -32,6 +32,7 @@ Nazm/
 │   └── CMakeLists.txt    # CTest registration
 ├── examples/             # Arabic .مجمع examples
 │   └── diagnostics/       # Intentional-error examples for Arabic diagnostics
+├── .github/workflows/     # Linux build/test/link CI
 ├── Docs/                 # Project documentation
 ├── tools/                # Developer checks
 ├── CMakeLists.txt        # Build configuration
@@ -138,6 +139,8 @@ Nazm/
 **Configuration**
 - `CMakeLists.txt` - CMake targets for `nazm`, `libnazm`, and tests.
 - `build.sh` - direct build/test script for environments without CMake.
+- `.github/workflows/ci.yml` - Linux build, test, ELF link/run, and object
+  inspection workflow.
 
 **Core implementation**
 - `src/lexer/keywords.c` - Arabic mnemonic lookup table.
@@ -154,6 +157,7 @@ Nazm/
 
 **Architecture and integration documents**
 - `Docs/ARCHITECTURE.md` - current pipeline and component ownership.
+- `Docs/LANGUAGE.md` - implemented 0.3 source syntax and common user errors.
 - `Docs/BAA_INTEGRATION.md` - Baa handoff, coverage matrix, migration stages,
   and bootstrap release gates.
 - `Docs/INTEGRATIONS.md` - external tools, linkers, and deployment contracts.

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux build, test, and link
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Configure Release build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run CTest
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run direct test path
+        run: ./build.sh test
+
+      - name: Link and run Arabic ELF example
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./build/nazm examples/خروج.مجمع \
+            -o build/خروج.o \
+            --listing build/خروج.lst \
+            -f elf64
+          grep -F "48 C7 C0 3C 00 00 00" build/خروج.lst
+          ld -o build/خروج -e البداية build/خروج.o
+          timeout 5s ./build/خروج
+          readelf -h -S -s build/خروج.o

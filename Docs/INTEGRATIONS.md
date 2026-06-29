@@ -30,10 +30,13 @@ The Arabic assembler is a self-contained native binary. It reads files from disk
 - Location: Path provided with `-o` flag, defaults to input filename with `.o` extension
 - Written via: `src/output/elf64.c` or `src/output/coff.c`
 
-**Output — Listing File (planned):**
-- Format: Plain text `.lst` file showing source line ↔ byte offset ↔ hex bytes
-- Location: Same directory as output object file
-- Status: Not yet implemented (see `CONCERNS.md` — Missing Critical Features)
+**Output — Listing File:**
+- Format: UTF-8 text showing each parsed source statement, section-relative
+  byte offset, and final pass-two hex bytes
+- Location: Explicit path provided with `-l` or `--listing`
+- Written via: `src/cli/listing.c` through the UTF-8 filesystem boundary
+- Safety: The CLI rejects exact path collisions between source, object, and
+  listing files
 
 ## Authentication & Identity
 
@@ -58,20 +61,26 @@ Not applicable. No network communication, no user accounts, no authentication of
 - `ctest --test-dir build --output-on-failure` → runs CTest suites
 - `./build.sh test` → direct build/test path without CMake
 
-**CI Pipeline (planned — not yet configured):**
-- Intended platform: GitHub Actions
-- Intended workflows: `.github/workflows/ci.yml`
-  - On every push: Debug CMake build, Release CMake build, and `./build.sh test`
-  - On Linux: assemble and inspect ELF examples with `readelf`/`objdump` when available
-  - On Windows: assemble and link a tiny COFF example with `link.exe` or `lld-link`
-  - On release tag: build static binaries for Linux x86-64 and Windows x86-64, attach to GitHub Release
+**CI Pipeline:**
+- `.github/workflows/ci.yml` defines a least-privilege Linux job for pushes,
+  pull requests, and manual dispatch.
+- It performs a Release CMake build, all CTests, and the direct
+  `./build.sh test` path.
+- Its acceptance step assembles Arabic source to Arabic ELF/listing paths,
+  checks listing bytes, links with GNU `ld` using the Arabic entry symbol,
+  executes the result under a timeout, and inspects the object with `readelf`.
+- The workflow is configured in the repository; a successful remote run is
+  still required before Linux CI acceptance is claimed as completed.
+- Windows COFF link acceptance and release packaging remain planned.
 
 ## External Tooling Contracts
 
 **Linux Linkers:**
 - Relationship: Consumers of ELF64 relocatable object files
 - Current expectation: `.text`, `.data`, `.symtab`, `.strtab`, `.shstrtab`, and `.rela.text` are emitted when relevant
-- Validation status: Unit tests verify bytes and section fields; full link/run integration is planned
+- Validation status: Unit/subprocess tests verify bytes and section fields.
+  The GitHub Actions Linux job contains GNU `ld` link/run acceptance; its first
+  successful remote run remains pending.
 
 **Windows Linkers:**
 - Relationship: Consumers of PE/COFF `.obj` files
