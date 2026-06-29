@@ -393,6 +393,71 @@ void test_p2_data_string_bytes(void) {
     TEST_ASSERT_EQUAL_HEX8(0, pl.p2.data_bytes[2]);
 }
 
+void test_p1_rejects_data_directive_outside_data_section(void) {
+    Pipeline pl = run(".نص\n.بايت ١");
+
+    TEST_ASSERT_TRUE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        pl.p1.errors.errors[0].message, "داخل '.بيانات' فقط"));
+}
+
+void test_p1_rejects_unknown_directive(void) {
+    Pipeline pl = run(".بيانات\n.مجهول ١");
+
+    TEST_ASSERT_TRUE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        pl.p1.errors.errors[0].message, "توجيه غير معروف"));
+}
+
+void test_p1_rejects_wrong_data_operand_kinds(void) {
+    Pipeline number = run(".بيانات\n.بايت \"x\"");
+    TEST_ASSERT_TRUE(error_has_any(&number.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        number.p1.errors.errors[0].message, "قيمة فورية"));
+
+    Pipeline string = run(".بيانات\n.سلسلة ١");
+    TEST_ASSERT_TRUE(error_has_any(&string.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        string.p1.errors.errors[0].message, "سلسلة نصية"));
+}
+
+void test_p1_rejects_data_values_that_do_not_fit(void) {
+    Pipeline byte_above = run(".بيانات\n.بايت ٢٥٦");
+    TEST_ASSERT_TRUE(error_has_any(&byte_above.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        byte_above.p1.errors.errors[0].message, "8-bit"));
+
+    Pipeline byte_below = run(".بيانات\n.بايت -١٢٩");
+    TEST_ASSERT_TRUE(error_has_any(&byte_below.p1.errors));
+
+    Pipeline word_above = run(".بيانات\n.عدد١٦ ٦٥٥٣٦");
+    TEST_ASSERT_TRUE(error_has_any(&word_above.p1.errors));
+
+    Pipeline dword_above = run(".بيانات\n.عدد٣٢ ٤٢٩٤٩٦٧٢٩٦");
+    TEST_ASSERT_TRUE(error_has_any(&dword_above.p1.errors));
+}
+
+void test_p2_emits_data_boundary_values_without_truncation(void) {
+    Pipeline pl = run(
+        ".بيانات\n"
+        ".بايت -١٢٨، ٢٥٥\n"
+        ".عدد١٦ -٣٢٧٦٨، ٦٥٥٣٥\n"
+        ".عدد٣٢ -٢١٤٧٤٨٣٦٤٨، ٤٢٩٤٩٦٧٢٩٥\n");
+    uint8_t expected[] = {
+        0x80, 0xFF,
+        0x00, 0x80, 0xFF, 0xFF,
+        0x00, 0x00, 0x00, 0x80,
+        0xFF, 0xFF, 0xFF, 0xFF,
+    };
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(
+        (int)sizeof(expected), (int)pl.p2.data_size);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(
+        expected, pl.p2.data_bytes, sizeof(expected));
+}
+
 void test_p2_mov_label_creates_abs64_relocation(void) {
     Pipeline pl = run(".نص\nاحمل ر2، رسالة\n.بيانات\nرسالة: .سلسلة \"x\"");
     TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
@@ -464,6 +529,11 @@ int main(void) {
     RUN_TEST(test_p2_unresolved_label_error);
     RUN_TEST(test_p2_unresolved_label_error_span_points_to_operand);
     RUN_TEST(test_p2_data_string_bytes);
+    RUN_TEST(test_p1_rejects_data_directive_outside_data_section);
+    RUN_TEST(test_p1_rejects_unknown_directive);
+    RUN_TEST(test_p1_rejects_wrong_data_operand_kinds);
+    RUN_TEST(test_p1_rejects_data_values_that_do_not_fit);
+    RUN_TEST(test_p2_emits_data_boundary_values_without_truncation);
     RUN_TEST(test_p2_mov_label_creates_abs64_relocation);
     RUN_TEST(test_p2_text_capacity_mismatch_is_hard_error);
     RUN_TEST(test_p2_data_capacity_mismatch_is_hard_error);

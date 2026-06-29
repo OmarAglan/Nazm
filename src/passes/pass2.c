@@ -145,7 +145,7 @@ static bool emit_data_directive(const Instruction *instr,
     if (elem_size > 0) {
         for (int i = 0; i < instr->op_count; i++) {
             if (instr->ops[i].kind != OP_IMM) continue;
-            int64_t v = instr->ops[i].imm;
+            uint64_t v = (uint64_t)instr->ops[i].imm;
             uint8_t bytes[8];
             for (int b = 0; b < elem_size; b++) {
                 bytes[b] = (uint8_t)(v >> (b * 8));

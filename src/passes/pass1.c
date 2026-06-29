@@ -1,5 +1,7 @@
 #include "pass1.h"
 #include "../encoder/encoder.h"
+#include <limits.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -85,6 +87,129 @@ static void add_visibility_error(ErrorList *errors,
                    message);
 }
 
+static void add_directive_error(ErrorList *errors,
+                                Arena *arena,
+                                const InstructionList *instructions,
+                                const Instruction *instr,
+                                int operand_index,
+                                const char *message) {
+    int line = instr->line;
+    int col = instr->col;
+    int end_col = instr->end_col;
+
+    if (operand_index >= 0 && operand_index < instr->op_count) {
+        line = instr->ops[operand_index].line;
+        col = instr->ops[operand_index].col;
+        end_col = instr->ops[operand_index].end_col;
+    }
+
+    error_add_span(errors,
+                   arena,
+                   instructions->source_name
+                       ? instructions->source_name
+                       : "unknown",
+                   line,
+                   col,
+                   end_col,
+                   message);
+}
+
+static bool is_data_directive(const char *directive) {
+    return strcmp(directive, ".بايت") == 0
+        || strcmp(directive, ".عدد١٦") == 0
+        || strcmp(directive, ".عدد٣٢") == 0
+        || strcmp(directive, ".عدد٦٤") == 0
+        || strcmp(directive, ".مساحة") == 0
+        || strcmp(directive, ".سلسلة") == 0;
+}
+
+static bool data_value_fits_width(int64_t value, int bits) {
+    if (bits == 64) {
+        return true;
+    }
+
+    int64_t signed_min = -(INT64_C(1) << (bits - 1));
+    uint64_t unsigned_max = (UINT64_C(1) << bits) - 1;
+    return value < 0
+         ? value >= signed_min
+         : (uint64_t)value <= unsigned_max;
+}
+
+static bool validate_data_directive(
+    const InstructionList *instructions,
+    const Instruction *instr,
+    ErrorList *errors,
+    Arena *arena) {
+    const char *directive = instr->directive;
+
+    if (strcmp(directive, ".سلسلة") == 0) {
+        if (instr->op_count == 0) {
+            add_directive_error(
+                errors, arena, instructions, instr, -1,
+                "التوجيه '.سلسلة' يتطلب سلسلة نصية واحدة على الأقل");
+            return false;
+        }
+        for (int i = 0; i < instr->op_count; i++) {
+            if (instr->ops[i].kind != OP_STRING) {
+                add_directive_error(
+                    errors, arena, instructions, instr, i,
+                    "معامل '.سلسلة' يجب أن يكون سلسلة نصية");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    if (strcmp(directive, ".مساحة") == 0) {
+        if (instr->op_count != 1 || instr->ops[0].kind != OP_IMM) {
+            add_directive_error(
+                errors, arena, instructions, instr, -1,
+                "التوجيه '.مساحة' يتطلب عدداً واحداً");
+            return false;
+        }
+        if (instr->ops[0].imm < 0 || instr->ops[0].imm > INT_MAX) {
+            add_directive_error(
+                errors, arena, instructions, instr, 0,
+                "حجم '.مساحة' يجب أن يكون بين 0 وINT_MAX");
+            return false;
+        }
+        return true;
+    }
+
+    int bits = 0;
+    if (strcmp(directive, ".بايت") == 0) bits = 8;
+    if (strcmp(directive, ".عدد١٦") == 0) bits = 16;
+    if (strcmp(directive, ".عدد٣٢") == 0) bits = 32;
+    if (strcmp(directive, ".عدد٦٤") == 0) bits = 64;
+
+    if (instr->op_count == 0) {
+        add_directive_error(
+            errors, arena, instructions, instr, -1,
+            "توجيه العدد يتطلب قيمة واحدة على الأقل");
+        return false;
+    }
+
+    for (int i = 0; i < instr->op_count; i++) {
+        if (instr->ops[i].kind != OP_IMM) {
+            add_directive_error(
+                errors, arena, instructions, instr, i,
+                "معامل توجيه العدد يجب أن يكون قيمة فورية");
+            return false;
+        }
+        if (!data_value_fits_width(instr->ops[i].imm, bits)) {
+            char message[192];
+            snprintf(message,
+                     sizeof(message),
+                     "القيمة لا يمكن تمثيلها في توجيه بيانات %d-bit",
+                     bits);
+            add_directive_error(
+                errors, arena, instructions, instr, i, message);
+            return false;
+        }
+    }
+    return true;
+}
+
 static void report_undefined_visibility_symbols(
     const InstructionList *instructions,
     SymbolTable *symtable,
@@ -168,8 +293,41 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
                 continue;
             }
 
+            if (!is_data_directive(instr->directive)) {
+                char message[192];
+                snprintf(message,
+                         sizeof(message),
+                         "توجيه غير معروف: '%s'",
+                         instr->directive);
+                add_directive_error(
+                    &result.errors,
+                    arena,
+                    instructions,
+                    instr,
+                    -1,
+                    message);
+                continue;
+            }
+            if (!in_data) {
+                add_directive_error(
+                    &result.errors,
+                    arena,
+                    instructions,
+                    instr,
+                    -1,
+                    "توجيهات البيانات مسموحة داخل '.بيانات' فقط");
+                continue;
+            }
+            if (!validate_data_directive(
+                    instructions,
+                    instr,
+                    &result.errors,
+                    arena)) {
+                continue;
+            }
+
             /* Data-emitting directive */
-            int dsz = in_data ? data_directive_size(instr) : 0;
+            int dsz = data_directive_size(instr);
             if (dsz > 0) {
                 if (instr->label) {
                     if (!symtable_insert_section(&result.symtable, instr->label,
