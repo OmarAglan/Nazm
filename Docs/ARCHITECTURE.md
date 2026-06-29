@@ -38,12 +38,16 @@ contract.
   register names, numeric immediates, directives, labels, comments, and
   punctuation.
 - The parser owns `InstructionList` creation, operand classification, directive
-  recognition, operand count checks, comma checks, and basic error recovery.
+  recognition, operand count checks, comma checks, signed-32-bit memory
+  displacement validation, and basic error recovery.
 
 **Assembler core**
 - Contains `src/passes/` and `src/symtable/`.
 - Pass 1 owns instruction-size assumptions, data-size accounting, current section tracking, and label offsets.
 - Pass 2 owns final traversal of parsed instructions, calls into the encoder, emits data bytes, and records the currently supported relocation forms.
+- Relative `jmp`/`call`/conditional targets must fit signed `rel32`; pass 2
+  diagnoses overflow at the label operand, and the encoder independently
+  rejects an out-of-range resolved displacement.
 - Symbol lookup and insertion belong to `src/symtable/`, including whether a
   label belongs to `.text` or `.data` and whether its binding is local or
   global. Labels default to local; `.عام` and `.محلي` may declare binding

@@ -136,6 +136,30 @@ void test_parse_mov_mem_negative_arabic_disp(void) {
     TEST_ASSERT_EQUAL_INT(-16,         i.ops[1].mem.disp);
 }
 
+void test_parse_memory_disp32_boundaries(void) {
+    ParseResult min_result = parse("احمل ر0، [ر1-2147483648]");
+    TEST_ASSERT_FALSE(error_has_any(&min_result.errors));
+    TEST_ASSERT_EQUAL_INT(
+        INT32_MIN, instr(&min_result, 0).ops[1].mem.disp);
+
+    ParseResult max_result = parse("احمل ر0، [ر1+2147483647]");
+    TEST_ASSERT_FALSE(error_has_any(&max_result.errors));
+    TEST_ASSERT_EQUAL_INT(
+        INT32_MAX, instr(&max_result, 0).ops[1].mem.disp);
+}
+
+void test_parse_memory_rejects_disp32_overflow(void) {
+    ParseResult below = parse("احمل ر0، [ر1-2147483649]");
+    TEST_ASSERT_TRUE(error_has_any(&below.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        below.errors.errors[0].message, "خارج مجال 32-bit"));
+
+    ParseResult above = parse("احمل ر0، [ر1+2147483648]");
+    TEST_ASSERT_TRUE(error_has_any(&above.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        above.errors.errors[0].message, "خارج مجال 32-bit"));
+}
+
 void test_parse_mov_reg_label(void) {
     ParseResult r = parse("احمل ر2، رسالة");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
@@ -528,6 +552,8 @@ int main(void) {
     RUN_TEST(test_parse_mov_mem_arabic_disp);
     RUN_TEST(test_parse_mov_mem_neg_disp);
     RUN_TEST(test_parse_mov_mem_negative_arabic_disp);
+    RUN_TEST(test_parse_memory_disp32_boundaries);
+    RUN_TEST(test_parse_memory_rejects_disp32_overflow);
     RUN_TEST(test_parse_mov_reg_label);
     RUN_TEST(test_parse_string_directive_operand);
 

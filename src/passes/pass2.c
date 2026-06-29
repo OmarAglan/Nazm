@@ -1,5 +1,7 @@
 #include "pass2.h"
 #include "../encoder/encoder.h"
+
+#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -253,6 +255,7 @@ Pass2Result pass2_run(const InstructionList *instructions,
                (size_t)instr->op_count * sizeof(Operand));
 
         int64_t resolved_target = 0;
+        bool resolution_error = false;
 
         for (int j = 0; j < instr->op_count; j++) {
             if (resolved_ops[j].kind != OP_LABEL) {
@@ -275,6 +278,7 @@ Pass2Result pass2_run(const InstructionList *instructions,
                                instructions->source_name
                                    ? instructions->source_name : "unknown",
                                err_line, err_col, err_end, msg);
+                resolution_error = true;
                 continue;
             }
 
@@ -291,11 +295,38 @@ Pass2Result pass2_run(const InstructionList *instructions,
                                    resolved_ops[j].col ? resolved_ops[j].col : instr->col,
                                    resolved_ops[j].end_col ? resolved_ops[j].end_col : instr->end_col,
                                    msg);
+                    resolution_error = true;
                     continue;
                 }
 
                 int64_t ip_after = (int64_t)(result.text_size + (size_t)sz);
                 resolved_target = target_offset - ip_after;
+                if (resolved_target < INT32_MIN ||
+                    resolved_target > INT32_MAX) {
+                    char msg[256];
+                    snprintf(
+                        msg,
+                        sizeof(msg),
+                        "إزاحة القفز إلى الوسم '%s' خارج مجال rel32 الموقّع",
+                        resolved_ops[j].label);
+                    error_add_span(
+                        &result.errors,
+                        arena,
+                        instructions->source_name
+                            ? instructions->source_name
+                            : "unknown",
+                        resolved_ops[j].line
+                            ? resolved_ops[j].line
+                            : instr->line,
+                        resolved_ops[j].col
+                            ? resolved_ops[j].col
+                            : instr->col,
+                        resolved_ops[j].end_col
+                            ? resolved_ops[j].end_col
+                            : instr->end_col,
+                        msg);
+                    resolution_error = true;
+                }
                 continue;
             }
 
@@ -311,6 +342,17 @@ Pass2Result pass2_run(const InstructionList *instructions,
                                 });
                 continue;
             }
+        }
+
+        if (resolution_error) {
+            if (!buffer_fill(result.text_bytes, text_cap,
+                             &result.text_size, 0x90, (size_t)sz)) {
+                add_internal_error(
+                    &result, arena, instructions, instr,
+                    "خطأ داخلي: تجاوز خرج النص الحجم المحسوب في المرور الأول");
+                return result;
+            }
+            continue;
         }
 
         /* ── Encode ── */

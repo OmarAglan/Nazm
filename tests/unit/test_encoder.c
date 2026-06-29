@@ -341,6 +341,34 @@ void test_enc_call_rel(void) {
     ENC_JMP(OPCODE_CALL, 0);
 }
 
+void test_enc_relative_disp32_boundaries_and_overflow(void) {
+    static const OpcodeEnum opcodes[] = {
+        OPCODE_JMP, OPCODE_CALL,
+        OPCODE_JE, OPCODE_JNE, OPCODE_JG, OPCODE_JGE,
+        OPCODE_JL, OPCODE_JLE, OPCODE_JZ, OPCODE_JNZ,
+        OPCODE_JS, OPCODE_JNS,
+    };
+    Operand target[] = {
+        { .kind = OP_LABEL, .label = "هدف" },
+    };
+
+    for (size_t i = 0; i < sizeof(opcodes) / sizeof(opcodes[0]); i++) {
+        EncodedInstruction min_encoded = encoder_encode(
+            opcodes[i], target, 1, INT32_MIN);
+        EncodedInstruction max_encoded = encoder_encode(
+            opcodes[i], target, 1, INT32_MAX);
+        EncodedInstruction below = encoder_encode(
+            opcodes[i], target, 1, (int64_t)INT32_MIN - 1);
+        EncodedInstruction above = encoder_encode(
+            opcodes[i], target, 1, (int64_t)INT32_MAX + 1);
+
+        TEST_ASSERT_FALSE(min_encoded.error);
+        TEST_ASSERT_FALSE(max_encoded.error);
+        TEST_ASSERT_TRUE(below.error);
+        TEST_ASSERT_TRUE(above.error);
+    }
+}
+
 void test_enc_jmp_register_sizes(void) {
     uint8_t expected_rax[]={0xFF,0xE0};
     Operand rax_ops[]={reg_op(REG_RAX)};
@@ -571,6 +599,7 @@ int main(void) {
     RUN_TEST(test_enc_jmp_forward);
     RUN_TEST(test_enc_jmp_backward);
     RUN_TEST(test_enc_call_rel);
+    RUN_TEST(test_enc_relative_disp32_boundaries_and_overflow);
     RUN_TEST(test_enc_jmp_register_sizes);
     RUN_TEST(test_enc_call_register_sizes);
     RUN_TEST(test_enc_je);

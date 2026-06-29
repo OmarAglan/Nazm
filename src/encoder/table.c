@@ -493,6 +493,9 @@ static EncodedInstruction enc_jmp(const Operand *ops, int n,
         return from_buf(&b);
     }
     /* Near relative: E9 rel32 (always use 32-bit for simplicity/correctness) */
+    if (!immediate_fits_i32(resolved_disp)) {
+        return make_error();
+    }
     emit(&b, 0xE9);
     emit32(&b, (int32_t)resolved_disp);
     return from_buf(&b);
@@ -512,6 +515,9 @@ static EncodedInstruction enc_call(const Operand *ops, int n,
         return from_buf(&b);
     }
     /* E8 rel32 */
+    if (!immediate_fits_i32(resolved_disp)) {
+        return make_error();
+    }
     emit(&b, 0xE8);
     emit32(&b, (int32_t)resolved_disp);
     return from_buf(&b);
@@ -521,6 +527,9 @@ static EncodedInstruction enc_call(const Operand *ops, int n,
 
 static EncodedInstruction enc_jcc(int64_t disp, uint8_t opcode2) {
     /* Always near: 0F opcode2 rel32 (6 bytes) */
+    if (!immediate_fits_i32(disp)) {
+        return make_error();
+    }
     Buf b = {0};
     emit(&b, 0x0F);
     emit(&b, opcode2);

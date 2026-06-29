@@ -73,6 +73,10 @@ contract:**
 
 ## Recently Resolved From Earlier Audits
 
+- Memory displacements and relative control-flow targets no longer narrow to
+  `int32_t` silently. Parser memory operands and encoder/pass-two `rel32`
+  paths enforce signed-32-bit bounds; pass 2 reports overflow at the target
+  label and does not emit guessed branch bytes.
 - ALU memory-source forms formerly derived their load opcode as the store opcode
   plus three, producing invalid bytes (`04/2C/24/0C/34/3C`). The GNU `as`
   differential corpus exposed the mismatch; Nazm now uses the architectural

@@ -2,6 +2,7 @@
 #include "../lexer/keywords.h"
 #include "../lexer/lexer.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -108,6 +109,24 @@ static void set_operand_span(Operand *out, const Token *t) {
     out->end_col = t->end_col;
 }
 
+static bool set_memory_displacement(Parser *p,
+                                    Operand *out,
+                                    RegId base,
+                                    int64_t displacement,
+                                    const Token *token) {
+    if (displacement < INT32_MIN || displacement > INT32_MAX) {
+        token_error(
+            p, token, "إزاحة الذاكرة خارج مجال 32-bit الموقّع");
+        sync_to_newline(p);
+        return false;
+    }
+
+    out->kind = OP_MEM_DISP;
+    out->mem.base = base;
+    out->mem.disp = (int32_t)displacement;
+    return true;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
  * Operand parsing
  * ═══════════════════════════════════════════════════════════════════════════ */
@@ -148,16 +167,18 @@ static bool parse_mem_operand(Parser *p, const Token *open_tok, Operand *out) {
         const Token *imm_tok = advance(p);
         int64_t disp = strtoll(imm_tok->value, NULL, 10) * sign;
 
-        out->kind     = OP_MEM_DISP;
-        out->mem.base = (RegId)rid;
-        out->mem.disp = (int32_t)disp;
+        if (!set_memory_displacement(
+                p, out, (RegId)rid, disp, imm_tok)) {
+            return false;
+        }
     } else if (cur_type(p) == TOKEN_IMMEDIATE) {
         const Token *imm_tok = advance(p);
         int64_t disp = strtoll(imm_tok->value, NULL, 10);
 
-        out->kind     = OP_MEM_DISP;
-        out->mem.base = (RegId)rid;
-        out->mem.disp = (int32_t)disp;
+        if (!set_memory_displacement(
+                p, out, (RegId)rid, disp, imm_tok)) {
+            return false;
+        }
     } else {
         out->kind     = OP_MEM_REG;
         out->mem.base = (RegId)rid;

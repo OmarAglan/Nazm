@@ -43,6 +43,20 @@ static Pass2Result run_with_forced_capacities(const char *src,
     return pass2_run(&pr.instructions, &p1, &g_arena);
 }
 
+static Pass2Result run_jump_with_target_offset(int64_t target_offset) {
+    const char *src = "اقفز هدف\nهدف:\nارجع";
+    SourceBuffer sb = {
+        .data = (const uint8_t *)src,
+        .len = strlen(src),
+        .name = "test",
+    };
+    LexResult lr = lexer_lex(&sb, &g_arena);
+    ParseResult pr = parser_parse(&lr.tokens, &g_arena);
+    Pass1Result p1 = pass1_run(&pr.instructions, &g_arena);
+    (void)symtable_patch(&p1.symtable, "هدف", target_offset);
+    return pass2_run(&pr.instructions, &p1, &g_arena);
+}
+
 /* ── Pass 1: symbol table ─────────────────────────────────────────────────── */
 
 void test_p1_single_label_at_zero(void) {
@@ -272,6 +286,22 @@ void test_p2_forward_jump_resolved(void) {
     TEST_ASSERT_EQUAL_INT(1, disp);
 }
 
+void test_p2_rejects_relative_jump_overflow(void) {
+    Pass2Result above = run_jump_with_target_offset(
+        (int64_t)INT32_MAX + 6);
+    TEST_ASSERT_TRUE(error_has_any(&above.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        above.errors.errors[0].message, "خارج مجال rel32"));
+    TEST_ASSERT_EQUAL_INT(1, above.errors.errors[0].line);
+    TEST_ASSERT_EQUAL_INT(6, above.errors.errors[0].col);
+
+    Pass2Result below = run_jump_with_target_offset(
+        (int64_t)INT32_MIN + 4);
+    TEST_ASSERT_TRUE(error_has_any(&below.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        below.errors.errors[0].message, "خارج مجال rel32"));
+}
+
 void test_indirect_control_flow_sizes_keep_label_offsets_exact(void) {
     Pipeline pl = run(
         "اقفز ر0\n"
@@ -428,6 +458,7 @@ int main(void) {
     RUN_TEST(test_p2_push_pop_sequence);
     RUN_TEST(test_p2_backward_jump_resolved);
     RUN_TEST(test_p2_forward_jump_resolved);
+    RUN_TEST(test_p2_rejects_relative_jump_overflow);
     RUN_TEST(test_indirect_control_flow_sizes_keep_label_offsets_exact);
     RUN_TEST(test_p2_full_exit_program);
     RUN_TEST(test_p2_unresolved_label_error);
