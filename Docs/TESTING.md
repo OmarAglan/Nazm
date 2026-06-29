@@ -6,8 +6,8 @@
 
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
-- `build.sh test` is the direct no-CMake path and currently runs the same 16 unit-test suites registered for CTest.
-- Current total: 315 portable Unity tests across the 16 suites, plus one
+- `build.sh test` is the direct no-CMake path and currently runs the same 17 unit-test suites registered for CTest.
+- Current total: 322 portable Unity tests across the 17 suites, plus one
   Windows-only UTF-16-to-UTF-8 argv test.
 
 ## Run Commands
@@ -42,6 +42,7 @@ tests/
     test_diagnostics.c
     test_elf64.c
     test_encoder.c
+    test_encoder_matrix.c
     test_examples.c
     test_immediate.c
     test_io.c
@@ -59,6 +60,15 @@ tests/
 ```
 
 CTest registers the unit tests listed in `tests/CMakeLists.txt` using the `unit_<suite>` naming pattern. The direct `build.sh test` path also compiles and runs those same suites.
+
+## Encoder Size Matrix
+
+`tests/unit/test_encoder_matrix.c` generates 28,866 valid encoding cases. It
+crosses every supported operand form with all 16 registers, memory bases that
+exercise REX/SIB and displacement widths, immediate-width boundaries, and
+direct/register control flow. Every case requires
+`encoder_instruction_size()` to equal the successful `encoder_encode().len`
+and remain within the 15-byte architectural limit.
 
 ## Object Writer Test Style
 

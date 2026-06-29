@@ -101,7 +101,7 @@ Nazm/
 **tests/unit/**
 - Current unit tests: `test_arena.c`, `test_unicode.c`, `test_symtable.c`,
   `test_keywords.c`, `test_immediate.c`, `test_rex.c`, `test_lexer.c`,
-  `test_parser.c`, `test_encoder.c`, `test_passes.c`, `test_elf64.c`,
+  `test_parser.c`, `test_encoder.c`, `test_encoder_matrix.c`, `test_passes.c`, `test_elf64.c`,
   `test_coff.c`, `test_cli_args.c`, `test_diagnostics.c`, `test_io.c`, and
   `test_examples.c`.
 
