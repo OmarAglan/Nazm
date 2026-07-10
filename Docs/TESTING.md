@@ -7,8 +7,9 @@
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
 - `build.sh test` is the direct no-CMake path and currently runs the same 18 unit-test suites registered for CTest.
-- Current total: 346 portable Unity tests across the 18 suites, plus one
-  Windows-only UTF-16-to-UTF-8 argv test.
+- Current total: 349 portable Unity tests across the 18 suites, plus two
+  Windows-only tests for case-insensitive path identity and UTF-16-to-UTF-8
+  argv conversion.
 - CTest additionally registers `differential_encoder_gas` when GNU `as` and
   `objcopy` are available.
 - CTest registers `integration_cli`, which launches the built `nazm` executable
@@ -85,7 +86,8 @@ source span of pass-two branch diagnostics.
 Pass tests also pin data-directive semantics: directives must appear in
 `.بيانات`, operand kinds must match, 8/16/32-bit signed/unsigned boundaries are
 accepted, adjacent overflow values are rejected, and unknown directives do not
-silently disappear.
+silently disappear. A label attached to `.مساحة 0` remains defined at the
+current `.data` offset even though the directive emits no bytes.
 
 ## Unicode Contract Tests
 
@@ -133,8 +135,9 @@ compile target reported by `--version`, exit code `2` for invalid arguments,
 exit code `1` for invalid source, and successful ELF64 and COFF assembly. The
 successful source and both output files use Arabic path components. The test
 inspects the ELF magic and AMD64 COFF machine bytes, checks listing bytes, and
-rejects colliding source/listing paths, so a zero exit code without the expected
-artifacts is not accepted.
+rejects equivalent source/output path spellings, so a zero exit code without
+the expected artifacts is not accepted. `test_io.c` separately covers existing
+file identity and normalized aliases for paths that have not been written yet.
 
 `tests/unit/test_listing.c` separately pins pass-two emission spans for `.text`
 and `.data`, exact rendered instruction/data bytes, 16-byte wrapping, and

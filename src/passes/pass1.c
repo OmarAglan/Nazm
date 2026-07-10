@@ -328,21 +328,21 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
 
             /* Data-emitting directive */
             int dsz = data_directive_size(instr);
-            if (dsz > 0) {
-                if (instr->label) {
-                    if (!symtable_insert_section(&result.symtable, instr->label,
-                                                 SYMBOL_SECTION_DATA,
-                                                 (int64_t)data_offset)) {
-                        char msg[256];
-                        snprintf(msg, sizeof(msg), "وسم مكرر: '%s'", instr->label);
-                        error_add_span(&result.errors, arena,
-                                       instructions->source_name ? instructions->source_name : "unknown",
-                                       instr->label_line ? instr->label_line : instr->line,
-                                       instr->label_col  ? instr->label_col  : instr->col,
-                                       instr->label_end_col ? instr->label_end_col : instr->end_col,
-                                       msg);
-                    }
+            if (instr->label) {
+                if (!symtable_insert_section(&result.symtable, instr->label,
+                                             SYMBOL_SECTION_DATA,
+                                             (int64_t)data_offset)) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg), "وسم مكرر: '%s'", instr->label);
+                    error_add_span(&result.errors, arena,
+                                   instructions->source_name ? instructions->source_name : "unknown",
+                                   instr->label_line ? instr->label_line : instr->line,
+                                   instr->label_col  ? instr->label_col  : instr->col,
+                                   instr->label_end_col ? instr->label_end_col : instr->end_col,
+                                   msg);
                 }
+            }
+            if (dsz > 0) {
                 data_offset += (size_t)dsz;
             }
             continue;

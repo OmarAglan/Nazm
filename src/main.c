@@ -219,10 +219,12 @@ static int nazm_main_utf8(int argc, char **argv) {
         out_path = make_output_path(&arena, args.source_path);
     }
 
-    if (strcmp(out_path, args.source_path) == 0
+    if (io_paths_refer_to_same_file(out_path, args.source_path)
         || (args.listing_path != NULL
-            && (strcmp(args.listing_path, args.source_path) == 0
-                || strcmp(args.listing_path, out_path) == 0))) {
+            && (io_paths_refer_to_same_file(
+                    args.listing_path, args.source_path)
+                || io_paths_refer_to_same_file(
+                    args.listing_path, out_path)))) {
         fprintf(stderr,
                 "خطأ: يجب أن تختلف مسارات المصدر والملف الكائني وlisting\n");
         return cleanup_and_return(&arena, source_file.data, 2);

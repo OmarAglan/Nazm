@@ -129,8 +129,7 @@ endif()
 
 execute_process(
     COMMAND "${NAZM_EXE}"
-        -o "${ARABIC_SOURCE_DIR}/تصادم.o"
-        --listing "${ARABIC_SOURCE}"
+        -o "${ARABIC_SOURCE_DIR}/./مصدر-اختبار.مجمع"
         "${ARABIC_SOURCE}"
     RESULT_VARIABLE COLLISION_RESULT
     OUTPUT_VARIABLE COLLISION_STDOUT
@@ -139,7 +138,7 @@ execute_process(
 )
 if(NOT COLLISION_RESULT STREQUAL "2")
     message(FATAL_ERROR
-        "Colliding source/listing paths returned ${COLLISION_RESULT}, expected 2\n"
+        "Aliased source/output paths returned ${COLLISION_RESULT}, expected 2\n"
         "${COLLISION_STDOUT}\n${COLLISION_STDERR}")
 endif()
 

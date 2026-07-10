@@ -59,7 +59,8 @@
 
 **Build:**
 - `CMakeLists.txt` — compiler flags, target definitions, test discovery
-- `cmake -DCMAKE_BUILD_TYPE=Debug ..` for debug builds (adds sanitizers)
+- `cmake -DCMAKE_BUILD_TYPE=Debug ..` for debug builds; GCC and Clang add
+  AddressSanitizer/UBSan, while MSVC uses its native Debug flags
 - `cmake -DCMAKE_BUILD_TYPE=Release ..` for optimized builds
 
 **Environment:**

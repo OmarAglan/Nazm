@@ -379,6 +379,18 @@ void test_p1_data_label_has_data_section(void) {
     TEST_ASSERT_EQUAL_INT(SYMBOL_SECTION_DATA, section);
 }
 
+void test_p1_zero_size_data_label_is_preserved(void) {
+    Pipeline pl = run(".بيانات\nنهاية: .مساحة 0");
+    int64_t off = -1;
+    SymbolSection section = SYMBOL_SECTION_UNKNOWN;
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_TRUE(symtable_lookup_ex(
+        &pl.p1.symtable, "نهاية", &off, &section));
+    TEST_ASSERT_EQUAL_INT64(0, off);
+    TEST_ASSERT_EQUAL_INT(SYMBOL_SECTION_DATA, section);
+}
+
 void test_p1_data_string_size(void) {
     Pipeline pl = run(".بيانات\nرسالة: .سلسلة \"نَظْم\\n\"");
     TEST_ASSERT_EQUAL_INT(12, (int)pl.p1.data_size);
@@ -511,6 +523,7 @@ int main(void) {
     RUN_TEST(test_p1_visibility_requires_one_label);
     RUN_TEST(test_p1_visibility_target_must_be_defined);
     RUN_TEST(test_p1_data_label_has_data_section);
+    RUN_TEST(test_p1_zero_size_data_label_is_preserved);
     RUN_TEST(test_p1_data_string_size);
 
     /* Pass 2 */

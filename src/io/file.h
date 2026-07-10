@@ -20,6 +20,13 @@
 FILE *io_fopen_utf8(const char *path, const char *mode);
 bool io_remove_utf8(const char *path);
 
+/*
+ * Return true when two UTF-8 paths identify the same filesystem location.
+ * Existing paths are compared by file identity; paths that do not yet exist
+ * are compared as normalized absolute paths using platform case rules.
+ */
+bool io_paths_refer_to_same_file(const char *left, const char *right);
+
 #ifdef _WIN32
 /*
  * Convert the UTF-16 argv received by wmain to a NULL-terminated, heap-owned

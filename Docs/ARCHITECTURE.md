@@ -86,6 +86,8 @@ contract.
 - Contains `src/io/`.
 - Owns opening and removing UTF-8 paths. Windows converts paths to UTF-16 and
   uses wide CRT calls; other platforms use the ordinary C file APIs.
+- Compares existing paths by filesystem identity and unwritten paths as
+  normalized absolute paths before the CLI opens object or listing outputs.
 - Conversion buffers are heap-owned internally and never enter arena lifetime.
 
 ## Current Data Flow

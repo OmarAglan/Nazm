@@ -21,16 +21,25 @@ else()
     )
 endif()
 
-# Debug / Release / Coverage
+# Debug / Coverage
+add_compile_definitions($<$<CONFIG:Debug>:NAZM_DEBUG=1>)
+
+if(CMAKE_C_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
+    add_compile_options(
+        $<$<CONFIG:Debug>:-fsanitize=address,undefined>
+    )
+    add_link_options(
+        $<$<CONFIG:Debug>:-fsanitize=address,undefined>
+    )
+endif()
+
 if(CMAKE_BUILD_TYPE STREQUAL "Coverage")
+    if(NOT CMAKE_C_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
+        message(FATAL_ERROR
+            "Coverage builds require GCC or Clang")
+    endif()
     add_compile_options(--coverage -O0 -g)
     add_link_options(--coverage)
-elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_compile_definitions(NAZM_DEBUG=1)
-    add_compile_options(-g -O0 -fsanitize=address,undefined)
-    add_link_options(-fsanitize=address,undefined)
-elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-    add_compile_options(-O2)
 endif()
 
 # ── Source files ─────────────────────────────────────────────────────────────

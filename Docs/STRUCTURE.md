@@ -60,9 +60,10 @@ Nazm/
 
 **src/io/**
 - `file.c`, `file.h`
-- Owns UTF-8 path opening/removal and Windows UTF-16 command-line conversion.
-  Temporary conversion strings are heap-owned and released inside this module
-  or by its paired argv cleanup function.
+- Owns UTF-8 path opening/removal, filesystem-identity comparison, normalized
+  comparison for unwritten paths, and Windows UTF-16 command-line conversion.
+  Temporary path and conversion strings are heap-owned and released inside
+  this module or by its paired argv cleanup function.
 
 **src/lexer/**
 - `lexer.c`, `lexer.h`, `keywords.c`, `keywords.h`

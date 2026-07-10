@@ -52,7 +52,28 @@ void test_output_writer_accepts_utf8_path(void) {
     TEST_ASSERT_EQUAL_HEX8_ARRAY(bytes, actual, sizeof(bytes));
 }
 
+void test_path_identity_matches_existing_relative_alias(void) {
+    FILE *file = io_fopen_utf8(TEST_PATH, "wb");
+    TEST_ASSERT_NOT_NULL(file);
+    TEST_ASSERT_EQUAL_INT(0, fclose(file));
+
+    TEST_ASSERT_TRUE(io_paths_refer_to_same_file(
+        TEST_PATH, "./اختبار-مسار-عربي-مؤقت.bin"));
+}
+
+void test_path_identity_normalizes_unwritten_relative_alias(void) {
+    TEST_ASSERT_TRUE(io_paths_refer_to_same_file(
+        "خرج-عربي-مؤقت.o", "./خرج-عربي-مؤقت.o"));
+    TEST_ASSERT_FALSE(io_paths_refer_to_same_file(
+        "خرج-عربي-مؤقت.o", "خرج-عربي-آخر.o"));
+}
+
 #ifdef _WIN32
+void test_windows_path_identity_is_case_insensitive(void) {
+    TEST_ASSERT_TRUE(io_paths_refer_to_same_file(
+        "NAZM-PATH-CASE-TEMP.O", "nazm-path-case-temp.o"));
+}
+
 void test_windows_wide_argv_converts_to_utf8(void) {
     wchar_t program[] = L"نظم.exe";
     wchar_t source[] = L"أمثلة\\مرحبا.مجمع";
@@ -72,7 +93,10 @@ int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_utf8_file_path_round_trips_bytes);
     RUN_TEST(test_output_writer_accepts_utf8_path);
+    RUN_TEST(test_path_identity_matches_existing_relative_alias);
+    RUN_TEST(test_path_identity_normalizes_unwritten_relative_alias);
 #ifdef _WIN32
+    RUN_TEST(test_windows_path_identity_is_case_insensitive);
     RUN_TEST(test_windows_wide_argv_converts_to_utf8);
 #endif
     return UNITY_END();

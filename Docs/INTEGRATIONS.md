@@ -35,8 +35,8 @@ The Arabic assembler is a self-contained native binary. It reads files from disk
   byte offset, and final pass-two hex bytes
 - Location: Explicit path provided with `-l` or `--listing`
 - Written via: `src/cli/listing.c` through the UTF-8 filesystem boundary
-- Safety: The CLI rejects exact path collisions between source, object, and
-  listing files
+- Safety: The CLI compares normalized path identities and rejects equivalent
+  source, object, and listing paths before writing any output
 
 ## Authentication & Identity
 
@@ -47,7 +47,8 @@ Not applicable. No network communication, no user accounts, no authentication of
 **Error Reporting:**
 - All errors printed to `stderr` in Arabic, starting with `خطأ في [ملف]:[سطر]:[عمود]: [رسالة]`; when source text is available, following lines show the original line and a caret marker for the source span.
 - No crash reporting, no telemetry, no external error tracking
-- Exit codes currently used by the CLI: `0` = success, `1` = assembly/output error, `2` = CLI or I/O error, `3` = internal usage guard
+- Exit codes currently used by the CLI: `0` = success, `1` = assembly/output
+  error, `2` = CLI or I/O error
 
 **Logs:**
 - Stderr: progress messages when `-v` (verbose) flag is passed
