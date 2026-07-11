@@ -1,24 +1,28 @@
 # External Integrations
 
-**Analysis Date:** 2026-06-27
+**Analysis Date:** 2026-07-10
 
 ## APIs & External Services
 
 **None at runtime.**
 
-The Arabic assembler is a self-contained native binary. It reads files from disk and writes files to disk. It makes no network calls, has no telemetry, and communicates with no external services during normal operation.
+The Arabic assembler is one self-contained native binary exposed as primary
+command `نظم` and portable alias `nazm`. It reads and writes files, makes no
+network calls, has no telemetry, and contacts no external service.
 
 ## Data Storage
 
 **Input — Source Files:**
-- Format: UTF-8 text files with extension `.مجمع`
+- Format: UTF-8 text files with extension `.نظم`
 - Location: Provided by user on the command line
 - Read via: `io_fopen_utf8()` / `fread()`; Windows paths are converted to
   UTF-16 and opened with `_wfopen`
 - Limit: CLI rejects files larger than 100 MiB before allocating the full buffer
+- Naming: CLI filesystem input must end in `.نظم`; in-memory API source names
+  will not be extension-validated
 
 **Output — Object Files:**
-- Formats: ELF64 via `-f elf64`, PE/COFF object via `-f coff`
+- Formats: إلف64 via `--صيغة إلف64`, PE/COFF object via `--صيغة كوف`
 - Written through the same UTF-8 path boundary; buffered close failures are
   reported as I/O failure
 - Current section support: `.text` always, `.data` when data bytes exist, `.rela.text`/COFF text relocations when the source needs current supported relocations
@@ -26,14 +30,15 @@ The Arabic assembler is a self-contained native binary. It reads files from disk
   indexes and real local/global binding. Labels are local by default; `.عام`
   emits ELF64 `STB_GLOBAL` or COFF `EXTERNAL`, while `.محلي` emits ELF64
   `STB_LOCAL` or COFF `STATIC`
-- Current relocation support: absolute address relocations for loading a local label into a register, such as `احمل ر0، رسالة`
-- Location: Path provided with `-o` flag, defaults to input filename with `.o` extension
+- Current relocation support: absolute address relocations for loading a local label into a register, such as `انقل سجل_المركم، رسالة`
+- Location: Path provided with `--خرج`; defaults to `.o` for إلف64 and `.obj`
+  for كوف
 - Written via: `src/output/elf64.c` or `src/output/coff.c`
 
-**Output — Listing File:**
+**Output — Assembly Listing (`كشف التجميع`):**
 - Format: UTF-8 text showing each parsed source statement, section-relative
   byte offset, and final pass-two hex bytes
-- Location: Explicit path provided with `-l` or `--listing`
+- Location: Explicit path provided with `-ك` or `--كشف`; canonical suffix `.كشف`
 - Written via: `src/cli/listing.c` through the UTF-8 filesystem boundary
 - Safety: The CLI compares normalized path identities and rejects equivalent
   source, object, and listing paths before writing any output
@@ -51,7 +56,7 @@ Not applicable. No network communication, no user accounts, no authentication of
   error, `2` = CLI or I/O error
 
 **Logs:**
-- Stderr: progress messages when `-v` (verbose) flag is passed
+- Stderr: progress messages when `-ت` or `--تفصيل` is passed
 - No persistent log files
 
 ## CI/CD & Deployment
@@ -91,16 +96,16 @@ Not applicable. No network communication, no user accounts, no authentication of
 **Baa Compiler (planned production integration):**
 - Relationship: Baa currently lowers its Machine IR to English AT&T/GAS text
   after register allocation and invokes `gcc -c`; Nazm is intended to replace
-  that assembly boundary with Arabic `.مجمع` source and direct ELF64/COFF
+  that assembly boundary with Arabic `.نظم` source and direct ELF64/COFF
   object output.
-- First integration mode: optional subprocess selection with GAS retained as an
-  explicit parity fallback.
+- First integration mode: shadow subprocess comparison without exposing a
+  second public assembly dialect.
 - Later integration mode: `nazm_assemble_buffer()` after the public API and
   ownership contracts are implemented.
 - Canonical output: Arabic textual assembly remains a first-class Baa
   assembly-only output even if an in-process structured path is added later.
 - Required gate: Baa's full instruction/directive/relocation corpus must pass
-  through Nazm on both targets before Nazm becomes the default assembler.
+  on both targets before the atomic Nazm-only cutover and `نظم { ... }` syntax.
 - Contract: see [BAA_INTEGRATION.md](BAA_INTEGRATION.md).
 
 ## Local Developer Tools

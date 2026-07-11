@@ -3,13 +3,13 @@
  * cli/args.h
  * Command-line argument parsing for nazm.
  *
- * Usage: nazm [options] <source.مجمع>
- *   -o <output>          output file path (default: input with .o extension)
- *   -l, --listing <file> write a source/byte listing
- *   -f elf64|coff        output format (default: platform native)
- *   -v                   verbose output
- *   --version            print version/build target and exit
- *   --help               print usage and exit
+ * Usage: نظم [خيارات] <ملف.نظم>
+ *   -خ, --خرج <ملف>     output file path
+ *   -ك, --كشف <ملف>     write a source/byte assembly listing
+ *   -ص, --صيغة <صيغة>   إلف64 or كوف
+ *   -ت, --تفصيل         verbose output
+ *   --إصدار             print version/build target and exit
+ *   -م, --مساعدة        print usage and exit
  */
 
 #include <stdbool.h>
@@ -31,3 +31,4 @@ CliArgs cli_parse(int argc, char **argv);
 void    cli_print_usage(const char *program_name);
 void    cli_print_version(void);
 const char *cli_build_target(void);
+const char *cli_build_target_arabic(void);

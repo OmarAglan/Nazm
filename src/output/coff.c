@@ -251,7 +251,7 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
     if (!output_symbols_collect(in->symtable, arena, &symbols)) {
         return (OutputResult){
             .ok = false,
-            .error_message = "عدد الرموز يتجاوز حد صيغة COFF",
+            .error_message = "عدد الرموز يتجاوز حد صيغة كوف",
         };
     }
 
@@ -259,13 +259,13 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
     if (!symbol_names_fit_coff_strtab(&symbols, fname)) {
         return (OutputResult){
             .ok = false,
-            .error_message = "جدول أسماء الرموز يتجاوز حد صيغة COFF",
+            .error_message = "جدول أسماء الرموز يتجاوز حد صيغة كوف",
         };
     }
     if (!coff_relocations_have_symbols(in->relocations, &symbols)) {
         return (OutputResult){
             .ok = false,
-            .error_message = "إزاحة COFF تشير إلى رمز غير موجود",
+            .error_message = "قيد ترحيل كوف يشير إلى رمز غير موجود",
         };
     }
 
@@ -273,7 +273,7 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
     if (text_reloc_count_size > UINT16_MAX) {
         return (OutputResult){
             .ok = false,
-            .error_message = "عدد إزاحات قسم النص يتجاوز حد صيغة COFF",
+            .error_message = "عدد قيود ترحيل قسم النص يتجاوز حد صيغة كوف",
         };
     }
     uint32_t text_reloc_count = (uint32_t)text_reloc_count_size;
@@ -358,7 +358,7 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
                     &symbols, reloc->symbol, &symbol_index)) {
                 return (OutputResult){
                     .ok = false,
-                    .error_message = "إزاحة COFF تشير إلى رمز غير موجود",
+                    .error_message = "قيد ترحيل كوف يشير إلى رمز غير موجود",
                 };
             }
 

@@ -20,7 +20,7 @@ void tearDown(void) { arena_free(&g_arena); }
 typedef struct { Pass1Result p1; Pass2Result p2; OutputResult coff; } Pipeline;
 
 static Pipeline run(const char *src) {
-    SourceBuffer sb = { .data=(const uint8_t*)src, .len=strlen(src), .name="test.مجمع" };
+    SourceBuffer sb = { .data=(const uint8_t*)src, .len=strlen(src), .name="test.نظم" };
     LexResult   lr = lexer_lex(&sb, &g_arena);
     ParseResult pr = parser_parse(&lr.tokens, &g_arena);
     Pass1Result p1 = pass1_run(&pr.instructions, &g_arena);
@@ -28,7 +28,7 @@ static Pipeline run(const char *src) {
     OutputInput oi = {
         .text_bytes=p2.text_bytes, .text_size=p2.text_size,
         .data_bytes=p2.data_bytes, .data_size=p2.data_size,
-        .symtable=&p1.symtable, .relocations=&p2.relocations, .source_name="test.مجمع"
+        .symtable=&p1.symtable, .relocations=&p2.relocations, .source_name="test.نظم"
     };
     OutputResult coff = output_write_coff(&oi, &g_arena);
     return (Pipeline){p1, p2, coff};
@@ -81,7 +81,7 @@ void test_coff_one_section_text_only(void) {
 }
 
 void test_coff_two_sections_with_data(void) {
-    Pipeline pl = run(".نص\nارجع\n.بيانات\n.بايت 0x42\n");
+    Pipeline pl = run(".نص\nارجع\n.بيانات\n.عدد٨ 0x42\n");
     TEST_ASSERT_TRUE(pl.coff.ok);
     TEST_ASSERT_EQUAL_INT(2, (int)r16(pl.coff.data + 2));
 }
@@ -125,7 +125,7 @@ void test_coff_text_raw_ptr_after_headers(void) {
 }
 
 void test_coff_text_raw_ptr_two_sections(void) {
-    Pipeline pl = run(".نص\nارجع\n.بيانات\n.بايت 1\n");
+    Pipeline pl = run(".نص\nارجع\n.بيانات\n.عدد٨ 1\n");
     const uint8_t *sh = pl.coff.data + 20;
     uint32_t raw_ptr = r32(sh + 20);
     /* 20 + 2×40 = 100 */
@@ -139,7 +139,7 @@ void test_coff_text_raw_size_ret(void) {
 }
 
 void test_coff_text_bytes_syscall_ret(void) {
-    Pipeline pl = run("نداء_نظام\nارجع");
+    Pipeline pl = run("ناد_النظام\nارجع");
     const uint8_t *sh = pl.coff.data + 20;
     uint32_t rptr = r32(sh + 20);
     TEST_ASSERT_EQUAL_HEX8(0x0F, pl.coff.data[rptr + 0]);
@@ -148,7 +148,7 @@ void test_coff_text_bytes_syscall_ret(void) {
 }
 
 void test_coff_data_section_name(void) {
-    Pipeline pl = run(".نص\nارجع\n.بيانات\n.بايت 1\n");
+    Pipeline pl = run(".نص\nارجع\n.بيانات\n.عدد٨ 1\n");
     const uint8_t *sh = pl.coff.data + 20 + 40; /* second section header */
     TEST_ASSERT_EQUAL_HEX8('.', sh[0]);
     TEST_ASSERT_EQUAL_HEX8('d', sh[1]);
@@ -166,7 +166,7 @@ void test_coff_data_raw_size(void) {
 /* ── Data directive bytes ────────────────────────────────────────────────── */
 
 void test_coff_data_byte_value(void) {
-    Pipeline pl = run(".نص\nارجع\n.بيانات\n.بايت 0x7E\n");
+    Pipeline pl = run(".نص\nارجع\n.بيانات\n.عدد٨ 0x7E\n");
     const uint8_t *sh_d = pl.coff.data + 20 + 40;
     uint32_t dptr = r32(sh_d + 20);
     TEST_ASSERT_EQUAL_HEX8(0x7E, pl.coff.data[dptr]);
@@ -192,7 +192,7 @@ void test_coff_data_qword(void) {
 }
 
 void test_coff_data_multiple_bytes(void) {
-    Pipeline pl = run(".نص\nارجع\n.بيانات\n.بايت 1, 2, 3\n");
+    Pipeline pl = run(".نص\nارجع\n.بيانات\n.عدد٨ 1, 2, 3\n");
     const uint8_t *sh_d = pl.coff.data + 20 + 40;
     uint32_t dptr = r32(sh_d + 20);
     TEST_ASSERT_EQUAL_INT(3, (int)r32(sh_d + 16));
@@ -202,7 +202,7 @@ void test_coff_data_multiple_bytes(void) {
 }
 
 void test_coff_data_zero_fill(void) {
-    Pipeline pl = run(".نص\nارجع\n.بيانات\n.مساحة 8\n");
+    Pipeline pl = run(".نص\nارجع\n.بيانات\n.مساحة_صفرية 8\n");
     const uint8_t *sh_d = pl.coff.data + 20 + 40;
     uint32_t dptr = r32(sh_d + 20);
     TEST_ASSERT_EQUAL_INT(8, (int)r32(sh_d + 16));
@@ -213,7 +213,7 @@ void test_coff_data_zero_fill(void) {
 /* ── Pass1 data section sizing ───────────────────────────────────────────── */
 
 void test_p1_data_size_byte(void) {
-    Pipeline pl = run(".نص\n.بيانات\n.بايت 1\n");
+    Pipeline pl = run(".نص\n.بيانات\n.عدد٨ 1\n");
     TEST_ASSERT_EQUAL_INT(1, (int)pl.p1.data_size);
 }
 
@@ -228,7 +228,7 @@ void test_p1_data_size_qword(void) {
 }
 
 void test_p1_data_size_zero_fill(void) {
-    Pipeline pl = run(".نص\n.بيانات\n.مساحة 16\n");
+    Pipeline pl = run(".نص\n.بيانات\n.مساحة_صفرية 16\n");
     TEST_ASSERT_EQUAL_INT(16, (int)pl.p1.data_size);
 }
 
@@ -242,7 +242,7 @@ void test_p1_data_and_text_independent(void) {
 /* ── Pass2 data bytes ────────────────────────────────────────────────────── */
 
 void test_p2_data_byte_value(void) {
-    Pipeline pl = run(".نص\nارجع\n.بيانات\n.بايت 0xAB\n");
+    Pipeline pl = run(".نص\nارجع\n.بيانات\n.عدد٨ 0xAB\n");
     TEST_ASSERT_NOT_NULL(pl.p2.data_bytes);
     TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.data_size);
     TEST_ASSERT_EQUAL_HEX8(0xAB, pl.p2.data_bytes[0]);
@@ -256,16 +256,16 @@ void test_p2_data_word(void) {
 }
 
 void test_p2_data_string(void) {
-    /* .سلسلة stored as label operand by parser */
+    /* .سلسلة_منتهية_بصفر stored as label operand by parser */
     /* We test the size calculation via pass1 */
-    Pipeline pl = run(".نص\nارجع\n.بيانات\n.مساحة 5\n");
+    Pipeline pl = run(".نص\nارجع\n.بيانات\n.مساحة_صفرية 5\n");
     TEST_ASSERT_EQUAL_INT(5, (int)pl.p2.data_size);
     for (int i = 0; i < 5; i++)
         TEST_ASSERT_EQUAL_HEX8(0x00, pl.p2.data_bytes[i]);
 }
 
 void test_p2_text_unaffected_by_data(void) {
-    Pipeline pl = run(".نص\nارجع\n.بيانات\n.بايت 42\n");
+    Pipeline pl = run(".نص\nارجع\n.بيانات\n.عدد٨ 42\n");
     TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.text_size);
     TEST_ASSERT_EQUAL_HEX8(0xC3, pl.p2.text_bytes[0]);
 }
@@ -310,7 +310,7 @@ void test_coff_symbol_storage_classes_follow_visibility(void) {
 
 
 void test_coff_data_symbol_uses_data_section(void) {
-    Pipeline pl = run(".نص\nارجع\n.بيانات\nرسالة: .سلسلة \"x\"\n");
+    Pipeline pl = run(".نص\nارجع\n.بيانات\nرسالة: .سلسلة_منتهية_بصفر \"x\"\n");
     uint32_t symptr = r32(pl.coff.data + 8);
     uint32_t nsyms = r32(pl.coff.data + 12);
     TEST_ASSERT_EQUAL_INT(2, (int)nsyms);
@@ -319,7 +319,7 @@ void test_coff_data_symbol_uses_data_section(void) {
 }
 
 void test_coff_text_relocation_for_mov_label(void) {
-    Pipeline pl = run(".نص\nاحمل ر2، رسالة\n.بيانات\nرسالة: .سلسلة \"x\"\n");
+    Pipeline pl = run(".نص\nانقل سجل_البيانات، رسالة\n.بيانات\nرسالة: .سلسلة_منتهية_بصفر \"x\"\n");
     const uint8_t *text_sh = pl.coff.data + 20;
     uint32_t reloc_ptr = r32(text_sh + 24);
     uint16_t reloc_count = r16(text_sh + 32);
@@ -353,7 +353,7 @@ void test_coff_preserves_symbols_and_relocation_beyond_old_limit(void) {
         .text_size = sizeof(text),
         .symtable = &symtable,
         .relocations = &relocations,
-        .source_name = "many-symbols.مجمع",
+        .source_name = "many-symbols.نظم",
     };
 
     OutputResult result = output_write_coff(&input, &g_arena);
@@ -389,7 +389,7 @@ void test_coff_rejects_relocation_to_missing_symbol(void) {
         .text_size = sizeof(text),
         .symtable = &symtable,
         .relocations = &relocations,
-        .source_name = "missing.مجمع",
+        .source_name = "missing.نظم",
     };
 
     OutputResult result = output_write_coff(&input, &g_arena);

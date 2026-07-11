@@ -45,10 +45,21 @@ add_test(
     NAME integration_cli
     COMMAND ${CMAKE_COMMAND}
         -DNAZM_EXE=$<TARGET_FILE:nazm>
-        -DGOOD_SOURCE=${CMAKE_SOURCE_DIR}/examples/خروج.مجمع
-        -DBAD_SOURCE=${CMAKE_SOURCE_DIR}/examples/diagnostics/1.مجمع
+        -DNAZM_ARABIC_EXE=${NAZM_ARABIC_EXECUTABLE}
+        -DGOOD_SOURCE=${CMAKE_SOURCE_DIR}/examples/خروج.نظم
+        -DBAD_SOURCE=${CMAKE_SOURCE_DIR}/examples/diagnostics/فاصلة-مفقودة.نظم
         -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/cli-work
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/cli_acceptance.cmake
+)
+
+add_test(
+    NAME integration_examples
+    COMMAND ${CMAKE_COMMAND}
+        -DNAZM_EXE=$<TARGET_FILE:nazm>
+        -DNAZM_ARABIC_EXE=${NAZM_ARABIC_EXECUTABLE}
+        -DEXAMPLE_DIR=${CMAKE_SOURCE_DIR}/examples
+        -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/examples-work
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/examples_acceptance.cmake
 )
 
 # ── Differential encoder test ────────────────────────────────────────────────

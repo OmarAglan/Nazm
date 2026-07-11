@@ -4,6 +4,7 @@
 #include "passes/pass1.h"
 #include "passes/pass2.h"
 #include "alloc/arena.h"
+#include <stdio.h>
 #include <string.h>
 
 static Arena g_arena;
@@ -67,8 +68,8 @@ void test_p1_single_label_at_zero(void) {
 }
 
 void test_p1_label_after_instruction(void) {
-    /* احمل ر0، ١ = 7 bytes, then نهاية: */
-    Pipeline pl = run("احمل ر0، ١\nنهاية:\nارجع");
+    /* انقل سجل_المركم، ١ = 7 bytes, then نهاية: */
+    Pipeline pl = run("انقل سجل_المركم، ١\nنهاية:\nارجع");
     int64_t off = -1;
     TEST_ASSERT_TRUE(symtable_lookup(&pl.p1.symtable, "نهاية", &off));
     TEST_ASSERT_EQUAL_INT64(7, off);
@@ -102,12 +103,12 @@ void test_p1_text_size_ret(void) {
 
 void test_p1_text_size_mov_ret(void) {
     /* mov rax, 42 = 7, ret = 1 → 8 total */
-    Pipeline pl = run("احمل ر0، ٤٢\nارجع");
+    Pipeline pl = run("انقل سجل_المركم، ٤٢\nارجع");
     TEST_ASSERT_EQUAL_INT(8, (int)pl.p1.text_size);
 }
 
 void test_p1_text_size_syscall(void) {
-    Pipeline pl = run("نداء_نظام");
+    Pipeline pl = run("ناد_النظام");
     TEST_ASSERT_EQUAL_INT(2, (int)pl.p1.text_size);
 }
 
@@ -203,27 +204,68 @@ void test_p2_ret_bytes(void) {
 }
 
 void test_p2_nop_bytes(void) {
-    Pipeline pl = run("لاشيء");
+    Pipeline pl = run("لا_تفعل");
     TEST_ASSERT_EQUAL_HEX8(0x90, pl.p2.text_bytes[0]);
 }
 
 void test_p2_syscall_bytes(void) {
-    Pipeline pl = run("نداء_نظام");
+    Pipeline pl = run("ناد_النظام");
     TEST_ASSERT_EQUAL_INT(2, (int)pl.p2.text_size);
     TEST_ASSERT_EQUAL_HEX8(0x0F, pl.p2.text_bytes[0]);
     TEST_ASSERT_EQUAL_HEX8(0x05, pl.p2.text_bytes[1]);
 }
 
 void test_p2_mov_rax_42(void) {
-    Pipeline pl = run("احمل ر0، ٤٢");
+    Pipeline pl = run("انقل سجل_المركم، ٤٢");
     TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
     TEST_ASSERT_EQUAL_INT(7, (int)pl.p2.text_size);
     uint8_t expected[]={0x48,0xC7,0xC0,0x2A,0x00,0x00,0x00};
     TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, pl.p2.text_bytes, 7);
 }
 
+void test_descriptive_register_names_encode_architectural_ids(void) {
+    static const struct {
+        const char *name;
+        uint8_t rex;
+        uint8_t modrm;
+    } cases[] = {
+        { "سجل_المركم", 0x48, 0xC0 },
+        { "سجل_العداد", 0x48, 0xC8 },
+        { "سجل_البيانات", 0x48, 0xD0 },
+        { "سجل_القاعدة", 0x48, 0xD8 },
+        { "مؤشر_المكدس", 0x48, 0xE0 },
+        { "مؤشر_القاعدة", 0x48, 0xE8 },
+        { "فهرس_المصدر", 0x48, 0xF0 },
+        { "فهرس_الوجهة", 0x48, 0xF8 },
+        { "سجل_عام_8", 0x4C, 0xC0 },
+        { "سجل_عام_9", 0x4C, 0xC8 },
+        { "سجل_عام_10", 0x4C, 0xD0 },
+        { "سجل_عام_11", 0x4C, 0xD8 },
+        { "سجل_عام_12", 0x4C, 0xE0 },
+        { "سجل_عام_13", 0x4C, 0xE8 },
+        { "سجل_عام_14", 0x4C, 0xF0 },
+        { "سجل_عام_15", 0x4C, 0xF8 },
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        char source[160];
+        snprintf(source,
+                 sizeof(source),
+                 "انقل سجل_المركم، %s",
+                 cases[i].name);
+        Pipeline pipeline = run(source);
+        uint8_t expected[] = { cases[i].rex, 0x89, cases[i].modrm };
+
+        TEST_ASSERT_FALSE(error_has_any(&pipeline.p1.errors));
+        TEST_ASSERT_FALSE(error_has_any(&pipeline.p2.errors));
+        TEST_ASSERT_EQUAL_INT(3, (int)pipeline.p2.text_size);
+        TEST_ASSERT_EQUAL_HEX8_ARRAY(
+            expected, pipeline.p2.text_bytes, sizeof(expected));
+    }
+}
+
 void test_p2_mov_rax_uint32_max_preserves_value(void) {
-    Pipeline pl = run("احمل ر0، 4294967295");
+    Pipeline pl = run("انقل سجل_المركم، 4294967295");
     uint8_t expected[]={
         0x48,0xB8,0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x00
     };
@@ -236,13 +278,13 @@ void test_p2_mov_rax_uint32_max_preserves_value(void) {
 }
 
 void test_p2_xor_rax_rax(void) {
-    Pipeline pl = run("خالف ر0، ر0");
+    Pipeline pl = run("خالف_بتيا سجل_المركم، سجل_المركم");
     uint8_t expected[]={0x48,0x31,0xC0};
     TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, pl.p2.text_bytes, 3);
 }
 
 void test_p2_push_pop_sequence(void) {
-    Pipeline pl = run("ادفع ر0\nاسحب ر1");
+    Pipeline pl = run("ادفع سجل_المركم\nاسحب سجل_العداد");
     TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
     TEST_ASSERT_EQUAL_INT(2, (int)pl.p2.text_size);
     TEST_ASSERT_EQUAL_HEX8(0x50, pl.p2.text_bytes[0]); /* push rax */
@@ -255,8 +297,8 @@ void test_p2_backward_jump_resolved(void) {
      * displacement = 0 - 9 = -9 */
     Pipeline pl = run(
         "حلقة:\n"
-        "انقص ر2\n"         /* 3 bytes: dec rcx */
-        "اقفز_لاصفر حلقة\n" /* 6 bytes: 0F 85 rel32 */
+        "انقص سجل_البيانات\n"         /* 3 bytes: dec rcx */
+        "اقفز_غير_صفر حلقة\n" /* 6 bytes: 0F 85 rel32 */
     );
     TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
     TEST_ASSERT_EQUAL_INT(9, (int)pl.p2.text_size);
@@ -274,7 +316,7 @@ void test_p2_forward_jump_resolved(void) {
      * target at offset 6, IP after jmp = 5, disp = 6-5 = 1 */
     Pipeline pl = run(
         "اقفز نهاية\n"  /* 5 bytes */
-        "لاشيء\n"       /* 1 byte  */
+        "لا_تفعل\n"       /* 1 byte  */
         "نهاية:\n"
         "ارجع\n"        /* 1 byte  */
     );
@@ -304,9 +346,9 @@ void test_p2_rejects_relative_jump_overflow(void) {
 
 void test_indirect_control_flow_sizes_keep_label_offsets_exact(void) {
     Pipeline pl = run(
-        "اقفز ر0\n"
+        "اقفز سجل_المركم\n"
         "بعد_قفز:\n"
-        "نادِ ر8\n"
+        "ناد سجل_عام_8\n"
         "بعد_نداء:\n"
         "ارجع\n"
     );
@@ -338,9 +380,9 @@ void test_p2_full_exit_program(void) {
      *   syscall
      */
     Pipeline pl = run(
-        "احمل ر0، ٦٠\n"
-        "خالف ر7، ر7\n"
-        "نداء_نظام\n"
+        "انقل سجل_المركم، ٦٠\n"
+        "خالف_بتيا فهرس_الوجهة، فهرس_الوجهة\n"
+        "ناد_النظام\n"
     );
     TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
     /* mov rax,60: 48 C7 C0 3C 00 00 00 (7 bytes) */
@@ -371,7 +413,7 @@ void test_p2_unresolved_label_error_span_points_to_operand(void) {
 
 
 void test_p1_data_label_has_data_section(void) {
-    Pipeline pl = run(".بيانات\nرسالة: .سلسلة \"x\"");
+    Pipeline pl = run(".بيانات\nرسالة: .سلسلة_منتهية_بصفر \"x\"");
     int64_t off = -1;
     SymbolSection section = SYMBOL_SECTION_UNKNOWN;
     TEST_ASSERT_TRUE(symtable_lookup_ex(&pl.p1.symtable, "رسالة", &off, &section));
@@ -380,7 +422,7 @@ void test_p1_data_label_has_data_section(void) {
 }
 
 void test_p1_zero_size_data_label_is_preserved(void) {
-    Pipeline pl = run(".بيانات\nنهاية: .مساحة 0");
+    Pipeline pl = run(".بيانات\nنهاية: .مساحة_صفرية 0");
     int64_t off = -1;
     SymbolSection section = SYMBOL_SECTION_UNKNOWN;
 
@@ -392,12 +434,12 @@ void test_p1_zero_size_data_label_is_preserved(void) {
 }
 
 void test_p1_data_string_size(void) {
-    Pipeline pl = run(".بيانات\nرسالة: .سلسلة \"نَظْم\\n\"");
+    Pipeline pl = run(".بيانات\nرسالة: .سلسلة_منتهية_بصفر \"نَظْم\\n\"");
     TEST_ASSERT_EQUAL_INT(12, (int)pl.p1.data_size);
 }
 
 void test_p2_data_string_bytes(void) {
-    Pipeline pl = run(".بيانات\nرسالة: .سلسلة \"x\\n\"");
+    Pipeline pl = run(".بيانات\nرسالة: .سلسلة_منتهية_بصفر \"x\\n\"");
     TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
     TEST_ASSERT_EQUAL_INT(3, (int)pl.p2.data_size);
     TEST_ASSERT_EQUAL_HEX8('x', pl.p2.data_bytes[0]);
@@ -406,7 +448,7 @@ void test_p2_data_string_bytes(void) {
 }
 
 void test_p1_rejects_data_directive_outside_data_section(void) {
-    Pipeline pl = run(".نص\n.بايت ١");
+    Pipeline pl = run(".نص\n.عدد٨ ١");
 
     TEST_ASSERT_TRUE(error_has_any(&pl.p1.errors));
     TEST_ASSERT_NOT_NULL(strstr(
@@ -422,24 +464,24 @@ void test_p1_rejects_unknown_directive(void) {
 }
 
 void test_p1_rejects_wrong_data_operand_kinds(void) {
-    Pipeline number = run(".بيانات\n.بايت \"x\"");
+    Pipeline number = run(".بيانات\n.عدد٨ \"x\"");
     TEST_ASSERT_TRUE(error_has_any(&number.p1.errors));
     TEST_ASSERT_NOT_NULL(strstr(
         number.p1.errors.errors[0].message, "قيمة فورية"));
 
-    Pipeline string = run(".بيانات\n.سلسلة ١");
+    Pipeline string = run(".بيانات\n.سلسلة_منتهية_بصفر ١");
     TEST_ASSERT_TRUE(error_has_any(&string.p1.errors));
     TEST_ASSERT_NOT_NULL(strstr(
         string.p1.errors.errors[0].message, "سلسلة نصية"));
 }
 
 void test_p1_rejects_data_values_that_do_not_fit(void) {
-    Pipeline byte_above = run(".بيانات\n.بايت ٢٥٦");
+    Pipeline byte_above = run(".بيانات\n.عدد٨ ٢٥٦");
     TEST_ASSERT_TRUE(error_has_any(&byte_above.p1.errors));
     TEST_ASSERT_NOT_NULL(strstr(
-        byte_above.p1.errors.errors[0].message, "8-bit"));
+        byte_above.p1.errors.errors[0].message, "8 بت"));
 
-    Pipeline byte_below = run(".بيانات\n.بايت -١٢٩");
+    Pipeline byte_below = run(".بيانات\n.عدد٨ -١٢٩");
     TEST_ASSERT_TRUE(error_has_any(&byte_below.p1.errors));
 
     Pipeline word_above = run(".بيانات\n.عدد١٦ ٦٥٥٣٦");
@@ -452,7 +494,7 @@ void test_p1_rejects_data_values_that_do_not_fit(void) {
 void test_p2_emits_data_boundary_values_without_truncation(void) {
     Pipeline pl = run(
         ".بيانات\n"
-        ".بايت -١٢٨، ٢٥٥\n"
+        ".عدد٨ -١٢٨، ٢٥٥\n"
         ".عدد١٦ -٣٢٧٦٨، ٦٥٥٣٥\n"
         ".عدد٣٢ -٢١٤٧٤٨٣٦٤٨، ٤٢٩٤٩٦٧٢٩٥\n");
     uint8_t expected[] = {
@@ -471,7 +513,7 @@ void test_p2_emits_data_boundary_values_without_truncation(void) {
 }
 
 void test_p2_mov_label_creates_abs64_relocation(void) {
-    Pipeline pl = run(".نص\nاحمل ر2، رسالة\n.بيانات\nرسالة: .سلسلة \"x\"");
+    Pipeline pl = run(".نص\nانقل سجل_البيانات، رسالة\n.بيانات\nرسالة: .سلسلة_منتهية_بصفر \"x\"");
     TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
     TEST_ASSERT_EQUAL_INT(10, (int)pl.p2.text_size);
     TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.relocations.count);
@@ -492,7 +534,7 @@ void test_p2_text_capacity_mismatch_is_hard_error(void) {
 
 void test_p2_data_capacity_mismatch_is_hard_error(void) {
     Pass2Result p2 = run_with_forced_capacities(
-        ".بيانات\n.بايت ١",
+        ".بيانات\n.عدد٨ ١",
         0,
         0);
     TEST_ASSERT_TRUE(error_has_any(&p2.errors));
@@ -531,6 +573,7 @@ int main(void) {
     RUN_TEST(test_p2_nop_bytes);
     RUN_TEST(test_p2_syscall_bytes);
     RUN_TEST(test_p2_mov_rax_42);
+    RUN_TEST(test_descriptive_register_names_encode_architectural_ids);
     RUN_TEST(test_p2_mov_rax_uint32_max_preserves_value);
     RUN_TEST(test_p2_xor_rax_rax);
     RUN_TEST(test_p2_push_pop_sequence);

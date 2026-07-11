@@ -24,7 +24,7 @@ static SourceBuffer make_source(const char *source) {
     return (SourceBuffer){
         .data = (const uint8_t *)source,
         .len  = strlen(source),
-        .name = "اختبار.مجمع",
+        .name = "اختبار.نظم",
     };
 }
 
@@ -82,14 +82,14 @@ static void assert_contains(const char *text, const char *needle) {
 }
 
 static void assert_arabic_context(const char *text) {
-    assert_contains(text, "خطأ في اختبار.مجمع");
+    assert_contains(text, "خطأ في اختبار.نظم");
     assert_contains(text, "السطر │");
     assert_contains(text, "هنا");
     assert_contains(text, "^");
 }
 
 void test_lexer_diagnostic_renders_arabic_source_context(void) {
-    LexResult lex = lex_source("احمل ر0، @\n");
+    LexResult lex = lex_source("انقل سجل_المركم، @\n");
     TEST_ASSERT_TRUE(error_has_any(&lex.errors));
 
     char *text = render_errors(&lex.errors);
@@ -99,13 +99,13 @@ void test_lexer_diagnostic_renders_arabic_source_context(void) {
 }
 
 void test_parser_diagnostic_renders_missing_comma_context(void) {
-    ParseResult parse = parse_source("احمل ر0 ر1\n");
+    ParseResult parse = parse_source("انقل سجل_المركم سجل_العداد\n");
     TEST_ASSERT_TRUE(error_has_any(&parse.errors));
 
     char *text = render_errors(&parse.errors);
     assert_arabic_context(text);
     assert_contains(text, "توقعت فاصلة عربية");
-    assert_contains(text, "احمل ر0 ر1");
+    assert_contains(text, "انقل سجل_المركم سجل_العداد");
 }
 
 void test_pass1_diagnostic_renders_duplicate_label_context(void) {

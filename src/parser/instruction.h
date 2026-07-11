@@ -10,12 +10,29 @@
 
 #define MAX_OPERANDS 3
 
+/* Parser-owned semantic identity for dot-prefixed source directives. */
+typedef enum {
+    DIRECTIVE_NONE = 0,
+    DIRECTIVE_TEXT,
+    DIRECTIVE_DATA,
+    DIRECTIVE_INT8,
+    DIRECTIVE_INT16,
+    DIRECTIVE_INT32,
+    DIRECTIVE_INT64,
+    DIRECTIVE_ZERO_SPACE,
+    DIRECTIVE_NUL_STRING,
+    DIRECTIVE_GLOBAL,
+    DIRECTIVE_LOCAL,
+    DIRECTIVE_INVALID,
+} DirectiveKind;
+
 typedef struct {
     OpcodeEnum  opcode;
     Operand     ops[MAX_OPERANDS];
     int         op_count;
     const char *label;       /* label defined on this line (arena-owned, or NULL) */
-    const char *directive;   /* directive name if opcode==OPCODE_INVALID (or NULL) */
+    const char *directive;   /* original directive spelling (arena-owned, or NULL) */
+    DirectiveKind directive_kind;
     int         line;
     int         col;
     int         end_col;

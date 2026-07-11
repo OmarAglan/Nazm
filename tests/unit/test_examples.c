@@ -83,19 +83,19 @@ static void assert_example_assembles(const char *path) {
 }
 
 void test_example_hello_assembles(void) {
-    assert_example_assembles("examples/مرحبا.مجمع");
+    assert_example_assembles("examples/مرحبا.نظم");
 }
 
 void test_example_exit_assembles(void) {
-    assert_example_assembles("examples/خروج.مجمع");
+    assert_example_assembles("examples/خروج.نظم");
 }
 
 void test_example_loop_assembles(void) {
-    assert_example_assembles("examples/حلقة.مجمع");
+    assert_example_assembles("examples/حلقة.نظم");
 }
 
 void test_example_data_assembles(void) {
-    assert_example_assembles("examples/بيانات.مجمع");
+    assert_example_assembles("examples/بيانات.نظم");
 }
 
 int main(void) {

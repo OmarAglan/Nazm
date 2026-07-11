@@ -103,10 +103,14 @@ static bool existing_wide_paths_match(const wchar_t *left,
 
 static wchar_t *normalized_wide_path(const wchar_t *path) {
     DWORD length = GetFullPathNameW(path, 0, NULL, NULL);
-    if (length == 0
-        || (size_t)length > SIZE_MAX / sizeof(wchar_t)) {
+    if (length == 0) {
         return NULL;
     }
+#if SIZE_MAX == UINT32_MAX
+    if ((size_t)length > SIZE_MAX / sizeof(wchar_t)) {
+        return NULL;
+    }
+#endif
 
     wchar_t *full = malloc((size_t)length * sizeof(*full));
     if (full == NULL) {

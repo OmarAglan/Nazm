@@ -7,7 +7,7 @@
 **Files:**
 - Lowercase C source and header names matching the owning module (`pass1.c`, `lexer.h`).
 - `test_<module>.c` for current unit test files.
-- `*.مجمع` for Arabic assembly source files in examples.
+- `*.نظم` for Arabic assembly source files in examples.
 
 **Functions:**
 - `snake_case` for all C functions

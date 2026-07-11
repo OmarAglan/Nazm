@@ -118,7 +118,7 @@ bool listing_write_stream(FILE *stream,
     }
 
     if (fprintf(stream,
-                "; قائمة نَظْم\n"
+                "; كشف تجميع نَظْم\n"
                 "; المصدر: %s\n"
                 "; السطر  القسم  الإزاحة            البايتات"
                 "                                         المصدر\n",

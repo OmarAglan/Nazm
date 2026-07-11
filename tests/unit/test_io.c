@@ -76,14 +76,14 @@ void test_windows_path_identity_is_case_insensitive(void) {
 
 void test_windows_wide_argv_converts_to_utf8(void) {
     wchar_t program[] = L"نظم.exe";
-    wchar_t source[] = L"أمثلة\\مرحبا.مجمع";
+    wchar_t source[] = L"أمثلة\\مرحبا.نظم";
     wchar_t *wide_argv[] = { program, source };
 
     char **argv = io_utf8_argv_from_wide(2, wide_argv);
 
     TEST_ASSERT_NOT_NULL(argv);
     TEST_ASSERT_EQUAL_STRING("نظم.exe", argv[0]);
-    TEST_ASSERT_EQUAL_STRING("أمثلة\\مرحبا.مجمع", argv[1]);
+    TEST_ASSERT_EQUAL_STRING("أمثلة\\مرحبا.نظم", argv[1]);
     TEST_ASSERT_NULL(argv[2]);
     io_free_utf8_argv(argv, 2);
 }

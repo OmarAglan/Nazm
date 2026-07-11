@@ -127,7 +127,7 @@ void error_print_all_to(const ErrorList *list, FILE *stream) {
     }
 
     if (list->fatal) {
-        fprintf(stream, "خطأ: تجاوز الحد الأقصى للأخطاء (%d)، توقف المُجمِّع.\n",
+        fprintf(stream, "خطأ: تجاوز الحد الأقصى للأخطاء (%d)، توقف المجمع.\n",
                 NAZM_MAX_ERRORS);
     }
 }

@@ -1,6 +1,6 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-06-28
+**Analysis Date:** 2026-07-10
 
 ## Test Framework
 
@@ -86,15 +86,16 @@ source span of pass-two branch diagnostics.
 Pass tests also pin data-directive semantics: directives must appear in
 `.بيانات`, operand kinds must match, 8/16/32-bit signed/unsigned boundaries are
 accepted, adjacent overflow values are rejected, and unknown directives do not
-silently disappear. A label attached to `.مساحة 0` remains defined at the
+silently disappear. A label attached to `.مساحة_صفرية 0` remains defined at the
 current `.data` offset even though the directive emits no bytes.
 
 ## Unicode Contract Tests
 
 `test_unicode.c` rejects non-shortest UTF-8, surrogate encodings, values above
 U+10FFFF, truncation, and invalid continuation bytes. `test_keywords.c` pins
-canonical diacritics and the absence of normalization/unvowelled aliases.
-`test_lexer.c` verifies malformed UTF-8 diagnostics and preserves canonically
+every canonical 0.4 mnemonic, unvowelled spelling, and diagnostic-only mapping
+for removed 0.3 names. `test_lexer.c` pins all 16 descriptive register names,
+rejects numeric/old aliases, verifies malformed UTF-8 diagnostics, and preserves canonically
 equivalent but byte-distinct label spellings as separate identifiers. The
 language contract is documented in `Docs/UNICODE.md`.
 
@@ -123,18 +124,28 @@ more correct merely because it is shorter.
 
 ## Example Pipeline Tests
 
-`tests/unit/test_examples.c` assembles every good source file in `examples/*.مجمع` through the library pipeline and writes object bytes in memory for both ELF64 and COFF. This catches broken checked-in examples without needing to execute the `nazm` subprocess.
+`tests/unit/test_examples.c` assembles the four canonical, Arabic-named examples
+through the library pipeline and writes object bytes in memory for both ELF64
+and COFF. `tests/integration/examples_acceptance.cmake` then discovers every
+shipped `examples/*.نظم` file and assembles it to both formats, using `nazm` for
+إلف64 and `نظم` for كوف. The public example set uses descriptive Arabic
+filenames only; intentional failures remain isolated under `examples/diagnostics/`.
+
+`tests/unit/test_passes.c` additionally parses and encodes every descriptive
+register name, checking exact REX/ModRM bytes so the Arabic RCX/RDX/RBX mapping
+cannot drift independently of the encoder enum.
 
 Intentional-error examples remain under `examples/diagnostics/` and are not treated as successful assembly fixtures.
 
 ## CLI Acceptance Test
 
-`tests/integration/cli_acceptance.cmake` launches the built `nazm` executable
-rather than calling library functions. It checks `--help`, the version and
-compile target reported by `--version`, exit code `2` for invalid arguments,
+`tests/integration/cli_acceptance.cmake` launches both built command names,
+`نظم` and `nazm`, rather than calling library functions. It checks `--مساعدة`,
+the Arabic and exact build targets reported by `--إصدار`, exit code `2` for invalid arguments,
 exit code `1` for invalid source, and successful ELF64 and COFF assembly. The
 successful source and both output files use Arabic path components. The test
-inspects the ELF magic and AMD64 COFF machine bytes, checks listing bytes, and
+inspects the ELF magic and AMD64 COFF machine bytes, checks كشف التجميع bytes,
+verifies format-aware `.o`/`.obj` defaults, rejects `.مجمع` input, and
 rejects equivalent source/output path spellings, so a zero exit code without
 the expected artifacts is not accepted. `test_io.c` separately covers existing
 file identity and normalized aliases for paths that have not been written yet.
@@ -149,11 +160,17 @@ Run it alone with:
 ctest --test-dir build --output-on-failure -R integration_cli
 ```
 
+Run the all-examples subprocess test alone with:
+
+```bash
+ctest --test-dir build --output-on-failure -R integration_examples
+```
+
 ## Linux CI Acceptance
 
 `.github/workflows/ci.yml` runs the Release build, complete CTest set, and
-`build.sh test` on `ubuntu-latest`. It then assembles `examples/خروج.مجمع`
-through Arabic object/listing paths, checks a known instruction byte sequence,
+`build.sh test` on `ubuntu-latest`. It then assembles `examples/خروج.نظم`
+through Arabic object/كشف paths, checks a known instruction byte sequence,
 links the ELF64 object with GNU `ld -e البداية`, executes it under a five-second
 timeout, and inspects it with `readelf`.
 

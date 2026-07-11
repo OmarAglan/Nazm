@@ -161,7 +161,7 @@ void test_elf_text_ret(void) {
 }
 
 void test_elf_text_syscall(void) {
-    OutputResult r = assemble_elf("نداء_نظام");
+    OutputResult r = assemble_elf("ناد_النظام");
     size_t off, sz;
     get_text_section(&r, &off, &sz);
     TEST_ASSERT_EQUAL_INT(2, (int)sz);
@@ -172,9 +172,9 @@ void test_elf_text_syscall(void) {
 void test_elf_text_exit_program(void) {
     /* mov rax,60 ; xor rdi,rdi ; syscall */
     OutputResult r = assemble_elf(
-        "احمل ر0، ٦٠\n"
-        "خالف ر7، ر7\n"
-        "نداء_نظام\n"
+        "انقل سجل_المركم، ٦٠\n"
+        "خالف_بتيا فهرس_الوجهة، فهرس_الوجهة\n"
+        "ناد_النظام\n"
     );
     size_t off, sz;
     get_text_section(&r, &off, &sz);
@@ -191,8 +191,8 @@ void test_elf_text_loop(void) {
     /* Counter loop: dec rcx; jnz back; ret  */
     OutputResult r = assemble_elf(
         "الحلقة:\n"
-        "انقص ر2\n"          /* 3 bytes */
-        "اقفز_لاصفر الحلقة\n" /* 6 bytes: 0F 85 F7 FF FF FF */
+        "انقص سجل_البيانات\n"          /* 3 bytes */
+        "اقفز_غير_صفر الحلقة\n" /* 6 bytes: 0F 85 F7 FF FF FF */
         "ارجع\n"              /* 1 byte  */
     );
     TEST_ASSERT_TRUE(r.ok);
@@ -270,7 +270,7 @@ void test_elf_minimum_size(void) {
 
 
 void test_elf_data_section_exists_when_data_emitted(void) {
-    OutputResult r = assemble_elf(".نص\nارجع\n.بيانات\nرسالة: .سلسلة \"x\"");
+    OutputResult r = assemble_elf(".نص\nارجع\n.بيانات\nرسالة: .سلسلة_منتهية_بصفر \"x\"");
     TEST_ASSERT_TRUE(r.ok);
     TEST_ASSERT_EQUAL_INT(6, (int)rd16(r.data + 60));
     uint64_t shoff = rd64(r.data + 40);
@@ -280,7 +280,7 @@ void test_elf_data_section_exists_when_data_emitted(void) {
 }
 
 void test_elf_data_symbol_uses_data_section_index(void) {
-    OutputResult r = assemble_elf(".نص\nارجع\n.بيانات\nرسالة: .سلسلة \"x\"");
+    OutputResult r = assemble_elf(".نص\nارجع\n.بيانات\nرسالة: .سلسلة_منتهية_بصفر \"x\"");
     uint64_t shoff = rd64(r.data + 40);
     const uint8_t *symtab_sh = r.data + shoff + 3 * 64;
     uint64_t sym_off = rd64(symtab_sh + 24);
@@ -289,7 +289,7 @@ void test_elf_data_symbol_uses_data_section_index(void) {
 }
 
 void test_elf_rela_text_for_mov_label(void) {
-    OutputResult r = assemble_elf(".نص\nاحمل ر2، رسالة\n.بيانات\nرسالة: .سلسلة \"x\"");
+    OutputResult r = assemble_elf(".نص\nانقل سجل_البيانات، رسالة\n.بيانات\nرسالة: .سلسلة_منتهية_بصفر \"x\"");
     TEST_ASSERT_TRUE(r.ok);
     TEST_ASSERT_EQUAL_INT(7, (int)rd16(r.data + 60));
     uint64_t shoff = rd64(r.data + 40);
@@ -328,7 +328,7 @@ void test_elf_preserves_symbols_and_relocation_beyond_old_limit(void) {
         .text_size = sizeof(text),
         .symtable = &symtable,
         .relocations = &relocations,
-        .source_name = "many-symbols.مجمع",
+        .source_name = "many-symbols.نظم",
     };
 
     OutputResult result = output_write_elf64(&input, &g_arena);
@@ -366,7 +366,7 @@ void test_elf_rejects_relocation_to_missing_symbol(void) {
         .text_size = sizeof(text),
         .symtable = &symtable,
         .relocations = &relocations,
-        .source_name = "missing.مجمع",
+        .source_name = "missing.نظم",
     };
 
     OutputResult result = output_write_elf64(&input, &g_arena);

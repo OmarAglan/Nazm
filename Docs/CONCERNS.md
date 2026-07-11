@@ -1,6 +1,6 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-06-28
+**Analysis Date:** 2026-07-10
 
 ## Tech Debt
 
@@ -31,7 +31,7 @@
 - Fix approach: Add a Windows CI job that assembles a small example, links it, and verifies the process exits correctly.
 
 **Relocation support is intentionally narrow:**
-- Symptoms: `احمل رX، وسم` emits an absolute-address relocation for local labels. External symbols and call/jump relocations are not implemented yet.
+- Symptoms: `انقل سجل_البيانات، وسم` emits an absolute-address relocation for local labels. External symbols and call/jump relocations are not implemented yet.
 - Files: `src/passes/pass2.c`, `src/output/elf64.c`, `src/output/coff.c`.
 - Current mitigation: Unsupported unresolved symbols still produce Arabic diagnostics instead of guessed bytes.
 - Fix approach: Add explicit external-symbol directives, define relocation kinds per instruction form, then add linker-level integration tests.
@@ -53,7 +53,7 @@
   assembler.
 - Fix approach: Follow `Docs/BAA_INTEGRATION.md`: generate a corpus-derived
   coverage matrix, implement and verify each required form, then run a
-  dual-assembler parity gate.
+  shadow-comparison parity gate followed by the Nazm-only cutover.
 
 **Subprocess acceptance does not link or run objects yet:**
 - Current coverage: `tests/integration/cli_acceptance.cmake` executes `nazm`,
@@ -66,9 +66,9 @@
 
 ## Recently Resolved From Earlier Audits
 
-- `Docs/UNICODE.md` now freezes the 0.3 source contract: exact canonical
-  mnemonic bytes, required listed diacritics, no normalization or implicit
-  aliases, and byte-exact label identity. Tests pin precomposed/decomposed
+- `Docs/UNICODE.md` now freezes the 0.4 source contract: exact canonical
+  unvowelled bytes, no normalization or implicit aliases, and byte-exact label
+  identity. Tests pin precomposed/decomposed
   distinctions, while the decoder rejects malformed and non-scalar UTF-8.
 - Memory displacements and relative control-flow targets no longer narrow to
   `int32_t` silently. Parser memory operands and encoder/pass-two `rel32`
@@ -110,15 +110,15 @@
   rather than narrowing them silently.
 - Encoder and full pass tests cover immediate boundaries through `INT64_MIN`
   and `INT64_MAX`, including the former wrong-value case
-  `احمل ر0، 4294967295`.
+  `انقل سجل_المركم، 4294967295`.
 - COFF output is no longer a stub; it has field-level tests for headers, sections, symbols, data, and relocations.
 - `.بيانات` now emits real `.data` bytes in pass 2 and in both ELF64 and COFF writers.
-- `.سلسلة "..."` is tokenized, parsed, sized, and emitted as UTF-8 plus a trailing null byte.
+- `.سلسلة_منتهية_بصفر "..."` is tokenized, parsed, sized, and emitted as UTF-8 plus a trailing null byte.
 - Symbols now carry section information so `.data` labels are not accidentally emitted as `.text` symbols.
-- Basic label-address relocations are emitted for `احمل رX، وسم` in ELF64 `.rela.text` and COFF `.text` relocation tables.
+- Basic label-address relocations are emitted for `انقل سجل_البيانات، وسم` in ELF64 `.rela.text` and COFF `.text` relocation tables.
 - Checked-in good examples are assembled by `tests/unit/test_examples.c` to both object formats.
 - Duplicate labels fail through `symtable_insert_section()` and pass 1 reports an Arabic diagnostic.
-- Arabic-Indic immediates inside memory displacements, including negative displacements such as `[ر5-١٦]`, are covered by parser tests.
+- Arabic-Indic immediates inside memory displacements, including negative displacements such as `[مؤشر_القاعدة-١٦]`, are covered by parser tests.
 - Conditional jumps use near `rel32` sizing in pass 1 and encoder output, avoiding short-jump size mismatch.
 - `libnazm` no longer compiles `src/main.c`; the executable owns `main.c`, while library and tests share `NAZM_LIBRARY_SOURCES`.
 - CLI source reads reject files larger than 100 MiB with a specific Arabic diagnostic before allocating the whole file.
@@ -160,19 +160,20 @@
 **String literal escape handling:**
 - File: `src/lexer/lexer.c`.
 - Why fragile: Escaped bytes are decoded before data emission, so lexer semantics directly affect object bytes.
-- Safe modification: Extend escapes only with lexer tests, parser tests, and `.سلسلة` pass2 byte tests.
+- Safe modification: Extend escapes only with lexer tests, parser tests, and `.سلسلة_منتهية_بصفر` pass2 byte tests.
 
 ## Missing Critical Features
 
 **`%تضمين` or equivalent include directive:**
 - Problem: No way to split Arabic assembly across multiple source files.
-- Current workaround: Assemble one `.مجمع` file per invocation and link multiple objects externally.
+- Current workaround: Assemble one `.نظم` file per invocation and link multiple objects externally.
 - Implementation complexity: Medium; include handling needs path ownership, diagnostics, and cycle prevention.
 
-**Listing file output:**
-- Problem: No way to see which bytes correspond to which Arabic source line.
-- Current workaround: Inspect object bytes or use `objdump` after output generation.
-- Implementation complexity: Medium; track source line information through pass 2 and emit a sidecar `.lst` file.
+**Assembly listing output:**
+- Current behavior: `--كشف` writes an optional UTF-8 كشف التجميع from exact
+  pass-two emission spans; `.كشف` is the canonical suffix.
+- Remaining gap: No debug-information format yet connects those source spans
+  to an external debugger.
 
 **External symbol model:**
 - Problem: There is no directive equivalent to declaring a symbol external/global enough for linker-level references beyond local labels.
@@ -194,7 +195,7 @@
 - Priority: High for the next backend-focused milestone.
 
 **External and PC-relative relocations:**
-- What's covered: Absolute local label-address relocation for `احمل رX، وسم`.
+- What's covered: Absolute local label-address relocation for `انقل سجل_البيانات، وسم`.
 - What's not covered: External symbols, `call`, `jmp`, and conditional branch relocations.
 - Priority: High before claiming broader object-file compatibility.
 

@@ -86,6 +86,76 @@ static void parse_error(Parser *p, const char *msg) {
     token_error(p, cur(p), msg);
 }
 
+static void replacement_error(Parser *p,
+                              const Token *token,
+                              const char *category,
+                              const char *replacement) {
+    char msg[256];
+    snprintf(msg,
+             sizeof(msg),
+             "%s '%.*s' أزيل في نَظْم 0.4؛ استخدم '%s'",
+             category,
+             (int)token->len,
+             token->value,
+             replacement);
+    token_error(p, token, msg);
+}
+
+typedef struct {
+    const char   *spelling;
+    DirectiveKind kind;
+} DirectiveEntry;
+
+static const DirectiveEntry DIRECTIVE_TABLE[] = {
+    { ".نص", DIRECTIVE_TEXT },
+    { ".بيانات", DIRECTIVE_DATA },
+    { ".عدد٨", DIRECTIVE_INT8 },
+    { ".عدد١٦", DIRECTIVE_INT16 },
+    { ".عدد٣٢", DIRECTIVE_INT32 },
+    { ".عدد٦٤", DIRECTIVE_INT64 },
+    { ".مساحة_صفرية", DIRECTIVE_ZERO_SPACE },
+    { ".سلسلة_منتهية_بصفر", DIRECTIVE_NUL_STRING },
+    { ".عام", DIRECTIVE_GLOBAL },
+    { ".محلي", DIRECTIVE_LOCAL },
+    { NULL, DIRECTIVE_INVALID },
+};
+
+typedef struct {
+    const char *legacy;
+    const char *replacement;
+} LegacyDirective;
+
+static const LegacyDirective LEGACY_DIRECTIVES[] = {
+    { ".بايت", ".عدد٨" },
+    { ".مساحة", ".مساحة_صفرية" },
+    { ".سلسلة", ".سلسلة_منتهية_بصفر" },
+    { NULL, NULL },
+};
+
+static DirectiveKind directive_lookup(const char *text) {
+    for (const DirectiveEntry *entry = DIRECTIVE_TABLE;
+         entry->spelling != NULL;
+         entry++) {
+        if (strcmp(entry->spelling, text) == 0) {
+            return entry->kind;
+        }
+    }
+
+    return DIRECTIVE_INVALID;
+}
+
+static const char *directive_legacy_replacement(const char *text) {
+    for (const LegacyDirective *entry = LEGACY_DIRECTIVES;
+         entry->legacy != NULL;
+         entry++) {
+        if (strcmp(entry->legacy, text) == 0) {
+            return entry->replacement;
+        }
+    }
+
+    return NULL;
+}
+
 /* Consume a COMMA or report error */
 static bool expect_comma(Parser *p) {
     if (cur_type(p) == TOKEN_COMMA) {
@@ -116,7 +186,7 @@ static bool set_memory_displacement(Parser *p,
                                     const Token *token) {
     if (displacement < INT32_MIN || displacement > INT32_MAX) {
         token_error(
-            p, token, "إزاحة الذاكرة خارج مجال 32-bit الموقّع");
+            p, token, "إزاحة الذاكرة خارج مجال 32 بت الموقع");
         sync_to_newline(p);
         return false;
     }
@@ -139,6 +209,16 @@ static bool parse_mem_operand(Parser *p, const Token *open_tok, Operand *out) {
     out->end_col = open_tok->end_col;
 
     if (cur_type(p) != TOKEN_REGISTER) {
+        const Token *token = cur(p);
+        const char *replacement = token->type == TOKEN_LABEL_REF
+            ? lexer_register_legacy_replacement(token->value, token->len)
+            : NULL;
+        if (replacement != NULL) {
+            replacement_error(p, token, "اسم السجل", replacement);
+            sync_to_newline(p);
+            return false;
+        }
+
         parse_error(p, "توقعت اسم سجل داخل عنوان الذاكرة '[...]'");
         sync_to_newline(p);
         return false;
@@ -230,10 +310,20 @@ static bool parse_operand(Parser *p, Operand *out) {
         return parse_mem_operand(p, t, out);
 
     case TOKEN_LABEL_REF:
+        {
+        const char *replacement = lexer_register_legacy_replacement(
+            t->value, t->len);
+        if (replacement != NULL) {
+            replacement_error(p, t, "اسم السجل", replacement);
+            advance(p);
+            return false;
+        }
+
         advance(p);
         out->kind  = OP_LABEL;
         out->label = arena_strndup(p->arena, t->value, t->len);
         return true;
+        }
 
     case TOKEN_STRING:
         advance(p);
@@ -375,6 +465,7 @@ static void parse_line(Parser *p) {
     Instruction instr;
     memset(&instr, 0, sizeof(instr));
     instr.opcode = OPCODE_INVALID;
+    instr.directive_kind = DIRECTIVE_NONE;
     set_instruction_span(&instr, t);
 
     if (t->type == TOKEN_LABEL_DEF) {
@@ -398,6 +489,19 @@ static void parse_line(Parser *p) {
 
     if (t->type == TOKEN_DIRECTIVE) {
         instr.directive = arena_strndup(p->arena, t->value, t->len);
+        instr.directive_kind = directive_lookup(instr.directive);
+
+        const char *replacement = directive_legacy_replacement(
+            instr.directive);
+        if (replacement != NULL) {
+            replacement_error(p, t, "التوجيه", replacement);
+            sync_to_newline(p);
+            if (cur_type(p) == TOKEN_NEWLINE) {
+                advance(p);
+            }
+            return;
+        }
+
         advance(p);
 
         while (cur_type(p) != TOKEN_NEWLINE && cur_type(p) != TOKEN_EOF) {
@@ -428,6 +532,17 @@ static void parse_line(Parser *p) {
     }
 
     if (t->type != TOKEN_MNEMONIC) {
+        const char *replacement = keywords_legacy_replacement(
+            t->value, t->len);
+        if (replacement != NULL) {
+            replacement_error(p, t, "اسم التعليمة", replacement);
+            sync_to_newline(p);
+            if (cur_type(p) == TOKEN_NEWLINE) {
+                advance(p);
+            }
+            return;
+        }
+
         char msg[180];
         snprintf(msg,
                  sizeof(msg),

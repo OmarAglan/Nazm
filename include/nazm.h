@@ -6,7 +6,7 @@
  *
  * For standalone CLI use, see src/main.c.
  *
- * API STATUS (0.3.0): preview declarations only. The functions below are not
+ * API STATUS (0.4.0): preview declarations only. The functions below are not
  * implemented by libnazm yet and must not be advertised as a linkable
  * embedding interface. See ROADMAP.md and Docs/BAA_INTEGRATION.md.
  */
@@ -21,9 +21,9 @@ extern "C" {
 
 /* ── Version ─────────────────────────────────────────────────────────────── */
 #define NAZM_VERSION_MAJOR 0
-#define NAZM_VERSION_MINOR 3
+#define NAZM_VERSION_MINOR 4
 #define NAZM_VERSION_PATCH 0
-#define NAZM_VERSION_STRING "0.3.0"
+#define NAZM_VERSION_STRING "0.4.0"
 
 /* ── Output format ───────────────────────────────────────────────────────── */
 typedef enum {

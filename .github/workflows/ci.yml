@@ -33,11 +33,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./build/nazm examples/خروج.مجمع \
-            -o build/خروج.o \
-            --listing build/خروج.lst \
-            -f elf64
-          grep -F "48 C7 C0 3C 00 00 00" build/خروج.lst
+          ./build/نظم examples/خروج.نظم \
+            --خرج build/خروج.o \
+            --كشف build/خروج.كشف \
+            --صيغة إلف64
+          grep -F "48 C7 C0 3C 00 00 00" build/خروج.كشف
           ld -o build/خروج -e البداية build/خروج.o
           timeout 5s ./build/خروج
           readelf -h -S -s build/خروج.o

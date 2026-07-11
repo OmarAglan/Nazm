@@ -29,7 +29,7 @@ void test_arena_alloc_array(void) {
 
 void test_arena_strdup(void) {
     Arena a = arena_create(1024);
-    const char *src  = "احمل";
+    const char *src  = "انقل";
     char       *copy = arena_strdup(&a, src);
     TEST_ASSERT_NOT_NULL(copy);
     TEST_ASSERT_EQUAL_STRING(src, copy);

@@ -15,7 +15,7 @@
 **Decision Style:** Prefer outcome-first execution. Use the workflow below as the default operating model, scaling depth to the risk of the task. Keep strict rules for byte correctness, memory ownership, Arabic diagnostics, C11 portability, and destructive operations.
 
 **Project Facts:**
-- Current version is `0.3.0` in `CMakeLists.txt`, `include/nazm.h`, and `nazm --version`.
+- Current version is `0.4.0` in `CMakeLists.txt`, `include/nazm.h`, and `نظم --إصدار`.
 - Nazm is an Arabic-first assembler for x86-64.
 - Primary implementation language is C11, with no runtime external dependencies.
 - Current build system is CMake 3.20+, with `build.sh` as a direct build/test path.
@@ -25,15 +25,15 @@
 - Strategic integration target: Nazm will replace Baa's AT&T/GAS assembly
   boundary after Baa instruction selection and register allocation; see
   `Docs/BAA_INTEGRATION.md`.
-- Current roadmap priority is the encoding/object correctness gate. Do not
-  expand instruction breadth while a supported form can emit wrong or
-  truncated bytes silently.
+- The encoding/object correctness gate is closed. Current roadmap priority is
+  the remaining CLI/Linux acceptance work in 7.2; do not regress byte safety.
 - Output formats are intended to be ELF64 and PE/COFF.
 - Tests use vendored Unity plus CTest.
 - User-facing diagnostics should be Arabic-first and UTF-8.
-- Nazm 0.3 compares mnemonic and label UTF-8 bytes exactly; do not add
-  normalization or unvowelled aliases without an explicit language-contract
-  change. See `Docs/UNICODE.md`.
+- Nazm 0.4 compares mnemonic, register, directive, and label UTF-8 bytes
+  exactly. Canonical source words contain no vowel marks; do not add
+  normalization or aliases without an explicit language-contract change. See
+  `Docs/UNICODE.md` and `Docs/TERMINOLOGY.md`.
 - Arena allocation is central to pipeline data ownership; do not free arena-owned objects individually.
 - Documentation under `Docs/` contains both current facts and planned architecture; verify against source before claiming behavior.
 
@@ -169,7 +169,7 @@ Do not paste large code blocks unless requested. Reference files and behavior.
 ### 2.1 Pipeline
 
 ```text
-source bytes (.مجمع)
+source bytes (.نظم)
   -> lexer: UTF-8 Arabic text to TokenArray
   -> parser: TokenArray to InstructionList
   -> pass1: instruction/data sizes and section-aware SymbolTable
@@ -246,13 +246,13 @@ Known Arabic mnemonics currently include:
 
 | Category | Mnemonics |
 |----------|-----------|
-| Data movement | `احمل`, `ادفع`, `اسحب`, `عنون` |
-| Arithmetic | `أضف`, `اطرح`, `اضرب`, `اقسم`, `زد`, `انقص`, `اسلب` |
-| Logic | `و`, `أو`, `خالف`, `انفِ`, `ازحل`, `ازحي`, `ازحر` |
-| Comparison | `قارن`, `اختبر` |
-| Control flow | `اقفز`, `نادِ`, `ارجع` |
-| Conditional jumps | `اقفز_مساوٍ`, `اقفز_مختلف`, `اقفز_أكبر`, `اقفز_أكبر_أو`, `اقفز_أصغر`, `اقفز_أصغر_أو`, `اقفز_صفر`, `اقفز_لاصفر`, `اقفز_سالب`, `اقفز_موجب` |
-| System | `نداء_نظام`, `لاشيء`, `أوقف`, `قاطع` |
+| Data movement | `انقل`, `ادفع`, `اسحب`, `احسب_عنوان` |
+| Arithmetic | `أضف`, `اطرح`, `اضرب_موقع`, `اقسم_موقع`, `زد`, `انقص`, `اعكس_الإشارة` |
+| Logic | `و_بتيا`, `أو_بتيا`, `خالف_بتيا`, `اعكس_البتات`, `ازح_يسارا`, `ازح_منطقيا_يمينا`, `ازح_حسابيا_يمينا` |
+| Comparison | `قارن`, `اختبر_البتات` |
+| Control flow | `اقفز`, `ناد`, `ارجع` |
+| Conditional jumps | `اقفز_مساو`, `اقفز_غير_مساو`, `اقفز_أكبر`, `اقفز_أكبر_أو_مساو`, `اقفز_أصغر`, `اقفز_أصغر_أو_مساو`, `اقفز_صفر`, `اقفز_غير_صفر`, `اقفز_سالب`, `اقفز_غير_سالب` |
+| System | `ناد_النظام`, `لا_تفعل`, `أوقف`, `اطلب_مقاطعة` |
 
 When adding or changing a mnemonic:
 1. Update `src/lexer/keywords.c`.

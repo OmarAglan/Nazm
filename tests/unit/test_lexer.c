@@ -49,11 +49,11 @@ void tearDown(void) { arena_free(&g_arena); }
 /* ── Mnemonics ────────────────────────────────────────────────────────────── */
 
 void test_lex_single_mnemonic_mov(void) {
-    LexResult r = lex("احمل");
+    LexResult r = lex("انقل");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Token t = tok(&r, 0);
     TEST_ASSERT_EQUAL_INT(TOKEN_MNEMONIC, t.type);
-    TEST_ASSERT_EQUAL_STRING("احمل", t.value);
+    TEST_ASSERT_EQUAL_STRING("انقل", t.value);
 }
 
 void test_lex_mnemonic_add(void) {
@@ -71,47 +71,96 @@ void test_lex_mnemonic_ret(void) {
 }
 
 void test_lex_mnemonic_syscall(void) {
-    LexResult r = lex("نداء_نظام");
+    LexResult r = lex("ناد_النظام");
     Token t = tok(&r, 0);
     TEST_ASSERT_EQUAL_INT(TOKEN_MNEMONIC, t.type);
-    TEST_ASSERT_EQUAL_STRING("نداء_نظام", t.value);
+    TEST_ASSERT_EQUAL_STRING("ناد_النظام", t.value);
 }
 
 void test_lex_mnemonic_conditional_jump(void) {
-    LexResult r = lex("اقفز_مساوٍ");
+    LexResult r = lex("اقفز_مساو");
     Token t = tok(&r, 0);
     TEST_ASSERT_EQUAL_INT(TOKEN_MNEMONIC, t.type);
-    TEST_ASSERT_EQUAL_STRING("اقفز_مساوٍ", t.value);
+    TEST_ASSERT_EQUAL_STRING("اقفز_مساو", t.value);
 }
 
 /* ── Registers ────────────────────────────────────────────────────────────── */
 
 void test_lex_register_r0(void) {
-    LexResult r = lex("ر0");
+    LexResult r = lex("سجل_المركم");
     Token t = tok(&r, 0);
     TEST_ASSERT_EQUAL_INT(TOKEN_REGISTER, t.type);
-    TEST_ASSERT_EQUAL_STRING("ر0", t.value);
+    TEST_ASSERT_EQUAL_STRING("سجل_المركم", t.value);
 }
 
 void test_lex_register_r15(void) {
-    LexResult r = lex("ر15");
+    LexResult r = lex("سجل_عام_15");
     Token t = tok(&r, 0);
     TEST_ASSERT_EQUAL_INT(TOKEN_REGISTER, t.type);
-    TEST_ASSERT_EQUAL_STRING("ر15", t.value);
+    TEST_ASSERT_EQUAL_STRING("سجل_عام_15", t.value);
 }
 
 void test_lex_register_named_stack(void) {
-    LexResult r = lex("مكدس");
+    LexResult r = lex("مؤشر_المكدس");
     Token t = tok(&r, 0);
     TEST_ASSERT_EQUAL_INT(TOKEN_REGISTER, t.type);
-    TEST_ASSERT_EQUAL_STRING("مكدس", t.value);
+    TEST_ASSERT_EQUAL_STRING("مؤشر_المكدس", t.value);
 }
 
 void test_lex_register_named_base(void) {
-    LexResult r = lex("قاعدة");
+    LexResult r = lex("مؤشر_القاعدة");
     Token t = tok(&r, 0);
     TEST_ASSERT_EQUAL_INT(TOKEN_REGISTER, t.type);
-    TEST_ASSERT_EQUAL_STRING("قاعدة", t.value);
+    TEST_ASSERT_EQUAL_STRING("مؤشر_القاعدة", t.value);
+}
+
+void test_lex_all_registers_map_to_architectural_ids(void) {
+    static const char *names[] = {
+        "سجل_المركم", "سجل_العداد", "سجل_البيانات", "سجل_القاعدة",
+        "مؤشر_المكدس", "مؤشر_القاعدة", "فهرس_المصدر", "فهرس_الوجهة",
+        "سجل_عام_8", "سجل_عام_9", "سجل_عام_10", "سجل_عام_11",
+        "سجل_عام_12", "سجل_عام_13", "سجل_عام_14", "سجل_عام_15",
+    };
+
+    for (int i = 0; i < 16; i++) {
+        LexResult result = lex(names[i]);
+        Token token = tok(&result, 0);
+        TEST_ASSERT_EQUAL_INT(TOKEN_REGISTER, token.type);
+        TEST_ASSERT_EQUAL_INT(
+            i, lexer_register_id(token.value, token.len));
+    }
+}
+
+void test_lex_removed_registers_are_diagnostic_only(void) {
+    static const struct {
+        const char *legacy;
+        const char *replacement;
+    } cases[] = {
+        { "مجمع", "سجل_المركم" }, { "عداد", "سجل_العداد" },
+        { "بيانات", "سجل_البيانات" }, { "قاعدة_ب", "سجل_القاعدة" },
+        { "مكدس", "مؤشر_المكدس" }, { "قاعدة", "مؤشر_القاعدة" },
+        { "مصدر", "فهرس_المصدر" }, { "وجهة", "فهرس_الوجهة" },
+        { "ر0", "سجل_المركم" }, { "ر1", "سجل_العداد" },
+        { "ر2", "سجل_البيانات" }, { "ر3", "سجل_القاعدة" },
+        { "ر4", "مؤشر_المكدس" }, { "ر5", "مؤشر_القاعدة" },
+        { "ر6", "فهرس_المصدر" }, { "ر7", "فهرس_الوجهة" },
+        { "ر8", "سجل_عام_8" }, { "ر9", "سجل_عام_9" },
+        { "ر10", "سجل_عام_10" }, { "ر11", "سجل_عام_11" },
+        { "ر12", "سجل_عام_12" }, { "ر13", "سجل_عام_13" },
+        { "ر14", "سجل_عام_14" }, { "ر15", "سجل_عام_15" },
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        LexResult result = lex(cases[i].legacy);
+        TEST_ASSERT_EQUAL_INT(TOKEN_LABEL_REF, tok(&result, 0).type);
+        TEST_ASSERT_EQUAL_INT(
+            -1,
+            lexer_register_id(cases[i].legacy, strlen(cases[i].legacy)));
+        TEST_ASSERT_EQUAL_STRING(
+            cases[i].replacement,
+            lexer_register_legacy_replacement(
+                cases[i].legacy, strlen(cases[i].legacy)));
+    }
 }
 
 /* ── Immediates ───────────────────────────────────────────────────────────── */
@@ -235,25 +284,25 @@ void test_lex_directive_global(void) {
 /* ── Punctuation ──────────────────────────────────────────────────────────── */
 
 void test_lex_ascii_comma(void) {
-    LexResult r = lex("احمل ر0, ٤٢");
+    LexResult r = lex("انقل سجل_المركم, ٤٢");
     TEST_ASSERT_EQUAL_INT(TOKEN_COMMA, tok(&r, 2).type);
 }
 
 void test_lex_arabic_comma(void) {
     /* Arabic comma U+060C between operands */
-    LexResult r = lex("احمل ر0، ٤٢");
+    LexResult r = lex("انقل سجل_المركم، ٤٢");
     TEST_ASSERT_EQUAL_INT(TOKEN_COMMA, tok(&r, 2).type);
 }
 
 void test_lex_brackets(void) {
-    LexResult r = lex("[ر0]");
+    LexResult r = lex("[سجل_المركم]");
     TEST_ASSERT_EQUAL_INT(TOKEN_LBRACKET, tok(&r, 0).type);
     TEST_ASSERT_EQUAL_INT(TOKEN_REGISTER,  tok(&r, 1).type);
     TEST_ASSERT_EQUAL_INT(TOKEN_RBRACKET,  tok(&r, 2).type);
 }
 
 void test_lex_memory_with_displacement(void) {
-    LexResult r = lex("[ر0+8]");
+    LexResult r = lex("[سجل_المركم+8]");
     TEST_ASSERT_EQUAL_INT(TOKEN_LBRACKET,  tok(&r, 0).type);
     TEST_ASSERT_EQUAL_INT(TOKEN_REGISTER,   tok(&r, 1).type);
     TEST_ASSERT_EQUAL_INT(TOKEN_PLUS,       tok(&r, 2).type);
@@ -305,20 +354,20 @@ void test_lex_inline_comment(void) {
 /* ── Full instruction lines ───────────────────────────────────────────────── */
 
 void test_lex_mov_reg_imm(void) {
-    /* احمل ر0، ٤٢  */
-    LexResult r = lex("احمل ر0، ٤٢");
+    /* انقل سجل_المركم، ٤٢  */
+    LexResult r = lex("انقل سجل_المركم، ٤٢");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(TOKEN_MNEMONIC,  tok(&r, 0).type);
     TEST_ASSERT_EQUAL_INT(TOKEN_REGISTER,   tok(&r, 1).type);
     TEST_ASSERT_EQUAL_INT(TOKEN_COMMA,      tok(&r, 2).type);
     TEST_ASSERT_EQUAL_INT(TOKEN_IMMEDIATE,  tok(&r, 3).type);
-    TEST_ASSERT_EQUAL_STRING("احمل", tok(&r, 0).value);
-    TEST_ASSERT_EQUAL_STRING("ر0",   tok(&r, 1).value);
+    TEST_ASSERT_EQUAL_STRING("انقل", tok(&r, 0).value);
+    TEST_ASSERT_EQUAL_STRING("سجل_المركم",   tok(&r, 1).value);
     TEST_ASSERT_EQUAL_STRING("42",   tok(&r, 3).value);
 }
 
 void test_lex_mov_reg_reg(void) {
-    LexResult r = lex("احمل ر0، ر1");
+    LexResult r = lex("انقل سجل_المركم، سجل_العداد");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(TOKEN_MNEMONIC,  tok(&r, 0).type);
     TEST_ASSERT_EQUAL_INT(TOKEN_REGISTER,   tok(&r, 1).type);
@@ -327,13 +376,13 @@ void test_lex_mov_reg_reg(void) {
 }
 
 void test_lex_push(void) {
-    LexResult r = lex("ادفع ر0");
+    LexResult r = lex("ادفع سجل_المركم");
     TEST_ASSERT_EQUAL_INT(TOKEN_MNEMONIC, tok(&r, 0).type);
     TEST_ASSERT_EQUAL_INT(TOKEN_REGISTER,  tok(&r, 1).type);
 }
 
 void test_lex_call_label(void) {
-    LexResult r = lex("نادِ الدالة");
+    LexResult r = lex("ناد الدالة");
     TEST_ASSERT_EQUAL_INT(TOKEN_MNEMONIC,  tok(&r, 0).type);
     TEST_ASSERT_EQUAL_INT(TOKEN_LABEL_REF, tok(&r, 1).type);
     TEST_ASSERT_EQUAL_STRING("الدالة", tok(&r, 1).value);
@@ -344,9 +393,9 @@ void test_lex_multiline_program(void) {
         "; برنامج بسيط\n"
         ".نص\n"
         "الرئيسية:\n"
-        "    احمل ر0، ١\n"
-        "    احمل ر1، ١\n"
-        "    نداء_نظام\n"
+        "    انقل سجل_المركم، ١\n"
+        "    انقل سجل_العداد، ١\n"
+        "    ناد_النظام\n"
         "    ارجع\n";
 
     LexResult r = lex(src);
@@ -357,7 +406,7 @@ void test_lex_multiline_program(void) {
     int lb = tok_count_typed(&r, TOKEN_LABEL_DEF);
     int dr = tok_count_typed(&r, TOKEN_DIRECTIVE);
 
-    TEST_ASSERT_EQUAL_INT(4, mn);  /* احمل احمل نداء_نظام ارجع */
+    TEST_ASSERT_EQUAL_INT(4, mn);  /* انقل انقل ناد_النظام ارجع */
     TEST_ASSERT_EQUAL_INT(1, lb);  /* الرئيسية: */
     TEST_ASSERT_EQUAL_INT(1, dr);  /* .نص */
 }
@@ -365,7 +414,7 @@ void test_lex_multiline_program(void) {
 /* ── Line / column tracking ───────────────────────────────────────────────── */
 
 void test_lex_line_numbers(void) {
-    LexResult r = lex("احمل ر0، ١\nأضف ر0، ر1\n");
+    LexResult r = lex("انقل سجل_المركم، ١\nأضف سجل_المركم، سجل_العداد\n");
     /* First mnemonic on line 1 */
     TEST_ASSERT_EQUAL_INT(1, tok(&r, 0).line);
     /* Second mnemonic (أضف) on line 2 */
@@ -384,7 +433,7 @@ void test_lex_line_numbers(void) {
 
 
 void test_lex_mnemonic_source_span(void) {
-    LexResult r = lex("احمل ر0، ١");
+    LexResult r = lex("انقل سجل_المركم، ١");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
 
     Token t = tok(&r, 0);
@@ -394,15 +443,15 @@ void test_lex_mnemonic_source_span(void) {
 }
 
 void test_lex_unknown_char_source_span(void) {
-    LexResult r = lex("احمل ر0، @");
+    LexResult r = lex("انقل سجل_المركم، @");
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_STRING("test", r.errors.source.name);
     TEST_ASSERT_NOT_NULL(r.errors.source.data);
 
     NazmError e = r.errors.errors[0];
     TEST_ASSERT_EQUAL_INT(1, e.line);
-    TEST_ASSERT_EQUAL_INT(10, e.col);
-    TEST_ASSERT_EQUAL_INT(11, e.end_col);
+    TEST_ASSERT_EQUAL_INT(18, e.col);
+    TEST_ASSERT_EQUAL_INT(19, e.end_col);
     TEST_ASSERT_NOT_NULL(strstr(e.message, "محرف غير معروف"));
 }
 
@@ -427,7 +476,7 @@ void test_lex_bad_binary_reports_error(void) {
 
 void test_lex_continues_after_error(void) {
     /* Bad char followed by valid instruction — should still tokenize the rest */
-    LexResult r = lex("@ احمل ر0، ١");
+    LexResult r = lex("@ انقل سجل_المركم، ١");
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
     /* Despite the error we should still have the mnemonic token */
     int mn = tok_count_typed(&r, TOKEN_MNEMONIC);
@@ -437,7 +486,7 @@ void test_lex_continues_after_error(void) {
 /* ── Newline collapsing ───────────────────────────────────────────────────── */
 
 void test_lex_multiple_blank_lines_collapsed(void) {
-    LexResult r = lex("احمل ر0، ١\n\n\nأضف ر0، ١");
+    LexResult r = lex("انقل سجل_المركم، ١\n\n\nأضف سجل_المركم، ١");
     int nl_count = tok_count_typed(&r, TOKEN_NEWLINE);
     /* Only 1 NEWLINE between the two instructions, blanks collapsed */
     TEST_ASSERT_EQUAL_INT(1, nl_count);
@@ -473,6 +522,8 @@ int main(void) {
     RUN_TEST(test_lex_register_r15);
     RUN_TEST(test_lex_register_named_stack);
     RUN_TEST(test_lex_register_named_base);
+    RUN_TEST(test_lex_all_registers_map_to_architectural_ids);
+    RUN_TEST(test_lex_removed_registers_are_diagnostic_only);
 
     /* Immediates */
     RUN_TEST(test_lex_immediate_ascii_decimal);

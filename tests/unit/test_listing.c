@@ -30,7 +30,7 @@ static void run_pipeline(const char *source, ListingPipeline *out) {
     SourceBuffer buffer = {
         .data = (const uint8_t *)source,
         .len = strlen(source),
-        .name = "اختبار.مجمع",
+        .name = "اختبار.نظم",
     };
     LexResult lex = lexer_lex(&buffer, &g_arena);
     ParseResult parse = parser_parse(&lex.tokens, &g_arena);
@@ -75,9 +75,9 @@ void test_pass2_records_text_and_data_emission_spans(void) {
     ListingPipeline pipeline;
     run_pipeline(
         ".نص\n"
-        "احمل ر0، ٤٢\n"
+        "انقل سجل_المركم، ٤٢\n"
         ".بيانات\n"
-        "قيم: .بايت ١، ٢\n",
+        "قيم: .عدد٨ ١، ٢\n",
         &pipeline);
 
     TEST_ASSERT_EQUAL_INT(
@@ -100,21 +100,21 @@ void test_listing_maps_source_lines_to_exact_bytes(void) {
     ListingPipeline pipeline;
     run_pipeline(
         ".نص\n"
-        "احمل ر0، ٤٢\n"
+        "انقل سجل_المركم، ٤٢\n"
         ".بيانات\n"
-        "قيم: .بايت ١، ٢\n",
+        "قيم: .عدد٨ ١، ٢\n",
         &pipeline);
     char *listing;
     render_listing(&pipeline, &listing);
 
-    TEST_ASSERT_NOT_NULL(strstr(listing, "; قائمة نَظْم"));
-    TEST_ASSERT_NOT_NULL(strstr(listing, "; المصدر: اختبار.مجمع"));
+    TEST_ASSERT_NOT_NULL(strstr(listing, "; كشف تجميع نَظْم"));
+    TEST_ASSERT_NOT_NULL(strstr(listing, "; المصدر: اختبار.نظم"));
     TEST_ASSERT_NOT_NULL(strstr(
         listing, ".text  0000000000000000  48 C7 C0 2A 00 00 00"));
-    TEST_ASSERT_NOT_NULL(strstr(listing, "احمل ر0، ٤٢"));
+    TEST_ASSERT_NOT_NULL(strstr(listing, "انقل سجل_المركم، ٤٢"));
     TEST_ASSERT_NOT_NULL(strstr(
         listing, ".data  0000000000000000  01 02"));
-    TEST_ASSERT_NOT_NULL(strstr(listing, "قيم: .بايت ١، ٢"));
+    TEST_ASSERT_NOT_NULL(strstr(listing, "قيم: .عدد٨ ١، ٢"));
 
     free(listing);
 }
@@ -123,7 +123,7 @@ void test_listing_wraps_long_data_without_losing_offsets(void) {
     ListingPipeline pipeline;
     run_pipeline(
         ".بيانات\n"
-        ".سلسلة \"abcdefghijklmnop\"\n",
+        ".سلسلة_منتهية_بصفر \"abcdefghijklmnop\"\n",
         &pipeline);
     char *listing;
     render_listing(&pipeline, &listing);

@@ -9,22 +9,61 @@
 /* ── Register name table ─────────────────────────────────────────────────── */
 /*
  * Arabic register names → RegId index (matches encoder.h RegId enum order).
- * Numeric forms  ر0–ر15  are handled procedurally.
- * Named forms cover the most common system-call / frame registers.
+ * The 0.4 language exposes one descriptive Arabic spelling per register.
  */
 typedef struct { const char *name; int reg_id; } RegEntry;
 
 static const RegEntry REG_TABLE[] = {
-    /* 64-bit named */
-    { "مجمع",   0 },   /* rax */
-    { "عداد",   2 },   /* rcx */
-    { "بيانات", 3 },   /* rdx */
-    { "قاعدة_ب", 1 },  /* rbx */
-    { "مكدس",   4 },   /* rsp */
-    { "قاعدة",  5 },   /* rbp */
-    { "مصدر",   6 },   /* rsi */
-    { "وجهة",   7 },   /* rdi */
+    { "سجل_المركم", 0 },     /* rax */
+    { "سجل_العداد", 1 },     /* rcx */
+    { "سجل_البيانات", 2 },   /* rdx */
+    { "سجل_القاعدة", 3 },    /* rbx */
+    { "مؤشر_المكدس", 4 },    /* rsp */
+    { "مؤشر_القاعدة", 5 },   /* rbp */
+    { "فهرس_المصدر", 6 },    /* rsi */
+    { "فهرس_الوجهة", 7 },    /* rdi */
+    { "سجل_عام_8", 8 },      /* r8  */
+    { "سجل_عام_9", 9 },      /* r9  */
+    { "سجل_عام_10", 10 },    /* r10 */
+    { "سجل_عام_11", 11 },    /* r11 */
+    { "سجل_عام_12", 12 },    /* r12 */
+    { "سجل_عام_13", 13 },    /* r13 */
+    { "سجل_عام_14", 14 },    /* r14 */
+    { "سجل_عام_15", 15 },    /* r15 */
     { NULL, -1 },
+};
+
+typedef struct {
+    const char *legacy;
+    const char *replacement;
+} LegacyRegister;
+
+static const LegacyRegister LEGACY_REGISTERS[] = {
+    { "مجمع", "سجل_المركم" },
+    { "عداد", "سجل_العداد" },
+    { "بيانات", "سجل_البيانات" },
+    { "قاعدة_ب", "سجل_القاعدة" },
+    { "مكدس", "مؤشر_المكدس" },
+    { "قاعدة", "مؤشر_القاعدة" },
+    { "مصدر", "فهرس_المصدر" },
+    { "وجهة", "فهرس_الوجهة" },
+    { "ر0", "سجل_المركم" },
+    { "ر1", "سجل_العداد" },
+    { "ر2", "سجل_البيانات" },
+    { "ر3", "سجل_القاعدة" },
+    { "ر4", "مؤشر_المكدس" },
+    { "ر5", "مؤشر_القاعدة" },
+    { "ر6", "فهرس_المصدر" },
+    { "ر7", "فهرس_الوجهة" },
+    { "ر8", "سجل_عام_8" },
+    { "ر9", "سجل_عام_9" },
+    { "ر10", "سجل_عام_10" },
+    { "ر11", "سجل_عام_11" },
+    { "ر12", "سجل_عام_12" },
+    { "ر13", "سجل_عام_13" },
+    { "ر14", "سجل_عام_14" },
+    { "ر15", "سجل_عام_15" },
+    { NULL, NULL },
 };
 
 /* ── Internal lexer state ────────────────────────────────────────────────── */
@@ -304,35 +343,12 @@ static const char *scan_ident(Lexer *lx, size_t *out_len) {
     return arena_strndup(lx->arena, (const char *)(lx->src->data + start), len);
 }
 
-/* Look up a scanned identifier as a register name.
- * Handles:  ر0 … ر15  (Arabic ر + ASCII digit(s))
- * and named entries in REG_TABLE.
- * Returns reg_id (0–31) or -1 if not a register. */
+/* Look up a scanned identifier as a canonical descriptive register name. */
 int classify_register(const char *text, size_t len) {
     /* Named registers */
     for (const RegEntry *r = REG_TABLE; r->name != NULL; r++) {
         if (strlen(r->name) == len && memcmp(r->name, text, len) == 0) {
             return r->reg_id;
-        }
-    }
-
-    /* Numeric: must start with Arabic ر (U+0631 = 0xD8 0xB1) */
-    const uint8_t *b = (const uint8_t *)text;
-
-    if (len >= 3 && b[0] == 0xD8 && b[1] == 0xB1) {
-        /* rest must be ASCII digits only */
-        long num = 0;
-
-        for (size_t i = 2; i < len; i++) {
-            if (b[i] < '0' || b[i] > '9') {
-                return -1;
-            }
-
-            num = num * 10 + (b[i] - '0');
-        }
-
-        if (num >= 0 && num <= 15) {
-            return (int)num;
         }
     }
 
@@ -656,28 +672,41 @@ void token_array_print(const TokenArray *tokens) {
 
 const char *token_type_name(TokenType type) {
     switch (type) {
-    case TOKEN_MNEMONIC:  return "MNEMONIC";
-    case TOKEN_REGISTER:  return "REGISTER";
-    case TOKEN_IMMEDIATE: return "IMMEDIATE";
-    case TOKEN_LABEL_DEF: return "LABEL_DEF";
-    case TOKEN_LABEL_REF: return "LABEL_REF";
-    case TOKEN_STRING:    return "STRING";
-    case TOKEN_DIRECTIVE: return "DIRECTIVE";
-    case TOKEN_LBRACKET:  return "LBRACKET";
-    case TOKEN_RBRACKET:  return "RBRACKET";
-    case TOKEN_PLUS:      return "PLUS";
-    case TOKEN_MINUS:     return "MINUS";
-    case TOKEN_COMMA:     return "COMMA";
-    case TOKEN_COLON:     return "COLON";
-    case TOKEN_NEWLINE:   return "NEWLINE";
-    case TOKEN_EOF:       return "EOF";
-    case TOKEN_ERROR:     return "ERROR";
+    case TOKEN_MNEMONIC:  return "اسم تعليمة";
+    case TOKEN_REGISTER:  return "سجل";
+    case TOKEN_IMMEDIATE: return "قيمة فورية";
+    case TOKEN_LABEL_DEF: return "تعريف وسم";
+    case TOKEN_LABEL_REF: return "مرجع وسم";
+    case TOKEN_STRING:    return "قيمة حرفية نصية";
+    case TOKEN_DIRECTIVE: return "توجيه";
+    case TOKEN_LBRACKET:  return "قوس فتح";
+    case TOKEN_RBRACKET:  return "قوس إغلاق";
+    case TOKEN_PLUS:      return "علامة جمع";
+    case TOKEN_MINUS:     return "علامة طرح";
+    case TOKEN_COMMA:     return "فاصلة";
+    case TOKEN_COLON:     return "نقطتان";
+    case TOKEN_NEWLINE:   return "نهاية سطر";
+    case TOKEN_EOF:       return "نهاية ملف";
+    case TOKEN_ERROR:     return "خطأ معجمي";
     }
 
-    return "UNKNOWN";
+    return "وحدة معجمية غير معروفة";
 }
 
 /* ── Public register resolution ─────────────────────────────────────────── */
 int lexer_register_id(const char *name, size_t len) {
     return classify_register(name, len);
+}
+
+const char *lexer_register_legacy_replacement(const char *name, size_t len) {
+    for (const LegacyRegister *entry = LEGACY_REGISTERS;
+         entry->legacy != NULL;
+         entry++) {
+        if (strlen(entry->legacy) == len
+            && memcmp(entry->legacy, name, len) == 0) {
+            return entry->replacement;
+        }
+    }
+
+    return NULL;
 }

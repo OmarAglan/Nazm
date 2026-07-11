@@ -1,21 +1,18 @@
 #include "unity.h"
 #include "lexer/keywords.h"
+#include <string.h>
 
 void setUp(void) {}
 void tearDown(void) {}
 
 void test_keywords_known_mnemonics(void) {
-    TEST_ASSERT_EQUAL_INT(OPCODE_MOV,     keywords_lookup("احمل",   strlen("احمل")));
-    TEST_ASSERT_EQUAL_INT(OPCODE_ADD,     keywords_lookup("أضف",    strlen("أضف")));
-    TEST_ASSERT_EQUAL_INT(OPCODE_SUB,     keywords_lookup("اطرح",   strlen("اطرح")));
-    TEST_ASSERT_EQUAL_INT(OPCODE_PUSH,    keywords_lookup("ادفع",   strlen("ادفع")));
-    TEST_ASSERT_EQUAL_INT(OPCODE_POP,     keywords_lookup("اسحب",   strlen("اسحب")));
-    TEST_ASSERT_EQUAL_INT(OPCODE_RET,     keywords_lookup("ارجع",   strlen("ارجع")));
-    TEST_ASSERT_EQUAL_INT(OPCODE_CALL,    keywords_lookup("نادِ",   strlen("نادِ")));
-    TEST_ASSERT_EQUAL_INT(OPCODE_JMP,     keywords_lookup("اقفز",   strlen("اقفز")));
-    TEST_ASSERT_EQUAL_INT(OPCODE_JE,      keywords_lookup("اقفز_مساوٍ",  strlen("اقفز_مساوٍ")));
-    TEST_ASSERT_EQUAL_INT(OPCODE_SYSCALL, keywords_lookup("نداء_نظام", strlen("نداء_نظام")));
-    TEST_ASSERT_EQUAL_INT(OPCODE_NOP,     keywords_lookup("لاشيء",  strlen("لاشيء")));
+    for (const Keyword *keyword = KEYWORD_TABLE;
+         keyword->arabic != NULL;
+         keyword++) {
+        TEST_ASSERT_EQUAL_INT(
+            keyword->opcode,
+            keywords_lookup(keyword->arabic, strlen(keyword->arabic)));
+    }
 }
 
 void test_keywords_unknown_returns_invalid(void) {
@@ -24,17 +21,45 @@ void test_keywords_unknown_returns_invalid(void) {
     TEST_ASSERT_EQUAL_INT(OPCODE_INVALID, keywords_lookup("",      0));
 }
 
-void test_keywords_require_canonical_diacritics(void) {
-    TEST_ASSERT_EQUAL_INT(
-        OPCODE_CALL, keywords_lookup("نادِ", strlen("نادِ")));
-    TEST_ASSERT_EQUAL_INT(
-        OPCODE_INVALID, keywords_lookup("ناد", strlen("ناد")));
-    TEST_ASSERT_EQUAL_INT(
-        OPCODE_JE,
-        keywords_lookup("اقفز_مساوٍ", strlen("اقفز_مساوٍ")));
-    TEST_ASSERT_EQUAL_INT(
-        OPCODE_INVALID,
-        keywords_lookup("اقفز_مساو", strlen("اقفز_مساو")));
+void test_keywords_removed_spellings_are_diagnostic_only(void) {
+    static const struct {
+        const char *legacy;
+        const char *replacement;
+    } cases[] = {
+        { "احمل", "انقل" },
+        { "عنون", "احسب_عنوان" },
+        { "اضرب", "اضرب_موقع" },
+        { "اقسم", "اقسم_موقع" },
+        { "اسلب", "اعكس_الإشارة" },
+        { "و", "و_بتيا" },
+        { "أو", "أو_بتيا" },
+        { "خالف", "خالف_بتيا" },
+        { "انفِ", "اعكس_البتات" },
+        { "ازحل", "ازح_يسارا" },
+        { "ازحي", "ازح_منطقيا_يمينا" },
+        { "ازحر", "ازح_حسابيا_يمينا" },
+        { "اختبر", "اختبر_البتات" },
+        { "نادِ", "ناد" },
+        { "اقفز_مساوٍ", "اقفز_مساو" },
+        { "اقفز_مختلف", "اقفز_غير_مساو" },
+        { "اقفز_أكبر_أو", "اقفز_أكبر_أو_مساو" },
+        { "اقفز_أصغر_أو", "اقفز_أصغر_أو_مساو" },
+        { "اقفز_لاصفر", "اقفز_غير_صفر" },
+        { "اقفز_موجب", "اقفز_غير_سالب" },
+        { "نداء_نظام", "ناد_النظام" },
+        { "لاشيء", "لا_تفعل" },
+        { "قاطع", "اطلب_مقاطعة" },
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TEST_ASSERT_EQUAL_INT(
+            OPCODE_INVALID,
+            keywords_lookup(cases[i].legacy, strlen(cases[i].legacy)));
+        TEST_ASSERT_EQUAL_STRING(
+            cases[i].replacement,
+            keywords_legacy_replacement(
+                cases[i].legacy, strlen(cases[i].legacy)));
+    }
 }
 
 void test_keywords_do_not_normalize_or_add_aliases(void) {
@@ -50,12 +75,11 @@ void test_keywords_do_not_normalize_or_add_aliases(void) {
         OPCODE_INVALID, keywords_lookup("اضف", strlen("اضف")));
 }
 
-#include <string.h>
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_keywords_known_mnemonics);
     RUN_TEST(test_keywords_unknown_returns_invalid);
-    RUN_TEST(test_keywords_require_canonical_diacritics);
+    RUN_TEST(test_keywords_removed_spellings_are_diagnostic_only);
     RUN_TEST(test_keywords_do_not_normalize_or_add_aliases);
     return UNITY_END();
 }

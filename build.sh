@@ -1,5 +1,5 @@
 #!/bin/bash
-# build.sh — build nazm and run all tests without CMake
+# build.sh — build نظم/nazm and run all tests without CMake
 # Usage:  ./build.sh          → build binary
 #         ./build.sh test     → build + run all tests
 #         ./build.sh clean    → remove build artifacts
@@ -28,9 +28,10 @@ TESTS="test_arena test_unicode test_symtable test_keywords test_immediate test_r
 
 case "${1:-build}" in
   build)
-    echo "بناء nazm..."
+    echo "بناء نظم..."
     $CC $CFLAGS $SRC src/main.c -o nazm $LDFLAGS
-    echo "✓ ./nazm جاهز"
+    cp -f nazm نظم
+    echo "✓ ./نظم و./nazm جاهزان"
     ;;
   test)
     echo "اختبار..."
@@ -57,7 +58,7 @@ case "${1:-build}" in
     fi
     ;;
   clean)
-    rm -f nazm /tmp/nazm_tests/*
+    rm -f nazm نظم /tmp/nazm_tests/*
     echo "✓ تم التنظيف"
     ;;
   *)

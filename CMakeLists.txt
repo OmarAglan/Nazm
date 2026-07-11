@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(nazm
-    VERSION 0.3.0
-    DESCRIPTION "نَظْم — المُجمِّع العربي لبنية x86-64"
+    VERSION 0.4.0
+    DESCRIPTION "نَظْم — المجمع العربي لبنية إكس86-64"
     LANGUAGES C
 )
 
@@ -82,6 +82,16 @@ set(NAZM_SOURCES
 # ── Assembler binary ─────────────────────────────────────────────────────────
 add_executable(nazm ${NAZM_SOURCES})
 
+# The Arabic launcher is an exact copy of the portable ASCII executable.
+# Keeping one compiled target prevents the two command names from diverging.
+set(NAZM_ARABIC_EXECUTABLE
+    "$<TARGET_FILE_DIR:nazm>/نظم${CMAKE_EXECUTABLE_SUFFIX}")
+add_custom_command(TARGET nazm POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:nazm>" "${NAZM_ARABIC_EXECUTABLE}"
+    VERBATIM
+)
+
 if(MINGW)
     target_link_options(nazm PRIVATE -municode)
 endif()
@@ -106,4 +116,5 @@ add_subdirectory(tests)
 
 # ── Install ──────────────────────────────────────────────────────────────────
 install(TARGETS nazm DESTINATION bin)
+install(PROGRAMS "${NAZM_ARABIC_EXECUTABLE}" DESTINATION bin)
 install(FILES include/nazm.h DESTINATION include)

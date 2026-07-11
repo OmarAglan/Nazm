@@ -12,8 +12,8 @@
 
 /* ── Token types ─────────────────────────────────────────────────────────── */
 typedef enum {
-    TOKEN_MNEMONIC,     /* احمل  أضف  ارجع  نادِ … */
-    TOKEN_REGISTER,     /* ر0 ر1 … مكدس قاعدة       */
+    TOKEN_MNEMONIC,     /* انقل  أضف  ارجع  ناد … */
+    TOKEN_REGISTER,     /* سجل_المركم  مؤشر_المكدس … */
     TOKEN_IMMEDIATE,    /* ٤٢  255  0xFF  0b1010      */
     TOKEN_LABEL_DEF,    /* البداية:                   */
     TOKEN_LABEL_REF,    /* البداية  (used as operand) */
@@ -75,7 +75,10 @@ const char *token_type_name(TokenType type);
 
 /*
  * lexer_register_id()
- * Resolve a TOKEN_REGISTER value string (e.g. "ر0", "مكدس") to a RegId.
+ * Resolve a TOKEN_REGISTER value string (e.g. "سجل_المركم") to a RegId.
  * Returns REG_INVALID if the string is not a known register.
  */
 int lexer_register_id(const char *name, size_t len);
+
+/* Return the 0.4 replacement for an exact removed 0.3 register, or NULL. */
+const char *lexer_register_legacy_replacement(const char *name, size_t len);

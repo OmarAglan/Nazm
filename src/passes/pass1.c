@@ -9,18 +9,15 @@
  * data_directive_size()
  * Returns the byte count a data-emitting directive contributes.
  *
- *   .بايت    1 byte  × op_count
+ *   .عدد٨    1 byte  × op_count
  *   .عدد١٦  2 bytes × op_count
  *   .عدد٣٢  4 bytes × op_count
  *   .عدد٦٤  8 bytes × op_count
- *   .سلسلة  sum of string length + 1 for each OP_STRING operand
- *   .مساحة  N bytes of zeros (N from ops[0].imm)
+ *   .سلسلة_منتهية_بصفر  sum of string length + 1 per OP_STRING operand
+ *   .مساحة_صفرية  N bytes of zeros (N from ops[0].imm)
  */
 int data_directive_size(const Instruction *instr) {
-    if (!instr->directive) return 0;
-    const char *d = instr->directive;
-
-    if (strcmp(d, ".سلسلة") == 0) {
+    if (instr->directive_kind == DIRECTIVE_NUL_STRING) {
         int total = 0;
         for (int i = 0; i < instr->op_count; i++) {
             if (instr->ops[i].kind == OP_STRING && instr->ops[i].string.data) {
@@ -29,15 +26,15 @@ int data_directive_size(const Instruction *instr) {
         }
         return total;
     }
-    if (strcmp(d, ".بايت")  == 0)
+    if (instr->directive_kind == DIRECTIVE_INT8)
         return instr->op_count > 0 ? instr->op_count * 1 : 0;
-    if (strcmp(d, ".عدد١٦") == 0)
+    if (instr->directive_kind == DIRECTIVE_INT16)
         return instr->op_count > 0 ? instr->op_count * 2 : 0;
-    if (strcmp(d, ".عدد٣٢") == 0)
+    if (instr->directive_kind == DIRECTIVE_INT32)
         return instr->op_count > 0 ? instr->op_count * 4 : 0;
-    if (strcmp(d, ".عدد٦٤") == 0)
+    if (instr->directive_kind == DIRECTIVE_INT64)
         return instr->op_count > 0 ? instr->op_count * 8 : 0;
-    if (strcmp(d, ".مساحة") == 0) {
+    if (instr->directive_kind == DIRECTIVE_ZERO_SPACE) {
         if (instr->op_count > 0 && instr->ops[0].kind == OP_IMM)
             return (int)instr->ops[0].imm;
         return 0;
@@ -47,14 +44,11 @@ int data_directive_size(const Instruction *instr) {
 
 static bool visibility_directive_binding(const Instruction *instr,
                                          SymbolBinding *out_binding) {
-    if (instr->directive == NULL) {
-        return false;
-    }
-    if (strcmp(instr->directive, ".عام") == 0) {
+    if (instr->directive_kind == DIRECTIVE_GLOBAL) {
         *out_binding = SYMBOL_BINDING_GLOBAL;
         return true;
     }
-    if (strcmp(instr->directive, ".محلي") == 0) {
+    if (instr->directive_kind == DIRECTIVE_LOCAL) {
         *out_binding = SYMBOL_BINDING_LOCAL;
         return true;
     }
@@ -114,13 +108,13 @@ static void add_directive_error(ErrorList *errors,
                    message);
 }
 
-static bool is_data_directive(const char *directive) {
-    return strcmp(directive, ".بايت") == 0
-        || strcmp(directive, ".عدد١٦") == 0
-        || strcmp(directive, ".عدد٣٢") == 0
-        || strcmp(directive, ".عدد٦٤") == 0
-        || strcmp(directive, ".مساحة") == 0
-        || strcmp(directive, ".سلسلة") == 0;
+static bool is_data_directive(DirectiveKind directive) {
+    return directive == DIRECTIVE_INT8
+        || directive == DIRECTIVE_INT16
+        || directive == DIRECTIVE_INT32
+        || directive == DIRECTIVE_INT64
+        || directive == DIRECTIVE_ZERO_SPACE
+        || directive == DIRECTIVE_NUL_STRING;
 }
 
 static bool data_value_fits_width(int64_t value, int bits) {
@@ -140,47 +134,47 @@ static bool validate_data_directive(
     const Instruction *instr,
     ErrorList *errors,
     Arena *arena) {
-    const char *directive = instr->directive;
+    DirectiveKind directive = instr->directive_kind;
 
-    if (strcmp(directive, ".سلسلة") == 0) {
+    if (directive == DIRECTIVE_NUL_STRING) {
         if (instr->op_count == 0) {
             add_directive_error(
                 errors, arena, instructions, instr, -1,
-                "التوجيه '.سلسلة' يتطلب سلسلة نصية واحدة على الأقل");
+                "التوجيه '.سلسلة_منتهية_بصفر' يتطلب سلسلة نصية واحدة على الأقل");
             return false;
         }
         for (int i = 0; i < instr->op_count; i++) {
             if (instr->ops[i].kind != OP_STRING) {
                 add_directive_error(
                     errors, arena, instructions, instr, i,
-                    "معامل '.سلسلة' يجب أن يكون سلسلة نصية");
+                    "معامل '.سلسلة_منتهية_بصفر' يجب أن يكون سلسلة نصية");
                 return false;
             }
         }
         return true;
     }
 
-    if (strcmp(directive, ".مساحة") == 0) {
+    if (directive == DIRECTIVE_ZERO_SPACE) {
         if (instr->op_count != 1 || instr->ops[0].kind != OP_IMM) {
             add_directive_error(
                 errors, arena, instructions, instr, -1,
-                "التوجيه '.مساحة' يتطلب عدداً واحداً");
+                "التوجيه '.مساحة_صفرية' يتطلب عددا واحدا");
             return false;
         }
         if (instr->ops[0].imm < 0 || instr->ops[0].imm > INT_MAX) {
             add_directive_error(
                 errors, arena, instructions, instr, 0,
-                "حجم '.مساحة' يجب أن يكون بين 0 وINT_MAX");
+                "حجم '.مساحة_صفرية' يجب أن يكون بين 0 وINT_MAX");
             return false;
         }
         return true;
     }
 
     int bits = 0;
-    if (strcmp(directive, ".بايت") == 0) bits = 8;
-    if (strcmp(directive, ".عدد١٦") == 0) bits = 16;
-    if (strcmp(directive, ".عدد٣٢") == 0) bits = 32;
-    if (strcmp(directive, ".عدد٦٤") == 0) bits = 64;
+    if (directive == DIRECTIVE_INT8) bits = 8;
+    if (directive == DIRECTIVE_INT16) bits = 16;
+    if (directive == DIRECTIVE_INT32) bits = 32;
+    if (directive == DIRECTIVE_INT64) bits = 64;
 
     if (instr->op_count == 0) {
         add_directive_error(
@@ -200,7 +194,7 @@ static bool validate_data_directive(
             char message[192];
             snprintf(message,
                      sizeof(message),
-                     "القيمة لا يمكن تمثيلها في توجيه بيانات %d-bit",
+                     "القيمة لا يمكن تمثيلها في توجيه بيانات بعرض %d بت",
                      bits);
             add_directive_error(
                 errors, arena, instructions, instr, i, message);
@@ -263,9 +257,15 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
         const Instruction *instr = &instructions->data[i];
 
         /* ── Section switches ── */
-        if (instr->directive) {
-            if (strcmp(instr->directive, ".نص") == 0)     { in_data = false; continue; }
-            if (strcmp(instr->directive, ".بيانات") == 0) { in_data = true;  continue; }
+        if (instr->directive_kind != DIRECTIVE_NONE) {
+            if (instr->directive_kind == DIRECTIVE_TEXT) {
+                in_data = false;
+                continue;
+            }
+            if (instr->directive_kind == DIRECTIVE_DATA) {
+                in_data = true;
+                continue;
+            }
 
             SymbolBinding binding;
             if (visibility_directive_binding(instr, &binding)) {
@@ -293,7 +293,7 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
                 continue;
             }
 
-            if (!is_data_directive(instr->directive)) {
+            if (!is_data_directive(instr->directive_kind)) {
                 char message[192];
                 snprintf(message,
                          sizeof(message),

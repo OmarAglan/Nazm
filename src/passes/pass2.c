@@ -114,11 +114,8 @@ static size_t mov_reg_label_relocation_offset(void) {
 static bool emit_data_directive(const Instruction *instr,
                                 uint8_t *buf, size_t buf_cap,
                                 size_t *written) {
-    if (!instr->directive) return true;
-    const char *d = instr->directive;
-
-    /* .سلسلة — null-terminated decoded string literal(s) */
-    if (strcmp(d, ".سلسلة") == 0) {
+    /* .سلسلة_منتهية_بصفر — decoded string literal(s) plus NUL. */
+    if (instr->directive_kind == DIRECTIVE_NUL_STRING) {
         for (int i = 0; i < instr->op_count; i++) {
             if (instr->ops[i].kind == OP_STRING && instr->ops[i].string.data) {
                 const char *s = instr->ops[i].string.data;
@@ -137,10 +134,10 @@ static bool emit_data_directive(const Instruction *instr,
 
     /* Integer directives */
     int elem_size = 0;
-    if (strcmp(d, ".بايت")  == 0) elem_size = 1;
-    if (strcmp(d, ".عدد١٦") == 0) elem_size = 2;
-    if (strcmp(d, ".عدد٣٢") == 0) elem_size = 4;
-    if (strcmp(d, ".عدد٦٤") == 0) elem_size = 8;
+    if (instr->directive_kind == DIRECTIVE_INT8) elem_size = 1;
+    if (instr->directive_kind == DIRECTIVE_INT16) elem_size = 2;
+    if (instr->directive_kind == DIRECTIVE_INT32) elem_size = 4;
+    if (instr->directive_kind == DIRECTIVE_INT64) elem_size = 8;
 
     if (elem_size > 0) {
         for (int i = 0; i < instr->op_count; i++) {
@@ -158,8 +155,8 @@ static bool emit_data_directive(const Instruction *instr,
         return true;
     }
 
-    /* .مساحة N — zero fill */
-    if (strcmp(d, ".مساحة") == 0) {
+    /* .مساحة_صفرية N — zero fill */
+    if (instr->directive_kind == DIRECTIVE_ZERO_SPACE) {
         int n = (instr->op_count > 0 && instr->ops[0].kind == OP_IMM)
                 ? (int)instr->ops[0].imm : 0;
         if (n > 0) {
@@ -210,21 +207,23 @@ Pass2Result pass2_run(const InstructionList *instructions,
                          : result.text_size;
 
         /* ── Section switches ── */
-        if (instr->directive) {
-            if (strcmp(instr->directive, ".نص") == 0) {
+        if (instr->directive_kind != DIRECTIVE_NONE) {
+            if (instr->directive_kind == DIRECTIVE_TEXT) {
                 in_data = false;
                 emission->section = SYMBOL_SECTION_TEXT;
                 emission->offset = result.text_size;
                 continue;
             }
-            if (strcmp(instr->directive, ".بيانات") == 0) {
+            if (instr->directive_kind == DIRECTIVE_DATA) {
                 in_data = true;
                 emission->section = SYMBOL_SECTION_DATA;
                 emission->offset = result.data_size;
                 continue;
             }
-            if (strcmp(instr->directive, ".عام")   == 0 ||
-                strcmp(instr->directive, ".محلي")  == 0)  { continue; }
+            if (instr->directive_kind == DIRECTIVE_GLOBAL
+                || instr->directive_kind == DIRECTIVE_LOCAL) {
+                continue;
+            }
 
             /* Data-emitting directive */
             if (in_data) {
@@ -330,7 +329,7 @@ Pass2Result pass2_run(const InstructionList *instructions,
                     snprintf(
                         msg,
                         sizeof(msg),
-                        "إزاحة القفز إلى الوسم '%s' خارج مجال rel32 الموقّع",
+                        "إزاحة القفز إلى الوسم '%s' خارج مجال rel32 الموقع",
                         resolved_ops[j].label);
                     error_add_span(
                         &result.errors,
@@ -387,7 +386,8 @@ Pass2Result pass2_run(const InstructionList *instructions,
         if (enc.error) {
             char msg[256];
             snprintf(msg, sizeof(msg),
-                     "تعذّر ترميز التعليمة (opcode=%d)", (int)instr->opcode);
+                     "تعذر ترميز التعليمة (شفرة العملية=%d)",
+                     (int)instr->opcode);
             error_add_span(&result.errors, arena,
                            instructions->source_name
                                ? instructions->source_name : "unknown",

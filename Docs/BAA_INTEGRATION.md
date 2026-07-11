@@ -48,7 +48,7 @@ The first production integration should remain text-based:
 ```text
 Baa Machine IR
   -> Baa Arabic Nazm emitter
-  -> UTF-8 .مجمع source
+  -> UTF-8 .نظم source
   -> Nazm CLI or buffer API
   -> ELF64/COFF object
   -> system linker
@@ -59,7 +59,7 @@ The text path is deliberate:
 - Baa's assembly-only output remains readable and debuggable.
 - The same source accepted from a human is accepted from Baa.
 - Compiler-generated assembly continuously exercises Nazm's real frontend.
-- Failures can be reduced to standalone `.مجمع` fixtures.
+- Failures can be reduced to standalone `.نظم` fixtures.
 
 A later structured API may avoid reparsing in normal builds, but it must not
 replace or diverge from the Arabic textual contract. Text and structured paths
@@ -105,18 +105,19 @@ At minimum, the current Baa backend requires:
 
 ## Inline Assembly Migration
 
-Baa currently accepts raw GAS lines in `مجمع { ... }` blocks. Nazm must not
-silently reinterpret those lines as Arabic syntax.
+Baa currently accepts raw GAS lines in `مجمع { ... }` blocks. The target Baa
+language contract replaces that construct with:
 
-The recommended transition is:
+```text
+نظم {
+    ; canonical Nazm 0.4 source only
+}
+```
 
-1. Preserve the existing GAS path while Nazm is optional.
-2. Add an explicit assembly-syntax selection for compiler output and inline
-   assembly.
-3. Introduce Arabic Nazm inline assembly as the preferred form.
-4. Diagnose GAS-only inline blocks when the Nazm assembler is selected.
-5. Remove the compatibility path only in a documented Baa language-version
-   transition.
+The cutover is deliberately breaking. A documented Baa language release must
+remove raw GAS inline assembly and reject `مجمع { ... }` with guidance to use
+`نظم { ... }`. It must not preserve GAS under another block name, silently
+reinterpret GAS as Nazm, or accept both dialects as permanent aliases.
 
 Implementing a complete GAS parser inside Nazm solely for compatibility is not
 the preferred design. It would permanently duplicate a large syntax surface
@@ -140,22 +141,23 @@ that is unrelated to the Arabic-first goal.
   forms Baa actually emits.
 - Convert the inventory into Nazm acceptance fixtures and a coverage matrix.
 
-### Stage C: Optional Subprocess Integration
+### Stage C: Shadow Subprocess Integration
 
-- Add a Baa assembler selector, conceptually `gas` or `nazm`.
-- Keep GAS as the fallback while Nazm coverage is incomplete.
+- Emit Nazm source beside the existing production output inside CI without
+  exposing a second public source dialect.
 - Compare assembly success, object structure, linked behavior, and diagnostics.
-- Do not fall back silently: unsupported Nazm input must be visible in CI and
-  verbose compiler output.
+- Treat unsupported Nazm input as a visible coverage failure; never substitute
+  guessed bytes or hide it behind a silent fallback.
 
-### Stage D: Default-On Nazm
+### Stage D: Atomic Nazm Cutover
 
 - Run Baa's quick, full, stress, determinism, and cross-target gates through
   Nazm.
 - Require parity sign-off for runtime results, public symbols, relocations, and
   debug behavior.
-- Make Nazm the default assembler only after the fallback is no longer needed
-  by the supported Baa language subset.
+- Make Nazm the sole assembler for the supported Baa language subset.
+- In the same documented Baa language release, replace inline `مجمع { ... }`
+  with `نظم { ... }` and remove raw GAS parsing.
 
 ### Stage E: In-Process Integration
 
@@ -182,7 +184,7 @@ Nazm must not be called Baa-ready until all of the following are true:
   displacement, output buffer, symbol table, or relocation.
 - Every Baa-required Machine IR form has a focused byte-level test.
 - ELF and COFF outputs are accepted by real linkers on their target platforms.
-- The Baa corpus passes in dual-assembler mode.
+- The Baa corpus passes shadow comparison and then the Nazm-only cutover.
 - Unsupported forms fail with Arabic diagnostics and never guessed bytes.
 - The Arabic assembly syntax and Unicode/diacritic policy are documented and
   versioned.

@@ -1,6 +1,6 @@
 # Technology Stack
 
-**Analysis Date:** 2026-06-01
+**Analysis Date:** 2026-07-10
 
 ## Languages
 
@@ -8,7 +8,7 @@
 - C11 — all assembler source code (`src/`)
 
 **Secondary:**
-- Arabic Assembly (`.مجمع`) — the language being implemented; used in `examples/`.
+- Arabic Assembly (`.نظم`) — the language being implemented; used in `examples/`.
 - CMake and shell scripts — build scripting
 
 **Future (self-hosting target):**
@@ -18,7 +18,7 @@
 ## Runtime
 
 **Environment:**
-- Native binary — no runtime required after compilation
+- One native binary exposed as `نظم` and `nazm` — no runtime required after compilation
 - Targets Linux (x86-64) primarily; Windows (x86-64) as secondary target
 
 **Toolchain for building the assembler itself:**
@@ -65,7 +65,7 @@
 
 **Environment:**
 - No environment variables required at runtime
-- Output format selected via CLI flag (`-f elf64` or `-f coff`), defaults to `elf64`
+- Output format selected via `--صيغة إلف64` or `--صيغة كوف`; the default is platform-native
 
 ## Platform Requirements
 

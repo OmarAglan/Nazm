@@ -1,6 +1,6 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-06-27
+**Analysis Date:** 2026-07-10
 
 This file describes the repository as it exists now. Planned directories are
 marked explicitly so release checks do not treat them as implemented behavior.
@@ -30,7 +30,7 @@ Nazm/
 │   ├── unit/             # Unity unit tests named test_*.c
 │   ├── vendor/unity/     # Vendored Unity test framework
 │   └── CMakeLists.txt    # CTest registration
-├── examples/             # Arabic .مجمع examples
+├── examples/             # Arabic .نظم examples
 │   └── diagnostics/       # Intentional-error examples for Arabic diagnostics
 ├── .github/workflows/     # Linux build/test/link CI
 ├── Docs/                 # Project documentation
@@ -117,18 +117,19 @@ Nazm/
   `objcopy`, and compares it byte-for-byte with Nazm encoding output.
 
 **tests/integration/**
-- `cli_acceptance.cmake`
-- Launches the built executable, checks public exit codes and version/help
-  output, and writes ELF64, COFF, and listing files through Arabic paths.
+- `cli_acceptance.cmake`, `examples_acceptance.cmake`
+- Launches both built command names, checks public exit codes and version/help
+  output, writes ELF64, COFF, and listing files through Arabic paths, and
+  assembles every shipped top-level `.نظم` example to both object formats.
 
 **examples/**
-- Holds good Arabic `.مجمع` examples such as `مرحبا.مجمع`, `خروج.مجمع`, `حلقة.مجمع`, and `بيانات.مجمع`.
+- Holds good Arabic `.نظم` examples such as `مرحبا.نظم`, `خروج.نظم`, `حلقة.نظم`, and `بيانات.نظم`.
 
 **examples/diagnostics/**
-- Holds intentional-error `.مجمع` files used to demonstrate Arabic source-context diagnostics.
+- Holds intentional-error `.نظم` files used to demonstrate Arabic source-context diagnostics.
 
 **Planned fixture area**
-- A future directory under `tests` will hold `.مجمع` source fixtures and
+- A future directory under `tests` will hold `.نظم` source fixtures and
   expected byte/object outputs.
 
 ## Key File Locations
@@ -158,7 +159,8 @@ Nazm/
 
 **Architecture and integration documents**
 - `Docs/ARCHITECTURE.md` - current pipeline and component ownership.
-- `Docs/LANGUAGE.md` - implemented 0.3 source syntax and common user errors.
+- `Docs/LANGUAGE.md` - implemented 0.4 source syntax and common user errors.
+- `Docs/TERMINOLOGY.md` - authoritative Arabic terminology and exact public spellings.
 - `Docs/BAA_INTEGRATION.md` - Baa handoff, coverage matrix, migration stages,
   and bootstrap release gates.
 - `Docs/INTEGRATIONS.md` - external tools, linkers, and deployment contracts.
@@ -168,7 +170,7 @@ Nazm/
 
 - C source and headers use lowercase module names and `snake_case` symbols.
 - Unit tests currently use `test_<module>.c`.
-- Arabic assembly examples use the `.مجمع` extension.
+- Arabic assembly examples use the `.نظم` extension.
 - Top-level project documents use uppercase Markdown names such as `README.md`
   and `CHANGELOG.md`.
 - `Docs/` is capitalized in this repository.

@@ -277,19 +277,19 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     if (!output_symbols_collect(in->symtable, arena, &symbols)) {
         return (OutputResult){
             .ok = false,
-            .error_message = "عدد الرموز يتجاوز حد صيغة ELF64",
+            .error_message = "عدد الرموز يتجاوز حد صيغة إلف64",
         };
     }
     if (!symbol_names_fit_elf_strtab(&symbols)) {
         return (OutputResult){
             .ok = false,
-            .error_message = "جدول أسماء الرموز يتجاوز حد صيغة ELF64",
+            .error_message = "جدول أسماء الرموز يتجاوز حد صيغة إلف64",
         };
     }
     if (!elf_relocations_have_symbols(in->relocations, &symbols)) {
         return (OutputResult){
             .ok = false,
-            .error_message = "إزاحة ELF64 تشير إلى رمز غير موجود",
+            .error_message = "قيد ترحيل إلف64 يشير إلى رمز غير موجود",
         };
     }
 
@@ -385,7 +385,7 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                     &symbols, reloc->symbol, &symbol_index)) {
                 return (OutputResult){
                     .ok = false,
-                    .error_message = "إزاحة ELF64 تشير إلى رمز غير موجود",
+                    .error_message = "قيد ترحيل إلف64 يشير إلى رمز غير موجود",
                 };
             }
 

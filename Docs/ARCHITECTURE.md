@@ -1,13 +1,13 @@
 # Architecture
 
-**Analysis Date:** 2026-06-27
+**Analysis Date:** 2026-07-10
 
 ## Pattern Overview
 
 Nazm is structured as a small multi-pass assembler pipeline:
 
 ```text
-source bytes (.مجمع)
+source bytes (.نظم)
   -> lexer: UTF-8 Arabic text to TokenArray
   -> parser: TokenArray to InstructionList
   -> pass1: instruction/data sizes and section-aware SymbolTable
@@ -18,11 +18,12 @@ source bytes (.مجمع)
 
 The public embedding API in `include/nazm.h` is present as a contract, but its
 functions are still roadmap work. The current implemented entry point is the
-CLI binary target `nazm`; the `libnazm` target now builds from library sources
-without compiling `src/main.c`.
+CLI binary target `nazm`; the build and install also produce the primary Arabic
+launcher `نظم` as an exact copy of that binary. The `libnazm` target builds
+from library sources without compiling `src/main.c`.
 
 Nazm's planned compiler integration is with Baa after Baa instruction
-selection and register allocation. Baa will initially emit Arabic `.مجمع`
+selection and register allocation. Baa will initially emit Arabic `.نظم`
 text, and Nazm will own parsing that text, validating operand forms, encoding
 bytes, planning relocations, and writing ELF64/COFF objects. Baa remains
 responsible for language semantics, Machine IR, register allocation, ABI
@@ -37,12 +38,16 @@ contract.
 - The lexer owns UTF-8 source tokenization, Arabic mnemonic recognition,
   register names, numeric immediates, directives, labels, comments, and
   punctuation.
-- Nazm 0.3 performs exact UTF-8 keyword and identifier comparison without
-  Unicode normalization or implicit unvowelled aliases; malformed UTF-8 scalar
+- Nazm 0.4 performs exact UTF-8 keyword and identifier comparison without
+  Unicode normalization or implicit aliases; canonical source words contain no
+  vowel marks, and malformed UTF-8 scalar
   encodings are lexer errors. See [UNICODE.md](UNICODE.md).
 - The parser owns `InstructionList` creation, operand classification, directive
-  recognition, operand count checks, comma checks, signed-32-bit memory
-  displacement validation, and basic error recovery.
+  recognition into `DirectiveKind`, operand count checks, comma checks,
+  signed-32-bit memory displacement validation, and basic error recovery.
+- Removed 0.3 spellings live only in context-specific diagnostic lookup tables;
+  they are never classified as valid mnemonics, registers, or directives. See
+  [TERMINOLOGY.md](TERMINOLOGY.md).
 
 **Assembler core**
 - Contains `src/passes/` and `src/symtable/`.
@@ -92,8 +97,8 @@ contract.
 
 ## Current Data Flow
 
-1. The user invokes `nazm` with a source path and options.
-2. `src/cli/args.c` parses flags such as output path and object format.
+1. The user invokes `نظم` (or portable alias `nazm`) with a `.نظم` source path.
+2. `src/cli/args.c` parses Arabic flags, including output path and object format.
 3. `src/main.c` reads the source file and creates pipeline state.
 4. The lexer returns a `TokenArray`.
 5. The parser returns an `InstructionList`.
@@ -119,8 +124,10 @@ contract.
 
 **Instruction and InstructionList**
 - Defined in `src/parser/instruction.h`.
-- `Instruction` stores the opcode, up to three operands, optional label,
-  optional directive, instruction source span, and label-definition source span.
+- `Instruction` stores the opcode, up to three operands, optional label, the
+  original directive spelling plus parser-owned `DirectiveKind`, instruction
+  source span, and label-definition source span. Passes switch on the enum and
+  do not reinterpret Arabic directive strings.
 - `InstructionList` is the parser-owned sequence consumed by passes and carries borrowed source metadata for later diagnostics.
 
 **Operand**
@@ -156,7 +163,7 @@ The intended Baa handoff is:
 ```text
 Baa Machine IR after register allocation
   -> Baa Arabic Nazm emitter
-  -> UTF-8 .مجمع text
+  -> UTF-8 .نظم text
   -> Nazm lexer/parser/passes/encoder
   -> ELF64 or COFF object
   -> system linker

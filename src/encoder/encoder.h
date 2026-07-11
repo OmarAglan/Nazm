@@ -54,55 +54,55 @@ typedef struct {
 /* ── Opcodes ─────────────────────────────────────────────────────────────── */
 typedef enum {
     /* Data movement */
-    OPCODE_MOV = 0,   /* احمل  */
+    OPCODE_MOV = 0,   /* انقل  */
     OPCODE_PUSH,      /* ادفع  */
     OPCODE_POP,       /* اسحب  */
-    OPCODE_LEA,       /* عنون  */
+    OPCODE_LEA,       /* احسب_عنوان */
 
     /* Arithmetic */
     OPCODE_ADD,       /* أضف   */
     OPCODE_SUB,       /* اطرح  */
-    OPCODE_IMUL,      /* اضرب  */
-    OPCODE_IDIV,      /* اقسم  */
+    OPCODE_IMUL,      /* اضرب_موقع */
+    OPCODE_IDIV,      /* اقسم_موقع */
     OPCODE_INC,       /* زد    */
     OPCODE_DEC,       /* انقص  */
-    OPCODE_NEG,       /* اسلب  */
+    OPCODE_NEG,       /* اعكس_الإشارة */
 
     /* Logic */
-    OPCODE_AND,       /* و     */
-    OPCODE_OR,        /* أو    */
-    OPCODE_XOR,       /* خالف  */
-    OPCODE_NOT,       /* انفِ  */
-    OPCODE_SHL,       /* ازحل  */
-    OPCODE_SHR,       /* ازحي  */
-    OPCODE_SAR,       /* ازحر  */
+    OPCODE_AND,       /* و_بتيا */
+    OPCODE_OR,        /* أو_بتيا */
+    OPCODE_XOR,       /* خالف_بتيا */
+    OPCODE_NOT,       /* اعكس_البتات */
+    OPCODE_SHL,       /* ازح_يسارا */
+    OPCODE_SHR,       /* ازح_منطقيا_يمينا */
+    OPCODE_SAR,       /* ازح_حسابيا_يمينا */
 
     /* Comparison */
     OPCODE_CMP,       /* قارن  */
-    OPCODE_TEST,      /* اختبر */
+    OPCODE_TEST,      /* اختبر_البتات */
 
     /* Control flow — unconditional */
     OPCODE_JMP,       /* اقفز  */
-    OPCODE_CALL,      /* نادِ  */
+    OPCODE_CALL,      /* ناد   */
     OPCODE_RET,       /* ارجع  */
 
     /* Control flow — conditional */
-    OPCODE_JE,        /* اقفز_مساوٍ    */
-    OPCODE_JNE,       /* اقفز_مختلف   */
+    OPCODE_JE,        /* اقفز_مساو */
+    OPCODE_JNE,       /* اقفز_غير_مساو */
     OPCODE_JG,        /* اقفز_أكبر    */
-    OPCODE_JGE,       /* اقفز_أكبر_أو */
+    OPCODE_JGE,       /* اقفز_أكبر_أو_مساو */
     OPCODE_JL,        /* اقفز_أصغر    */
-    OPCODE_JLE,       /* اقفز_أصغر_أو */
+    OPCODE_JLE,       /* اقفز_أصغر_أو_مساو */
     OPCODE_JZ,        /* اقفز_صفر     */
-    OPCODE_JNZ,       /* اقفز_لاصفر   */
+    OPCODE_JNZ,       /* اقفز_غير_صفر */
     OPCODE_JS,        /* اقفز_سالب    */
-    OPCODE_JNS,       /* اقفز_موجب    */
+    OPCODE_JNS,       /* اقفز_غير_سالب */
 
     /* System */
-    OPCODE_SYSCALL,   /* نداء_نظام    */
-    OPCODE_NOP,       /* لاشيء        */
+    OPCODE_SYSCALL,   /* ناد_النظام */
+    OPCODE_NOP,       /* لا_تفعل */
     OPCODE_HLT,       /* أوقف         */
-    OPCODE_INT,       /* قاطع         */
+    OPCODE_INT,       /* اطلب_مقاطعة */
 
     OPCODE_COUNT,
     OPCODE_INVALID = 0xFF,

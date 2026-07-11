@@ -1,6 +1,6 @@
 /*
  * main.c — نَظْم
- * CLI driver: reads a .مجمع file, runs the pipeline, writes a .o file.
+ * CLI driver: reads a .نظم file, runs the pipeline, writes an object file.
  *
  * Pipeline:
  *   source bytes
@@ -124,19 +124,30 @@ static void print_read_file_error(const char *path, ReadFileStatus status) {
     }
 }
 
-static char *make_output_path(Arena *arena, const char *source_path) {
+static char *make_output_path(Arena *arena,
+                              const char *source_path,
+                              OutputFormat format) {
     size_t len = strlen(source_path);
-    char *path = arena_alloc(arena, len + 3, 1);
+    const char *suffix = format == OUTPUT_FORMAT_COFF ? ".obj" : ".o";
+    char *path = arena_alloc(arena, len + strlen(suffix) + 1, 1);
 
     memcpy(path, source_path, len);
+    path[len] = '\0';
 
-    /* Strip extension if present, append .o */
+    /* Strip a filename extension, but never a dot in a parent directory. */
     char *dot = strrchr(path, '.');
-    if (dot != NULL && dot > path) {
+    char *slash = strrchr(path, '/');
+    char *backslash = strrchr(path, '\\');
+    char *separator = slash;
+    if (backslash != NULL && (separator == NULL || backslash > separator)) {
+        separator = backslash;
+    }
+    if (dot != NULL && dot > path
+        && (separator == NULL || dot > separator)) {
         *dot = '\0';
     }
 
-    strcat(path, ".o");
+    strcat(path, suffix);
     return path;
 }
 
@@ -216,7 +227,7 @@ static int nazm_main_utf8(int argc, char **argv) {
 
     const char *out_path = args.output_path;
     if (out_path == NULL) {
-        out_path = make_output_path(&arena, args.source_path);
+        out_path = make_output_path(&arena, args.source_path, args.format);
     }
 
     if (io_paths_refer_to_same_file(out_path, args.source_path)
@@ -226,7 +237,7 @@ static int nazm_main_utf8(int argc, char **argv) {
                 || io_paths_refer_to_same_file(
                     args.listing_path, out_path)))) {
         fprintf(stderr,
-                "خطأ: يجب أن تختلف مسارات المصدر والملف الكائني وlisting\n");
+                "خطأ: يجب أن تختلف مسارات المصدر والملف الكائني وكشف التجميع\n");
         return cleanup_and_return(&arena, source_file.data, 2);
     }
 
@@ -255,7 +266,7 @@ static int nazm_main_utf8(int argc, char **argv) {
         && !listing_write_file(
                args.listing_path, &parse.instructions, &p2)) {
         fprintf(stderr,
-                "خطأ: تعذّرت كتابة ملف listing: %s\n",
+                "خطأ: تعذرت كتابة ملف كشف التجميع: %s\n",
                 args.listing_path);
         return cleanup_and_return(&arena, source_file.data, 2);
     }
@@ -264,7 +275,7 @@ static int nazm_main_utf8(int argc, char **argv) {
         fprintf(stderr, "نَظْم: كُتب %s (%zu بايت)\n", out_path, out.size);
         if (args.listing_path != NULL) {
             fprintf(stderr,
-                    "نَظْم: كُتب listing في %s\n",
+                    "نَظْم: كتب كشف التجميع في %s\n",
                     args.listing_path);
         }
     }

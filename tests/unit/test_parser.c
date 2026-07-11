@@ -45,14 +45,14 @@ void test_parse_ret(void) {
 }
 
 void test_parse_syscall(void) {
-    ParseResult r = parse("نداء_نظام");
+    ParseResult r = parse("ناد_النظام");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(OPCODE_SYSCALL, instr(&r,0).opcode);
     TEST_ASSERT_EQUAL_INT(0, instr(&r,0).op_count);
 }
 
 void test_parse_nop(void) {
-    ParseResult r = parse("لاشيء");
+    ParseResult r = parse("لا_تفعل");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(OPCODE_NOP, instr(&r,0).opcode);
 }
@@ -60,7 +60,7 @@ void test_parse_nop(void) {
 /* ── MOV variants ──────────────────────────────────────────────────────────*/
 
 void test_parse_mov_reg_imm(void) {
-    ParseResult r = parse("احمل ر0، ٤٢");
+    ParseResult r = parse("انقل سجل_المركم، ٤٢");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OPCODE_MOV, i.opcode);
@@ -72,7 +72,7 @@ void test_parse_mov_reg_imm(void) {
 }
 
 void test_parse_mov_reg_reg(void) {
-    ParseResult r = parse("احمل ر0، ر1");
+    ParseResult r = parse("انقل سجل_المركم، سجل_العداد");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OPCODE_MOV, i.opcode);
@@ -83,7 +83,7 @@ void test_parse_mov_reg_reg(void) {
 }
 
 void test_parse_mov_reg_mem(void) {
-    ParseResult r = parse("احمل ر0، [ر1]");
+    ParseResult r = parse("انقل سجل_المركم، [سجل_العداد]");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OP_REG,     i.ops[0].kind);
@@ -93,7 +93,7 @@ void test_parse_mov_reg_mem(void) {
 }
 
 void test_parse_mov_mem_reg(void) {
-    ParseResult r = parse("احمل [ر0]، ر1");
+    ParseResult r = parse("انقل [سجل_المركم]، سجل_العداد");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OP_MEM_REG, i.ops[0].kind);
@@ -103,7 +103,7 @@ void test_parse_mov_mem_reg(void) {
 }
 
 void test_parse_mov_mem_disp(void) {
-    ParseResult r = parse("احمل ر0، [ر1+8]");
+    ParseResult r = parse("انقل سجل_المركم، [سجل_العداد+8]");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OP_MEM_DISP, i.ops[1].kind);
@@ -112,7 +112,7 @@ void test_parse_mov_mem_disp(void) {
 }
 
 void test_parse_mov_mem_arabic_disp(void) {
-    ParseResult r = parse("احمل ر0، [ر1+٨]");
+    ParseResult r = parse("انقل سجل_المركم، [سجل_العداد+٨]");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OP_MEM_DISP, i.ops[1].kind);
@@ -121,7 +121,7 @@ void test_parse_mov_mem_arabic_disp(void) {
 }
 
 void test_parse_mov_mem_neg_disp(void) {
-    ParseResult r = parse("احمل ر0، [ر5-16]");
+    ParseResult r = parse("انقل سجل_المركم، [مؤشر_القاعدة-16]");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OP_MEM_DISP, i.ops[1].kind);
@@ -129,7 +129,7 @@ void test_parse_mov_mem_neg_disp(void) {
 }
 
 void test_parse_mov_mem_negative_arabic_disp(void) {
-    ParseResult r = parse("احمل ر0، [ر5-١٦]");
+    ParseResult r = parse("انقل سجل_المركم، [مؤشر_القاعدة-١٦]");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OP_MEM_DISP, i.ops[1].kind);
@@ -137,31 +137,31 @@ void test_parse_mov_mem_negative_arabic_disp(void) {
 }
 
 void test_parse_memory_disp32_boundaries(void) {
-    ParseResult min_result = parse("احمل ر0، [ر1-2147483648]");
+    ParseResult min_result = parse("انقل سجل_المركم، [سجل_العداد-2147483648]");
     TEST_ASSERT_FALSE(error_has_any(&min_result.errors));
     TEST_ASSERT_EQUAL_INT(
         INT32_MIN, instr(&min_result, 0).ops[1].mem.disp);
 
-    ParseResult max_result = parse("احمل ر0، [ر1+2147483647]");
+    ParseResult max_result = parse("انقل سجل_المركم، [سجل_العداد+2147483647]");
     TEST_ASSERT_FALSE(error_has_any(&max_result.errors));
     TEST_ASSERT_EQUAL_INT(
         INT32_MAX, instr(&max_result, 0).ops[1].mem.disp);
 }
 
 void test_parse_memory_rejects_disp32_overflow(void) {
-    ParseResult below = parse("احمل ر0، [ر1-2147483649]");
+    ParseResult below = parse("انقل سجل_المركم، [سجل_العداد-2147483649]");
     TEST_ASSERT_TRUE(error_has_any(&below.errors));
     TEST_ASSERT_NOT_NULL(strstr(
-        below.errors.errors[0].message, "خارج مجال 32-bit"));
+        below.errors.errors[0].message, "خارج مجال 32 بت"));
 
-    ParseResult above = parse("احمل ر0، [ر1+2147483648]");
+    ParseResult above = parse("انقل سجل_المركم، [سجل_العداد+2147483648]");
     TEST_ASSERT_TRUE(error_has_any(&above.errors));
     TEST_ASSERT_NOT_NULL(strstr(
-        above.errors.errors[0].message, "خارج مجال 32-bit"));
+        above.errors.errors[0].message, "خارج مجال 32 بت"));
 }
 
 void test_parse_mov_reg_label(void) {
-    ParseResult r = parse("احمل ر2، رسالة");
+    ParseResult r = parse("انقل سجل_البيانات، رسالة");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OP_LABEL, i.ops[1].kind);
@@ -170,12 +170,13 @@ void test_parse_mov_reg_label(void) {
 
 
 void test_parse_string_directive_operand(void) {
-    ParseResult r = parse(".بيانات\nرسالة: .سلسلة \"مرحبا\\n\"");
+    ParseResult r = parse(".بيانات\nرسالة: .سلسلة_منتهية_بصفر \"مرحبا\\n\"");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(2, (int)r.instructions.count);
     Instruction i = instr(&r, 1);
     TEST_ASSERT_EQUAL_STRING("رسالة", i.label);
-    TEST_ASSERT_EQUAL_STRING(".سلسلة", i.directive);
+    TEST_ASSERT_EQUAL_STRING(".سلسلة_منتهية_بصفر", i.directive);
+    TEST_ASSERT_EQUAL_INT(DIRECTIVE_NUL_STRING, i.directive_kind);
     TEST_ASSERT_EQUAL_INT(1, i.op_count);
     TEST_ASSERT_EQUAL_INT(OP_STRING, i.ops[0].kind);
     TEST_ASSERT_EQUAL_INT(11, (int)i.ops[0].string.len);
@@ -185,14 +186,14 @@ void test_parse_string_directive_operand(void) {
 /* ── Arithmetic ────────────────────────────────────────────────────────────*/
 
 void test_parse_add(void) {
-    ParseResult r = parse("أضف ر0، ر1");
+    ParseResult r = parse("أضف سجل_المركم، سجل_العداد");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(OPCODE_ADD, instr(&r,0).opcode);
     TEST_ASSERT_EQUAL_INT(2,          instr(&r,0).op_count);
 }
 
 void test_parse_sub_reg_imm(void) {
-    ParseResult r = parse("اطرح ر4، 16");
+    ParseResult r = parse("اطرح مؤشر_المكدس، 16");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OPCODE_SUB, i.opcode);
@@ -201,14 +202,14 @@ void test_parse_sub_reg_imm(void) {
 }
 
 void test_parse_inc(void) {
-    ParseResult r = parse("زد ر0");
+    ParseResult r = parse("زد سجل_المركم");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(OPCODE_INC, instr(&r,0).opcode);
     TEST_ASSERT_EQUAL_INT(1,          instr(&r,0).op_count);
 }
 
 void test_parse_dec(void) {
-    ParseResult r = parse("انقص ر1");
+    ParseResult r = parse("انقص سجل_العداد");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(OPCODE_DEC, instr(&r,0).opcode);
 }
@@ -216,20 +217,20 @@ void test_parse_dec(void) {
 /* ── Logic ─────────────────────────────────────────────────────────────────*/
 
 void test_parse_xor_reg_reg(void) {
-    ParseResult r = parse("خالف ر0، ر0");
+    ParseResult r = parse("خالف_بتيا سجل_المركم، سجل_المركم");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(OPCODE_XOR, instr(&r,0).opcode);
 }
 
 void test_parse_and(void) {
-    ParseResult r = parse("و ر0، 0xFF");
+    ParseResult r = parse("و_بتيا سجل_المركم، 0xFF");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(OPCODE_AND, instr(&r,0).opcode);
     TEST_ASSERT_EQUAL_INT(255,        (int)instr(&r,0).ops[1].imm);
 }
 
 void test_parse_shl(void) {
-    ParseResult r = parse("ازحل ر0، 2");
+    ParseResult r = parse("ازح_يسارا سجل_المركم، 2");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(OPCODE_SHL, instr(&r,0).opcode);
 }
@@ -246,21 +247,21 @@ void test_parse_jmp_label(void) {
 }
 
 void test_parse_je_label(void) {
-    ParseResult r = parse("اقفز_مساوٍ نهاية");
+    ParseResult r = parse("اقفز_مساو نهاية");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(OPCODE_JE, instr(&r,0).opcode);
     TEST_ASSERT_EQUAL_INT(OP_LABEL,  instr(&r,0).ops[0].kind);
 }
 
 void test_parse_call_label(void) {
-    ParseResult r = parse("نادِ الدالة");
+    ParseResult r = parse("ناد الدالة");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(OPCODE_CALL, instr(&r,0).opcode);
     TEST_ASSERT_EQUAL_STRING("الدالة", instr(&r,0).ops[0].label);
 }
 
 void test_parse_push_pop(void) {
-    ParseResult r = parse("ادفع ر0\nاسحب ر1");
+    ParseResult r = parse("ادفع سجل_المركم\nاسحب سجل_العداد");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(2, (int)r.instructions.count);
     TEST_ASSERT_EQUAL_INT(OPCODE_PUSH, instr(&r,0).opcode);
@@ -279,7 +280,7 @@ void test_parse_label_alone(void) {
 }
 
 void test_parse_label_with_instruction(void) {
-    ParseResult r = parse("البداية: احمل ر0، ١");
+    ParseResult r = parse("البداية: انقل سجل_المركم، ١");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     /* label attaches to the instruction on the same line */
     TEST_ASSERT_EQUAL_INT(1, (int)r.instructions.count);
@@ -308,6 +309,7 @@ void test_parse_directive_text(void) {
     TEST_ASSERT_EQUAL_INT(OPCODE_INVALID, i.opcode);
     TEST_ASSERT_NOT_NULL(i.directive);
     TEST_ASSERT_EQUAL_STRING(".نص", i.directive);
+    TEST_ASSERT_EQUAL_INT(DIRECTIVE_TEXT, i.directive_kind);
 }
 
 void test_parse_directive_global(void) {
@@ -315,6 +317,7 @@ void test_parse_directive_global(void) {
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_STRING(".عام", i.directive);
+    TEST_ASSERT_EQUAL_INT(DIRECTIVE_GLOBAL, i.directive_kind);
     TEST_ASSERT_EQUAL_INT(1, i.op_count);
     TEST_ASSERT_EQUAL_INT(OP_LABEL, i.ops[0].kind);
     TEST_ASSERT_EQUAL_STRING("الرئيسية", i.ops[0].label);
@@ -324,12 +327,41 @@ void test_parse_directive_data(void) {
     ParseResult r = parse(".بيانات");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_STRING(".بيانات", instr(&r,0).directive);
+    TEST_ASSERT_EQUAL_INT(DIRECTIVE_DATA, instr(&r,0).directive_kind);
+}
+
+void test_parse_all_canonical_directive_kinds(void) {
+    static const struct {
+        const char   *spelling;
+        DirectiveKind kind;
+    } cases[] = {
+        { ".نص", DIRECTIVE_TEXT },
+        { ".بيانات", DIRECTIVE_DATA },
+        { ".عدد٨", DIRECTIVE_INT8 },
+        { ".عدد١٦", DIRECTIVE_INT16 },
+        { ".عدد٣٢", DIRECTIVE_INT32 },
+        { ".عدد٦٤", DIRECTIVE_INT64 },
+        { ".مساحة_صفرية", DIRECTIVE_ZERO_SPACE },
+        { ".سلسلة_منتهية_بصفر", DIRECTIVE_NUL_STRING },
+        { ".عام", DIRECTIVE_GLOBAL },
+        { ".محلي", DIRECTIVE_LOCAL },
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        ParseResult result = parse(cases[i].spelling);
+        TEST_ASSERT_FALSE(error_has_any(&result.errors));
+        TEST_ASSERT_EQUAL_INT(1, (int)result.instructions.count);
+        TEST_ASSERT_EQUAL_STRING(
+            cases[i].spelling, result.instructions.data[0].directive);
+        TEST_ASSERT_EQUAL_INT(
+            cases[i].kind, result.instructions.data[0].directive_kind);
+    }
 }
 
 /* ── Named registers ───────────────────────────────────────────────────────*/
 
 void test_parse_named_register_stack(void) {
-    ParseResult r = parse("ادفع مكدس");
+    ParseResult r = parse("ادفع مؤشر_المكدس");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OP_REG,  i.ops[0].kind);
@@ -337,7 +369,7 @@ void test_parse_named_register_stack(void) {
 }
 
 void test_parse_named_register_base(void) {
-    ParseResult r = parse("احمل ر0، [قاعدة+8]");
+    ParseResult r = parse("انقل سجل_المركم، [مؤشر_القاعدة+8]");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(OP_MEM_DISP, i.ops[1].kind);
@@ -353,12 +385,12 @@ void test_parse_full_program(void) {
         ".نص\n"
         ".عام الرئيسية\n"
         "الرئيسية:\n"
-        "    احمل ر0، ١\n"
-        "    احمل ر7، ١\n"
-        "    نداء_نظام\n"
-        "    احمل ر0، ٦٠\n"
-        "    خالف ر7، ر7\n"
-        "    نداء_نظام\n";
+        "    انقل سجل_المركم، ١\n"
+        "    انقل فهرس_الوجهة، ١\n"
+        "    ناد_النظام\n"
+        "    انقل سجل_المركم، ٦٠\n"
+        "    خالف_بتيا فهرس_الوجهة، فهرس_الوجهة\n"
+        "    ناد_النظام\n";
 
     ParseResult r = parse(src);
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
@@ -374,11 +406,11 @@ void test_parse_full_program(void) {
 
 void test_parse_loop_program(void) {
     const char *src =
-        "احمل ر2، ١٠\n"
+        "انقل سجل_البيانات، ١٠\n"
         "حلقة:\n"
-        "    انقص ر2\n"
-        "    قارن ر2، 0\n"
-        "    اقفز_لاصفر حلقة\n"
+        "    انقص سجل_البيانات\n"
+        "    قارن سجل_البيانات، 0\n"
+        "    اقفز_غير_صفر حلقة\n"
         "    ارجع\n";
 
     ParseResult r = parse(src);
@@ -391,7 +423,7 @@ void test_parse_loop_program(void) {
     TEST_ASSERT_EQUAL_STRING("حلقة", lbl.label);
     TEST_ASSERT_EQUAL_INT(OPCODE_INVALID, lbl.opcode);
 
-    /* اقفز_لاصفر حلقة — index 4: [0]mov [1]label [2]dec [3]cmp [4]jnz [5]ret */
+    /* اقفز_غير_صفر حلقة — index 4: [0]mov [1]label [2]dec [3]cmp [4]jnz [5]ret */
     Instruction jnz = instr(&r, 4);
     TEST_ASSERT_EQUAL_INT(OPCODE_JNZ, jnz.opcode);
     TEST_ASSERT_EQUAL_INT(OP_LABEL,   jnz.ops[0].kind);
@@ -401,7 +433,7 @@ void test_parse_loop_program(void) {
 /* ── Line / column tracking ────────────────────────────────────────────────*/
 
 void test_parse_line_numbers(void) {
-    ParseResult r = parse("احمل ر0، ١\nأضف ر0، ١\nارجع");
+    ParseResult r = parse("انقل سجل_المركم، ١\nأضف سجل_المركم، ١\nارجع");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(1, instr(&r,0).line);
     TEST_ASSERT_EQUAL_INT(2, instr(&r,1).line);
@@ -411,46 +443,83 @@ void test_parse_line_numbers(void) {
 /* ── Error cases ───────────────────────────────────────────────────────────*/
 
 void test_parse_too_few_operands(void) {
-    ParseResult r = parse("احمل ر0");   /* MOV needs 2 operands */
+    ParseResult r = parse("انقل سجل_المركم");   /* MOV needs 2 operands */
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
 }
 
 void test_parse_too_many_operands(void) {
-    ParseResult r = parse("ارجع ر0");   /* RET takes 0 operands */
+    ParseResult r = parse("ارجع سجل_المركم");   /* RET takes 0 operands */
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
 }
 
 void test_parse_missing_comma(void) {
-    ParseResult r = parse("احمل ر0 ر1");  /* missing comma */
+    ParseResult r = parse("انقل سجل_المركم سجل_العداد");  /* missing comma */
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
 }
 
 void test_parse_bad_memory_no_reg(void) {
-    ParseResult r = parse("احمل ر0، [42]");  /* immediate inside [] */
+    ParseResult r = parse("انقل سجل_المركم، [42]");  /* immediate inside [] */
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
+}
+
+void test_parse_removed_mnemonic_reports_replacement(void) {
+    ParseResult result = parse("احمل سجل_المركم، 1");
+    TEST_ASSERT_TRUE(error_has_any(&result.errors));
+    TEST_ASSERT_NOT_NULL(strstr(result.errors.errors[0].message, "انقل"));
+}
+
+void test_parse_removed_register_reports_replacement(void) {
+    ParseResult result = parse("انقل ر0، 1");
+    TEST_ASSERT_TRUE(error_has_any(&result.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        result.errors.errors[0].message, "سجل_المركم"));
+
+    ParseResult memory = parse("انقل سجل_المركم، [قاعدة]");
+    TEST_ASSERT_TRUE(error_has_any(&memory.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        memory.errors.errors[0].message, "مؤشر_القاعدة"));
+}
+
+void test_parse_removed_directive_reports_replacement(void) {
+    static const struct {
+        const char *legacy;
+        const char *replacement;
+    } cases[] = {
+        { ".بايت", ".عدد٨" },
+        { ".مساحة", ".مساحة_صفرية" },
+        { ".سلسلة", ".سلسلة_منتهية_بصفر" },
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        ParseResult result = parse(cases[i].legacy);
+        TEST_ASSERT_TRUE(error_has_any(&result.errors));
+        TEST_ASSERT_NOT_NULL(strstr(
+            result.errors.errors[0].message, cases[i].replacement));
+        TEST_ASSERT_EQUAL_INT(0, (int)result.instructions.count);
+    }
 }
 
 
 void test_parse_missing_comma_span_points_to_second_operand(void) {
-    ParseResult r = parse("احمل ر0 ر1");
+    ParseResult r = parse("انقل سجل_المركم سجل_العداد");
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
 
     NazmError e = r.errors.errors[0];
     TEST_ASSERT_EQUAL_INT(1, e.line);
-    TEST_ASSERT_EQUAL_INT(9, e.col);
-    TEST_ASSERT_EQUAL_INT(11, e.end_col);
+    TEST_ASSERT_EQUAL_INT(17, e.col);
+    TEST_ASSERT_EQUAL_INT(27, e.end_col);
     TEST_ASSERT_NOT_NULL(strstr(e.message, "فاصلة عربية"));
 }
 
 void test_parse_memory_operand_source_span(void) {
-    ParseResult r = parse("احمل ر0، [ر1+٨]");
+    ParseResult r = parse("انقل سجل_المركم، [سجل_العداد+٨]");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
 
     Operand mem = instr(&r, 0).ops[1];
     TEST_ASSERT_EQUAL_INT(OP_MEM_DISP, mem.kind);
     TEST_ASSERT_EQUAL_INT(1, mem.line);
-    TEST_ASSERT_EQUAL_INT(10, mem.col);
-    TEST_ASSERT_EQUAL_INT(16, mem.end_col);
+    TEST_ASSERT_EQUAL_INT(18, mem.col);
+    TEST_ASSERT_EQUAL_INT(32, mem.end_col);
 }
 
 void test_parse_label_operand_source_span(void) {
@@ -479,7 +548,7 @@ void test_parse_only_comments(void) {
 
 void test_parse_error_recovery(void) {
     /* Bad line followed by good line — should parse the good line */
-    ParseResult r = parse("احمل ر0\nارجع");  /* احمل missing operand, then ret */
+    ParseResult r = parse("انقل سجل_المركم\nارجع");  /* انقل missing operand, then ret */
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
     /* ارجع should still appear */
     bool found_ret = false;
@@ -492,25 +561,25 @@ void test_parse_error_recovery(void) {
 /* ── Immediate values ──────────────────────────────────────────────────────*/
 
 void test_parse_immediate_zero(void) {
-    ParseResult r = parse("احمل ر0، 0");
+    ParseResult r = parse("انقل سجل_المركم، 0");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(0, (int)instr(&r,0).ops[1].imm);
 }
 
 void test_parse_immediate_hex(void) {
-    ParseResult r = parse("احمل ر0، 0xFF");
+    ParseResult r = parse("انقل سجل_المركم، 0xFF");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(255, (int)instr(&r,0).ops[1].imm);
 }
 
 void test_parse_immediate_arabic_digits(void) {
-    ParseResult r = parse("احمل ر0، ٦٠");
+    ParseResult r = parse("انقل سجل_المركم، ٦٠");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(60, (int)instr(&r,0).ops[1].imm);
 }
 
 void test_parse_immediate_negative(void) {
-    ParseResult r = parse("أضف ر4، -8");
+    ParseResult r = parse("أضف مؤشر_المكدس، -8");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(-8, (int)instr(&r,0).ops[1].imm);
 }
@@ -518,7 +587,7 @@ void test_parse_immediate_negative(void) {
 /* ── INT instruction ───────────────────────────────────────────────────────*/
 
 void test_parse_int(void) {
-    ParseResult r = parse("قاطع 0x80");
+    ParseResult r = parse("اطلب_مقاطعة 0x80");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     TEST_ASSERT_EQUAL_INT(OPCODE_INT, instr(&r,0).opcode);
     TEST_ASSERT_EQUAL_INT(0x80,       (int)instr(&r,0).ops[0].imm);
@@ -527,7 +596,7 @@ void test_parse_int(void) {
 /* ── r8–r15 registers ──────────────────────────────────────────────────────*/
 
 void test_parse_extended_registers(void) {
-    ParseResult r = parse("احمل ر8، ر15");
+    ParseResult r = parse("انقل سجل_عام_8، سجل_عام_15");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(REG_R8,  i.ops[0].reg);
@@ -583,6 +652,7 @@ int main(void) {
     RUN_TEST(test_parse_directive_text);
     RUN_TEST(test_parse_directive_global);
     RUN_TEST(test_parse_directive_data);
+    RUN_TEST(test_parse_all_canonical_directive_kinds);
 
     /* Named registers */
     RUN_TEST(test_parse_named_register_stack);
@@ -600,6 +670,9 @@ int main(void) {
     RUN_TEST(test_parse_too_many_operands);
     RUN_TEST(test_parse_missing_comma);
     RUN_TEST(test_parse_bad_memory_no_reg);
+    RUN_TEST(test_parse_removed_mnemonic_reports_replacement);
+    RUN_TEST(test_parse_removed_register_reports_replacement);
+    RUN_TEST(test_parse_removed_directive_reports_replacement);
     RUN_TEST(test_parse_missing_comma_span_points_to_second_operand);
     RUN_TEST(test_parse_memory_operand_source_span);
     RUN_TEST(test_parse_label_operand_source_span);
