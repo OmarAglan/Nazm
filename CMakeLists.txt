@@ -83,14 +83,24 @@ set(NAZM_SOURCES
 add_executable(nazm ${NAZM_SOURCES})
 
 # The Arabic launcher is an exact copy of the portable ASCII executable.
-# Keeping one compiled target prevents the two command names from diverging.
+# On MinGW, passing an Arabic destination through the generated make command
+# corrupts it through the active ANSI code page. Keep the command itself ASCII
+# and construct نظم from Unicode code points inside PowerShell.
 set(NAZM_ARABIC_EXECUTABLE
     "$<TARGET_FILE_DIR:nazm>/نظم${CMAKE_EXECUTABLE_SUFFIX}")
-add_custom_command(TARGET nazm POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:nazm>" "${NAZM_ARABIC_EXECUTABLE}"
-    VERBATIM
-)
+if(WIN32)
+    add_custom_command(TARGET nazm POST_BUILD
+        COMMAND powershell -NoProfile -ExecutionPolicy Bypass -Command
+            "$name = -join [char[]](0x0646,0x0638,0x0645); Copy-Item -Force -LiteralPath '$<TARGET_FILE:nazm>' -Destination (Join-Path '$<TARGET_FILE_DIR:nazm>' ($name + '${CMAKE_EXECUTABLE_SUFFIX}'))"
+        VERBATIM
+    )
+else()
+    add_custom_command(TARGET nazm POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:nazm>" "${NAZM_ARABIC_EXECUTABLE}"
+        VERBATIM
+    )
+endif()
 
 if(MINGW)
     target_link_options(nazm PRIVATE -municode)

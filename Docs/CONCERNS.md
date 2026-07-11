@@ -43,7 +43,7 @@
 - Fix approach: Add the API implementation and a small C unit test before promising external embedding support.
 
 **Baa backend coverage is substantially larger than Nazm's current subset:**
-- Symptoms: Baa `0.5.6` emits 8/16/32/64-bit integer forms, `setcc`,
+- Symptoms: the Baa `0.6.0` integration baseline emits 8/16/32/64-bit integer forms, `setcc`,
   `movzx`/`movsx`, unsigned division, `cqo`, SSE2 scalar floating-point,
   external calls/globals, target-specific read-only data, PIC/PIE references,
   and raw inline GAS.

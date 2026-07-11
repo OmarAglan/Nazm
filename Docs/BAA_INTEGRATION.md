@@ -14,9 +14,10 @@ This is not only a library-embedding goal. Arabic textual assembly is a
 first-class, inspectable compiler output and must remain available through
 Baa's assembly-output mode.
 
-## Verified Baa Baseline
+## Current Baa Baseline
 
-The Baa `0.5.6` repository currently implements:
+The workspace integration baseline is Baa `0.6.0`. Its production pipeline
+currently implements:
 
 ```text
 Baa source
@@ -31,15 +32,20 @@ Baa source
   -> gcc/system linker
 ```
 
+The pipeline boundary is confirmed, but this version pin is not a coverage
+claim. Stage B must regenerate the emitted-form inventory from the complete Baa
+`0.6.0` quick/full/stress corpus before any shadow integration result is valid.
+
 The integration boundary is therefore after Baa register allocation and before
 object generation. Baa continues to own its language semantics, IR,
 instruction selection, register allocation, ABI lowering, function prologues,
 and function epilogues. Nazm owns Arabic assembly syntax, operand validation,
 x86-64 encoding, relocations, and object-file serialization.
 
-Baa's roadmap currently describes a future internal assembler. That phase
-should integrate Nazm rather than create a second independent assembler with a
-separate parser, encoder, and pair of object writers.
+Baa's roadmap assigns its future assembler phase to Nazm integration. It must
+not create a second independent assembler with a separate parser, encoder, and
+pair of object writers. The shared planning contract is
+`baa-nazm-boundary-v0`; this document owns its Nazm-side detail.
 
 ## Target Pipeline
 

@@ -1,10 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
 
-foreach(required NAZM_EXE NAZM_ARABIC_EXE GOOD_SOURCE BAD_SOURCE WORK_DIR)
+foreach(required NAZM_EXE GOOD_SOURCE BAD_SOURCE WORK_DIR)
     if(NOT DEFINED ${required})
         message(FATAL_ERROR "Missing required CLI acceptance setting: ${required}")
     endif()
 endforeach()
+
+get_filename_component(NAZM_EXE_DIR "${NAZM_EXE}" DIRECTORY)
+get_filename_component(NAZM_EXE_SUFFIX "${NAZM_EXE}" EXT)
+set(NAZM_ARABIC_EXE "${NAZM_EXE_DIR}/نظم${NAZM_EXE_SUFFIX}")
 
 file(MAKE_DIRECTORY "${WORK_DIR}")
 
