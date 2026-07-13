@@ -181,12 +181,15 @@
 - Implementation complexity: Medium; this needs parser directives, symbol flags, relocation records, and output-writer support.
 
 **Baa assembly corpus and parity harness:**
-- Problem: Nazm has no checked-in inventory of the instructions, operand
-  widths, directives, symbol forms, and relocations emitted by Baa.
-- Current workaround: Inspect Baa's AT&T output manually.
-- Implementation complexity: Medium; generate assembly for Baa's
-  quick/full/stress corpus on both targets, normalize it into a coverage
-  manifest, then compare GAS and Nazm object semantics.
+- Current evidence: Baa commit `04d3d65` checks in a deterministic inventory of
+  the instructions, operand forms, directives, sections, symbol categories,
+  and relocation candidates emitted by 99 sources on both targets.
+- Remaining problem: Nazm still needs generated acceptance fixtures, an
+  explicit supported/unsupported coverage matrix, and GAS/Nazm object-semantic
+  comparison.
+- Implementation complexity: Medium; consume the checked Baa inventory,
+  implement the missing forms with byte tests, then compare GAS and Nazm
+  object semantics.
 
 ## Test Coverage Gaps
 

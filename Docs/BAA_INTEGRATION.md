@@ -42,6 +42,25 @@ instruction selection, register allocation, ABI lowering, function prologues,
 and function epilogues. Nazm owns Arabic assembly syntax, operand validation,
 x86-64 encoding, relocations, and object-file serialization.
 
+### Stage B Receipt
+
+Baa commit `04d3d65` checks in the canonical
+[`baa-assembly-surface-v1`](https://github.com/OmarAglan/Baa/blob/04d3d65/docs/generated/assembly_surface_v1.json)
+artifact and a reproducibility gate. It compiles all 99 assembly-producing
+quick/full/stress and example sources for each target, honoring per-source
+flags, with zero omitted or failed sources.
+
+The Linux snapshot has 108 instruction forms, 15 directive forms, four
+sections, 41 registers, and seven syntactic relocation-candidate forms. The
+Windows snapshot has 105 instruction forms, 13 directive forms, three
+sections, 42 registers, and seven relocation-candidate forms. Syntactic
+relocation candidates are an input to Stage C; they are not yet object-level
+relocation parity evidence.
+
+This receipt closes inventory generation, not Nazm coverage. Acceptance
+fixtures and support for every observed form remain required before the shadow
+subprocess can be called complete.
+
 Baa's roadmap assigns its future assembler phase to Nazm integration. It must
 not create a second independent assembler with a separate parser, encoder, and
 pair of object writers. The shared planning contract is
@@ -143,8 +162,9 @@ that is unrelated to the Arabic-first goal.
 ### Stage B: Coverage Inventory
 
 - Generate Baa assembly for the full quick/full/stress corpus on both targets.
+  **Complete in Baa commit `04d3d65`.**
 - Extract the instruction, operand, directive, section, symbol, and relocation
-  forms Baa actually emits.
+  forms Baa actually emits. **Complete in `baa-assembly-surface-v1`.**
 - Convert the inventory into Nazm acceptance fixtures and a coverage matrix.
 
 ### Stage C: Shadow Subprocess Integration
