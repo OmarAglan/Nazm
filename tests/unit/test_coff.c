@@ -37,6 +37,18 @@ static Pipeline run(const char *src) {
 static uint16_t r16(const uint8_t *p){ return (uint16_t)((uint16_t)p[0]|(uint16_t)p[1]<<8); }
 static uint32_t r32(const uint8_t *p){ return (uint32_t)p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24; }
 
+static const char *coff_symbol_name(const Pipeline *pl, const uint8_t *symbol) {
+    if (r32(symbol) != 0) {
+        return (const char *)symbol;
+    }
+
+    uint32_t symbol_count = r32(pl->coff.data + 12);
+    uint32_t string_offset = r32(symbol + 4);
+    const uint8_t *strings = pl->coff.data + r32(pl->coff.data + 8) +
+                             (symbol_count * 18);
+    return (const char *)(strings + string_offset);
+}
+
 static const char *insert_many_symbols(SymbolTable *symtable, size_t count) {
     char name[32];
 
@@ -308,7 +320,7 @@ void test_coff_symbol_storage_classes_follow_visibility(void) {
     TEST_ASSERT_EQUAL_INT(0, (int)r32(global + 8));
 }
 
-void test_coff_maps_exported_arabic_entry_to_platform_main(void) {
+void test_coff_preserves_exported_arabic_entry_name(void) {
     Pipeline pl = run(
         ".عام الرئيسية\n"
         "الرئيسية:\n"
@@ -317,7 +329,7 @@ void test_coff_maps_exported_arabic_entry_to_platform_main(void) {
 
     uint32_t symptr = r32(pl.coff.data + 8);
     const uint8_t *global = pl.coff.data + symptr + 18;
-    TEST_ASSERT_EQUAL_STRING("main", (const char *)global);
+    TEST_ASSERT_EQUAL_STRING("الرئيسية", coff_symbol_name(&pl, global));
     TEST_ASSERT_EQUAL_INT(2, global[16]); /* IMAGE_SYM_CLASS_EXTERNAL */
 }
 
@@ -456,7 +468,7 @@ int main(void) {
     /* Symbols */
     RUN_TEST(test_coff_symtab_has_entries);
     RUN_TEST(test_coff_symbol_storage_classes_follow_visibility);
-    RUN_TEST(test_coff_maps_exported_arabic_entry_to_platform_main);
+    RUN_TEST(test_coff_preserves_exported_arabic_entry_name);
     RUN_TEST(test_coff_data_symbol_uses_data_section);
     RUN_TEST(test_coff_text_relocation_for_mov_label);
     RUN_TEST(test_coff_preserves_symbols_and_relocation_beyond_old_limit);

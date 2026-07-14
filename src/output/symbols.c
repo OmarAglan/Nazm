@@ -98,12 +98,5 @@ bool output_symbols_find_index(const OutputSymbolList *symbols,
 }
 
 const char *output_symbol_link_name(const OutputSymbol *symbol) {
-    if (symbol != NULL &&
-        symbol->binding == SYMBOL_BINDING_GLOBAL &&
-        symbol->section == SYMBOL_SECTION_TEXT &&
-        strcmp(symbol->name, "الرئيسية") == 0) {
-        return "main";
-    }
-
     return symbol != NULL ? symbol->name : NULL;
 }

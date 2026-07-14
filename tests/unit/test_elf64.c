@@ -254,7 +254,7 @@ void test_elf_symbol_bindings_and_local_order(void) {
     TEST_ASSERT_EQUAL_INT(0, (int)rd64(global + 8));
 }
 
-void test_elf_maps_exported_arabic_entry_to_platform_main(void) {
+void test_elf_preserves_exported_arabic_entry_name(void) {
     OutputResult r = assemble_elf(
         ".عام الرئيسية\n"
         "الرئيسية:\n"
@@ -271,7 +271,7 @@ void test_elf_maps_exported_arabic_entry_to_platform_main(void) {
     const uint8_t *global = r.data + sym_off + 24;
     uint32_t name_offset = rd32(global);
 
-    TEST_ASSERT_EQUAL_STRING("main", (const char *)(r.data + str_off + name_offset));
+    TEST_ASSERT_EQUAL_STRING("الرئيسية", (const char *)(r.data + str_off + name_offset));
     TEST_ASSERT_EQUAL_INT(1, global[4] >> 4); /* STB_GLOBAL */
 }
 
@@ -417,7 +417,7 @@ int main(void) {
     RUN_TEST(test_elf_symtab_section_exists);
     RUN_TEST(test_elf_symtab_has_label_entry);
     RUN_TEST(test_elf_symbol_bindings_and_local_order);
-    RUN_TEST(test_elf_maps_exported_arabic_entry_to_platform_main);
+    RUN_TEST(test_elf_preserves_exported_arabic_entry_name);
     RUN_TEST(test_elf_empty_program);
     RUN_TEST(test_elf_minimum_size);
     RUN_TEST(test_elf_data_section_exists_when_data_emitted);

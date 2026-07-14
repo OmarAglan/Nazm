@@ -38,9 +38,9 @@ change, collision analysis, and tests; it must not appear as silent behavior.
 - Canonically equivalent spellings can therefore name distinct labels.
 - Arabic letters and underscore may begin a label. Arabic and ASCII digits may
   continue it. ASCII letters are not accepted in source identifiers.
-- The global source symbol `الرئيسية` is serialized as the platform ABI entry
-  symbol `main` by the object writers. This internal link-name mapping does not
-  introduce an ASCII spelling into Nazm source.
+- The global source symbol `الرئيسية` is serialized unchanged by the ELF64 and
+  COFF object writers. Entry-point selection belongs to the linker invocation;
+  Nazm never replaces an Arabic symbol with an ASCII alias.
 
 The Baa backend must emit the canonical mnemonic, register, and directive
 strings from the 0.4 contract and preserve label bytes consistently. It must
