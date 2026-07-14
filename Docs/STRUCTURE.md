@@ -128,9 +128,15 @@ Nazm/
 **examples/diagnostics/**
 - Holds intentional-error `.نظم` files used to demonstrate Arabic source-context diagnostics.
 
-**Planned fixture area**
-- A future directory under `tests` will hold `.نظم` source fixtures and
-  expected byte/object outputs.
+**tests/fixtures/baa_coverage/**
+- Holds focused canonical `.نظم` fixtures for the Baa inventory forms currently
+  classified as supported. CTest assembles every fixture to ELF64 and COFF.
+
+**Docs/generated/**
+- Holds machine-readable generated integration contracts. The current
+  `nazm_capabilities_v1.json` describes instructions, operand shapes and
+  widths, directives, sections, symbols, relocations, known limits, and the Baa
+  acceptance-fixture map.
 
 ## Key File Locations
 

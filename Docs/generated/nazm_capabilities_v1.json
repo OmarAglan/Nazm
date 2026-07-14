@@ -1,0 +1,502 @@
+{
+  "schema": "nazm-capabilities-v1",
+  "assembler": "Nazm 0.4.0",
+  "architecture": "x86_64",
+  "source_syntax": {
+    "operand_order": "destination-first",
+    "canonical_encoding": "UTF-8",
+    "register_width_bits": [
+      64
+    ],
+    "memory": {
+      "forms": [
+        "base",
+        "base-displacement-signed32"
+      ],
+      "rip_relative": false,
+      "index_scale": false
+    }
+  },
+  "registers": [
+    { "arabic": "سجل_المركم", "x86_64": "rax", "width_bits": 64 },
+    { "arabic": "سجل_العداد", "x86_64": "rcx", "width_bits": 64 },
+    { "arabic": "سجل_البيانات", "x86_64": "rdx", "width_bits": 64 },
+    { "arabic": "سجل_القاعدة", "x86_64": "rbx", "width_bits": 64 },
+    { "arabic": "مؤشر_المكدس", "x86_64": "rsp", "width_bits": 64 },
+    { "arabic": "مؤشر_القاعدة", "x86_64": "rbp", "width_bits": 64 },
+    { "arabic": "فهرس_المصدر", "x86_64": "rsi", "width_bits": 64 },
+    { "arabic": "فهرس_الوجهة", "x86_64": "rdi", "width_bits": 64 },
+    { "arabic": "سجل_عام_8", "x86_64": "r8", "width_bits": 64 },
+    { "arabic": "سجل_عام_9", "x86_64": "r9", "width_bits": 64 },
+    { "arabic": "سجل_عام_10", "x86_64": "r10", "width_bits": 64 },
+    { "arabic": "سجل_عام_11", "x86_64": "r11", "width_bits": 64 },
+    { "arabic": "سجل_عام_12", "x86_64": "r12", "width_bits": 64 },
+    { "arabic": "سجل_عام_13", "x86_64": "r13", "width_bits": 64 },
+    { "arabic": "سجل_عام_14", "x86_64": "r14", "width_bits": 64 },
+    { "arabic": "سجل_عام_15", "x86_64": "r15", "width_bits": 64 }
+  ],
+  "instructions": [
+    {
+      "arabic": "انقل",
+      "gas_mnemonics": ["movq", "movabsq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["immediate-integer", "register"], "nazm": ["register", "immediate"] },
+        { "gas": ["register", "register"], "nazm": ["register", "register"] },
+        { "gas": ["memory-base-displacement", "register"], "nazm": ["register", "memory-base-displacement"] },
+        { "gas": ["register", "memory-base-displacement"], "nazm": ["memory-base-displacement", "register"] }
+      ]
+    },
+    {
+      "arabic": "ادفع",
+      "gas_mnemonics": ["push", "pushq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] }
+      ]
+    },
+    {
+      "arabic": "اسحب",
+      "gas_mnemonics": ["pop", "popq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] }
+      ]
+    },
+    {
+      "arabic": "احسب_عنوان",
+      "gas_mnemonics": ["leaq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["memory-base-displacement", "register"], "nazm": ["register", "memory-base-displacement"] }
+      ]
+    },
+    {
+      "arabic": "أضف",
+      "gas_mnemonics": ["addq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["immediate-integer", "register"], "nazm": ["register", "immediate"] },
+        { "gas": ["register", "register"], "nazm": ["register", "register"] },
+        { "gas": ["memory-base-displacement", "register"], "nazm": ["register", "memory-base-displacement"] }
+      ]
+    },
+    {
+      "arabic": "اطرح",
+      "gas_mnemonics": ["subq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["immediate-integer", "register"], "nazm": ["register", "immediate"] },
+        { "gas": ["register", "register"], "nazm": ["register", "register"] },
+        { "gas": ["memory-base-displacement", "register"], "nazm": ["register", "memory-base-displacement"] }
+      ]
+    },
+    {
+      "arabic": "و_بتيا",
+      "gas_mnemonics": ["andq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["immediate-integer", "register"], "nazm": ["register", "immediate"] },
+        { "gas": ["register", "register"], "nazm": ["register", "register"] },
+        { "gas": ["memory-base-displacement", "register"], "nazm": ["register", "memory-base-displacement"] }
+      ]
+    },
+    {
+      "arabic": "أو_بتيا",
+      "gas_mnemonics": ["orq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["immediate-integer", "register"], "nazm": ["register", "immediate"] },
+        { "gas": ["register", "register"], "nazm": ["register", "register"] },
+        { "gas": ["memory-base-displacement", "register"], "nazm": ["register", "memory-base-displacement"] }
+      ]
+    },
+    {
+      "arabic": "خالف_بتيا",
+      "gas_mnemonics": ["xorq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["immediate-integer", "register"], "nazm": ["register", "immediate"] },
+        { "gas": ["register", "register"], "nazm": ["register", "register"] },
+        { "gas": ["memory-base-displacement", "register"], "nazm": ["register", "memory-base-displacement"] }
+      ]
+    },
+    {
+      "arabic": "قارن",
+      "gas_mnemonics": ["cmpq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["immediate-integer", "register"], "nazm": ["register", "immediate"] },
+        { "gas": ["register", "register"], "nazm": ["register", "register"] },
+        { "gas": ["memory-base-displacement", "register"], "nazm": ["register", "memory-base-displacement"] }
+      ]
+    },
+    {
+      "arabic": "اضرب_موقع",
+      "gas_mnemonics": ["imulq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["register", "register"], "nazm": ["register", "register"] },
+        {
+          "gas": ["immediate-integer", "register"],
+          "nazm": ["register", "register", "immediate"],
+          "lowering": "duplicate-destination-as-source"
+        }
+      ]
+    },
+    {
+      "arabic": "اقسم_موقع",
+      "gas_mnemonics": ["idivq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] }
+      ]
+    },
+    {
+      "arabic": "زد",
+      "gas_mnemonics": ["incq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] }
+      ]
+    },
+    {
+      "arabic": "انقص",
+      "gas_mnemonics": ["decq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] }
+      ]
+    },
+    {
+      "arabic": "اعكس_الإشارة",
+      "gas_mnemonics": ["negq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] }
+      ]
+    },
+    {
+      "arabic": "اعكس_البتات",
+      "gas_mnemonics": ["notq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] }
+      ]
+    },
+    {
+      "arabic": "ازح_يسارا",
+      "gas_mnemonics": ["shlq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["immediate-integer", "register"], "nazm": ["register", "immediate"] },
+        { "gas": ["register", "register"], "nazm": ["register", "register"], "constraint": "source-register-is-rcx" }
+      ]
+    },
+    {
+      "arabic": "ازح_منطقيا_يمينا",
+      "gas_mnemonics": ["shrq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["immediate-integer", "register"], "nazm": ["register", "immediate"] },
+        { "gas": ["register", "register"], "nazm": ["register", "register"], "constraint": "source-register-is-rcx" }
+      ]
+    },
+    {
+      "arabic": "ازح_حسابيا_يمينا",
+      "gas_mnemonics": ["sarq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["immediate-integer", "register"], "nazm": ["register", "immediate"] },
+        { "gas": ["register", "register"], "nazm": ["register", "register"], "constraint": "source-register-is-rcx" }
+      ]
+    },
+    {
+      "arabic": "اختبر_البتات",
+      "gas_mnemonics": ["testq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["immediate-integer", "register"], "nazm": ["register", "immediate"] },
+        { "gas": ["register", "register"], "nazm": ["register", "register"] }
+      ]
+    },
+    {
+      "arabic": "اقفز",
+      "gas_mnemonics": ["jmp", "jmpq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["local-symbol"], "nazm": ["label"] },
+        { "gas": ["register-expression"], "nazm": ["register"] }
+      ]
+    },
+    {
+      "arabic": "ناد",
+      "gas_mnemonics": ["call", "callq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["local-symbol"], "nazm": ["label"] },
+        { "gas": ["register-expression"], "nazm": ["register"] },
+        {
+          "gas": ["symbol"],
+          "nazm": ["label"],
+          "coverage_status": "partial",
+          "reason": "Only labels defined in the same .text input are supported; external call relocations are not implemented."
+        }
+      ]
+    },
+    {
+      "arabic": "ارجع",
+      "gas_mnemonics": ["ret", "retq"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": [], "nazm": [] }
+      ]
+    },
+    {
+      "arabic": "اقفز_مساو",
+      "gas_mnemonics": ["je"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["local-symbol"], "nazm": ["label"] }
+      ]
+    },
+    {
+      "arabic": "اقفز_غير_مساو",
+      "gas_mnemonics": ["jne"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["local-symbol"], "nazm": ["label"] }
+      ]
+    },
+    {
+      "arabic": "اقفز_أكبر",
+      "gas_mnemonics": ["jg"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["local-symbol"], "nazm": ["label"] }
+      ]
+    },
+    {
+      "arabic": "اقفز_أكبر_أو_مساو",
+      "gas_mnemonics": ["jge"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["local-symbol"], "nazm": ["label"] }
+      ]
+    },
+    {
+      "arabic": "اقفز_أصغر",
+      "gas_mnemonics": ["jl"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["local-symbol"], "nazm": ["label"] }
+      ]
+    },
+    {
+      "arabic": "اقفز_أصغر_أو_مساو",
+      "gas_mnemonics": ["jle"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["local-symbol"], "nazm": ["label"] }
+      ]
+    },
+    {
+      "arabic": "اقفز_سالب",
+      "gas_mnemonics": ["js"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["local-symbol"], "nazm": ["label"] }
+      ]
+    },
+    {
+      "arabic": "اقفز_غير_سالب",
+      "gas_mnemonics": ["jns"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["local-symbol"], "nazm": ["label"] }
+      ]
+    },
+    {
+      "arabic": "اقفز_صفر",
+      "gas_mnemonics": ["jz"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["local-symbol"], "nazm": ["label"] }
+      ]
+    },
+    {
+      "arabic": "اقفز_غير_صفر",
+      "gas_mnemonics": ["jnz"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": ["local-symbol"], "nazm": ["label"] }
+      ]
+    },
+    {
+      "arabic": "ناد_النظام",
+      "gas_mnemonics": ["syscall"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": [], "nazm": [] }
+      ]
+    },
+    {
+      "arabic": "لا_تفعل",
+      "gas_mnemonics": ["nop"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": [], "nazm": [] }
+      ]
+    },
+    {
+      "arabic": "أوقف",
+      "gas_mnemonics": ["hlt"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": [], "nazm": [] }
+      ]
+    },
+    {
+      "arabic": "اطلب_مقاطعة",
+      "gas_mnemonics": ["int"],
+      "width_bits": 8,
+      "forms": [
+        { "gas": ["immediate-integer"], "nazm": ["immediate"] }
+      ]
+    }
+  ],
+  "directives": [
+    { "gas": ".text", "gas_operands": [], "arabic": ".نص", "nazm_operands": [] },
+    { "gas": ".data", "gas_operands": [], "arabic": ".بيانات", "nazm_operands": [] },
+    { "gas": ".byte", "gas_operands": ["integer"], "arabic": ".عدد٨", "nazm_operands": ["immediate"] },
+    { "gas": ".word", "gas_operands": ["integer"], "arabic": ".عدد١٦", "nazm_operands": ["immediate"] },
+    { "gas": ".long", "gas_operands": ["integer"], "arabic": ".عدد٣٢", "nazm_operands": ["immediate"] },
+    { "gas": ".quad", "gas_operands": ["integer"], "arabic": ".عدد٦٤", "nazm_operands": ["immediate"] },
+    { "gas": ".zero", "gas_operands": ["integer"], "arabic": ".مساحة_صفرية", "nazm_operands": ["immediate"] },
+    { "gas": ".asciz", "gas_operands": ["string"], "arabic": ".سلسلة_منتهية_بصفر", "nazm_operands": ["string"] },
+    {
+      "gas": ".globl",
+      "gas_operands": ["symbol"],
+      "arabic": ".عام",
+      "nazm_operands": ["label"],
+      "coverage_status": "unsupported",
+      "reason": "Nazm 0.4 rejects ASCII linker identifiers such as main."
+    },
+    {
+      "gas": ".globl",
+      "gas_operands": ["expression"],
+      "arabic": ".عام",
+      "nazm_operands": ["label"],
+      "coverage_status": "partial",
+      "reason": "Canonical Arabic labels are supported, but the Baa inventory expression category is broader than one label token."
+    },
+    {
+      "gas": ".local",
+      "gas_operands": ["symbol"],
+      "arabic": ".محلي",
+      "nazm_operands": ["label"],
+      "coverage_status": "unsupported",
+      "reason": "Nazm 0.4 rejects ASCII linker identifiers."
+    },
+    {
+      "gas": ".local",
+      "gas_operands": ["expression"],
+      "arabic": ".محلي",
+      "nazm_operands": ["label"],
+      "coverage_status": "partial",
+      "reason": "Canonical Arabic labels are supported, but the Baa inventory expression category is broader than one label token."
+    }
+  ],
+  "sections": [
+    { "gas": ".text", "nazm": ".نص", "object": ".text" },
+    { "gas": ".data", "nazm": ".بيانات", "object": ".data" }
+  ],
+  "symbols": {
+    "definitions": true,
+    "bindings": ["local", "global"],
+    "external_undefined": false,
+    "sections": [".text", ".data"]
+  },
+  "relocations": {
+    "end_to_end": [
+      {
+        "source_form": "mov-register-local-data-label",
+        "nazm_kind": "ABS64",
+        "source_section": ".text",
+        "target_section": ".data",
+        "elf64": "R_X86_64_64",
+        "coff": "IMAGE_REL_AMD64_ADDR64"
+      }
+    ],
+    "writer_only_not_source_reachable": [
+      {
+        "nazm_kind": "PC32",
+        "elf64": "R_X86_64_PC32",
+        "coff": "IMAGE_REL_AMD64_REL32"
+      }
+    ],
+    "external_symbols": false,
+    "data_relocations": false,
+    "rip_relative": false
+  },
+  "acceptance_fixtures": [
+    "tests/fixtures/baa_coverage/حركة-باء.نظم",
+    "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+    "tests/fixtures/baa_coverage/بيانات-باء.نظم"
+  ],
+  "baa_acceptance_fixtures": {
+    "instructions": {
+      "addq|immediate-integer,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "addq|memory-base-displacement,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "addq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "andq|immediate-integer,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "andq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "call|register-expression": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "cmpq|immediate-integer,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "cmpq|memory-base-displacement,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "cmpq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "hlt|": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "idivq|register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "imulq|immediate-integer,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "imulq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "jmp|local-symbol": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "jne|local-symbol": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "leaq|memory-base-displacement,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movabsq|immediate-integer,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movq|immediate-integer,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movq|memory-base-displacement,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movq|register,memory-base-displacement": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movq|register,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "nop|": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "orq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "push|register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "pushq|register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "ret|": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "sarq|immediate-integer,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "shlq|immediate-integer,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "subq|immediate-integer,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "subq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم"
+    },
+    "directives": {
+      ".asciz|string": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".data|": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".globl|expression": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".local|expression": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".long|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".quad|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".text|": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".zero|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم"
+    },
+    "sections": {
+      ".data": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".text": "tests/fixtures/baa_coverage/بيانات-باء.نظم"
+    }
+  },
+  "known_limits": [
+    "No 8-bit or 32-bit general-purpose register source syntax is exposed.",
+    "No scalar SSE2 registers or instructions are implemented.",
+    "No setcc, sign/zero-extension, cqo, leave, rdtsc, or read-only-section support is implemented.",
+    "No ASCII linker identifier, external-symbol declaration, or external call/jump relocation is implemented.",
+    "No data relocation, RIP-relative memory, base-index-scale memory, alignment directive, or debug directive is implemented."
+  ]
+}

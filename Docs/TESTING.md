@@ -199,10 +199,19 @@ that boundary.
 Before Nazm can replace GAS in Baa, testing must expand beyond the current
 hand-written examples:
 
+`Docs/generated/nazm_capabilities_v1.json` now records the implemented source,
+instruction-width, directive, section, symbol, and relocation boundary.
+`integration_capabilities_contract` checks that its 37 instruction names, 16
+registers, directives, and fixture paths still match the owning C tables.
+`integration_baa_coverage_fixtures` assembles the three focused Baa-form
+fixtures to both ELF64 and COFF. Baa's generated `baa-nazm-coverage-v1`
+attaches every currently `supported` inventory row to one of those fixtures;
+partial and unsupported rows are intentionally not parity success.
+
 - Generate Baa assembly from its quick, full, and stress suites for both
   `x86_64-linux` and `x86_64-windows`.
-- Maintain a coverage manifest for every emitted instruction, operand width,
-  directive, section, symbol form, and relocation.
+- Maintain the generated coverage manifest for every emitted instruction,
+  operand width, directive, section, symbol form, and relocation.
 - Assemble equivalent programs through GAS and Nazm during migration.
 - Compare linked runtime behavior and object semantics, including public
   symbols and relocations; byte-for-byte object identity is not required when

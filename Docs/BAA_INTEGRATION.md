@@ -166,6 +166,11 @@ that is unrelated to the Arabic-first goal.
 - Extract the instruction, operand, directive, section, symbol, and relocation
   forms Baa actually emits. **Complete in `baa-assembly-surface-v1`.**
 - Convert the inventory into Nazm acceptance fixtures and a coverage matrix.
+  **Complete for the current capability boundary in
+  `baa-nazm-coverage-v1`: every emitted form is classified, and every
+  `supported` form points to one of the three checked ELF64/COFF fixtures under
+  `tests/fixtures/baa_coverage/`. `partial` and `unsupported` rows remain open
+  work, not successful coverage.**
 
 ### Stage C: Shadow Subprocess Integration
 

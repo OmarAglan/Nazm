@@ -60,6 +60,26 @@ add_test(
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/examples_acceptance.cmake
 )
 
+add_test(
+    NAME integration_baa_coverage_fixtures
+    COMMAND ${CMAKE_COMMAND}
+        -DNAZM_EXE=$<TARGET_FILE:nazm>
+        -DEXAMPLE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/fixtures/baa_coverage
+        -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/baa-coverage-work
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/examples_acceptance.cmake
+)
+
+add_test(
+    NAME integration_capabilities_contract
+    COMMAND ${CMAKE_COMMAND}
+        -DCAPABILITIES=${CMAKE_SOURCE_DIR}/Docs/generated/nazm_capabilities_v1.json
+        -DKEYWORDS_SOURCE=${CMAKE_SOURCE_DIR}/src/lexer/keywords.c
+        -DLEXER_SOURCE=${CMAKE_SOURCE_DIR}/src/lexer/lexer.c
+        -DPARSER_SOURCE=${CMAKE_SOURCE_DIR}/src/parser/parser.c
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/capabilities_contract.cmake
+)
+
 # ── Differential encoder test ────────────────────────────────────────────────
 find_program(NAZM_GNU_AS NAMES as)
 find_program(NAZM_OBJCOPY NAMES objcopy llvm-objcopy)
