@@ -36,8 +36,11 @@ change, collision analysis, and tests; it must not appear as silent behavior.
 - Label and symbol identity is the exact UTF-8 byte sequence.
 - Nazm does not normalize identifiers before hashing or comparison.
 - Canonically equivalent spellings can therefore name distinct labels.
-- Arabic and ASCII digits may continue an identifier but may not begin one;
-  underscore follows the current lexer rules.
+- Arabic letters and underscore may begin a label. Arabic and ASCII digits may
+  continue it. ASCII letters are not accepted in source identifiers.
+- The global source symbol `الرئيسية` is serialized as the platform ABI entry
+  symbol `main` by the object writers. This internal link-name mapping does not
+  introduce an ASCII spelling into Nazm source.
 
 The Baa backend must emit the canonical mnemonic, register, and directive
 strings from the 0.4 contract and preserve label bytes consistently. It must

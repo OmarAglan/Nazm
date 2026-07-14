@@ -231,6 +231,11 @@ void test_lex_label_definition(void) {
     TEST_ASSERT_EQUAL_STRING("البداية", t.value);
 }
 
+void test_lex_rejects_ascii_identifier(void) {
+    LexResult r = lex("main:");
+    TEST_ASSERT_TRUE(error_has_any(&r.errors));
+}
+
 void test_lex_canonically_equivalent_labels_remain_distinct(void) {
     LexResult r = lex("أ:\nأ:");
 
@@ -537,6 +542,7 @@ int main(void) {
 
     /* Labels */
     RUN_TEST(test_lex_label_definition);
+    RUN_TEST(test_lex_rejects_ascii_identifier);
     RUN_TEST(test_lex_canonically_equivalent_labels_remain_distinct);
     RUN_TEST(test_lex_label_reference);
     RUN_TEST(test_lex_label_def_then_mnemonic);

@@ -84,6 +84,7 @@ void test_utf8_rejects_truncated_and_bad_continuation(void) {
 void test_ident_start_and_continue(void) {
     TEST_ASSERT_TRUE(is_ident_start(0x0627));   /* ا — Arabic letter */
     TEST_ASSERT_TRUE(is_ident_start('_'));
+    TEST_ASSERT_FALSE(is_ident_start('m'));
     TEST_ASSERT_FALSE(is_ident_start('5'));
     TEST_ASSERT_FALSE(is_ident_start(' '));
 

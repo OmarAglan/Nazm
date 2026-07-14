@@ -15,7 +15,8 @@
       ],
       "rip_relative": false,
       "index_scale": false
-    }
+    },
+    "labels": ["arabic-only"]
   },
   "registers": [
     { "arabic": "سجل_المركم", "x86_64": "rax", "width_bits": 64 },
@@ -379,8 +380,8 @@
       "gas_operands": ["symbol"],
       "arabic": ".عام",
       "nazm_operands": ["label"],
-      "coverage_status": "unsupported",
-      "reason": "Nazm 0.4 rejects ASCII linker identifiers such as main."
+      "coverage_status": "partial",
+      "reason": "The Baa entry symbol main is emitted canonically as the Arabic source label الرئيسية and mapped internally by the object writer; arbitrary ASCII linker identifiers remain unsupported."
     },
     {
       "gas": ".globl",
@@ -396,7 +397,7 @@
       "arabic": ".محلي",
       "nazm_operands": ["label"],
       "coverage_status": "unsupported",
-      "reason": "Nazm 0.4 rejects ASCII linker identifiers."
+      "reason": "ASCII source identifiers are not accepted; local symbols must use canonical Arabic labels."
     },
     {
       "gas": ".local",
@@ -415,7 +416,10 @@
     "definitions": true,
     "bindings": ["local", "global"],
     "external_undefined": false,
-    "sections": [".text", ".data"]
+    "sections": [".text", ".data"],
+    "abi_aliases": [
+      { "source_symbol": "الرئيسية", "object_symbol": "main", "binding": "global", "section": ".text" }
+    ]
   },
   "relocations": {
     "end_to_end": [
@@ -481,6 +485,7 @@
       ".asciz|string": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".data|": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".globl|expression": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".globl|symbol": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".local|expression": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".long|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".quad|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
@@ -496,7 +501,8 @@
     "No 8-bit or 32-bit general-purpose register source syntax is exposed.",
     "No scalar SSE2 registers or instructions are implemented.",
     "No setcc, sign/zero-extension, cqo, leave, rdtsc, or read-only-section support is implemented.",
-    "No ASCII linker identifier, external-symbol declaration, or external call/jump relocation is implemented.",
+    "ASCII source identifiers are not accepted; the platform entry ABI uses the Arabic global alias الرئيسية.",
+    "No external-symbol declaration or external call/jump relocation is implemented.",
     "No data relocation, RIP-relative memory, base-index-scale memory, alignment directive, or debug directive is implemented."
   ]
 }

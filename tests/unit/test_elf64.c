@@ -254,6 +254,27 @@ void test_elf_symbol_bindings_and_local_order(void) {
     TEST_ASSERT_EQUAL_INT(0, (int)rd64(global + 8));
 }
 
+void test_elf_maps_exported_arabic_entry_to_platform_main(void) {
+    OutputResult r = assemble_elf(
+        ".عام الرئيسية\n"
+        "الرئيسية:\n"
+        "ارجع\n");
+    TEST_ASSERT_TRUE(r.ok);
+
+    const uint8_t *symtab = find_elf_section(&r, 2);
+    TEST_ASSERT_NOT_NULL(symtab);
+    uint64_t shoff = rd64(r.data + 40);
+    uint32_t strtab_index = rd32(symtab + 40);
+    const uint8_t *strtab = r.data + shoff + (size_t)strtab_index * 64;
+    uint64_t sym_off = rd64(symtab + 24);
+    uint64_t str_off = rd64(strtab + 24);
+    const uint8_t *global = r.data + sym_off + 24;
+    uint32_t name_offset = rd32(global);
+
+    TEST_ASSERT_EQUAL_STRING("main", (const char *)(r.data + str_off + name_offset));
+    TEST_ASSERT_EQUAL_INT(1, global[4] >> 4); /* STB_GLOBAL */
+}
+
 void test_elf_empty_program(void) {
     OutputResult r = assemble_elf(".نص");
     TEST_ASSERT_TRUE(r.ok);
@@ -396,6 +417,7 @@ int main(void) {
     RUN_TEST(test_elf_symtab_section_exists);
     RUN_TEST(test_elf_symtab_has_label_entry);
     RUN_TEST(test_elf_symbol_bindings_and_local_order);
+    RUN_TEST(test_elf_maps_exported_arabic_entry_to_platform_main);
     RUN_TEST(test_elf_empty_program);
     RUN_TEST(test_elf_minimum_size);
     RUN_TEST(test_elf_data_section_exists_when_data_emitted);

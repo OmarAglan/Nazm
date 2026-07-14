@@ -208,7 +208,7 @@ static bool symbol_names_fit_coff_strtab(const OutputSymbolList *symbols,
     }
 
     for (size_t i = 0; i < symbols->count; i++) {
-        size_t name_len = strlen(symbols->data[i].name);
+        size_t name_len = strlen(output_symbol_link_name(&symbols->data[i]));
         if (name_len <= 8) {
             continue;
         }
@@ -285,9 +285,10 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
     uint32_t fname_offset = fname_len > 8 ? strtab_add(&strtab, fname) : 0;
 
     for (size_t i = 0; i < symbols.count; i++) {
-        size_t name_len = strlen(symbols.data[i].name);
+        const char *link_name = output_symbol_link_name(&symbols.data[i]);
+        size_t name_len = strlen(link_name);
         symbols.data[i].name_offset =
-            name_len > 8 ? strtab_add(&strtab, symbols.data[i].name) : 0;
+            name_len > 8 ? strtab_add(&strtab, link_name) : 0;
     }
     strtab_finalise(&strtab);
 
@@ -379,13 +380,14 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
               COFF_SYM_CLASS_STATIC);
 
     for (size_t i = 0; i < symbols.count; i++) {
-        size_t name_len = strlen(symbols.data[i].name);
+        const char *link_name = output_symbol_link_name(&symbols.data[i]);
+        size_t name_len = strlen(link_name);
         uint8_t storage =
             symbols.data[i].binding == SYMBOL_BINDING_GLOBAL
                 ? COFF_SYM_CLASS_EXTERNAL
                 : COFF_SYM_CLASS_STATIC;
         write_sym(&out,
-                  symbols.data[i].name,
+                  link_name,
                   name_len,
                   symbols.data[i].name_offset,
                   (uint32_t)symbols.data[i].offset,

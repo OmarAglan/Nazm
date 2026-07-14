@@ -308,6 +308,19 @@ void test_coff_symbol_storage_classes_follow_visibility(void) {
     TEST_ASSERT_EQUAL_INT(0, (int)r32(global + 8));
 }
 
+void test_coff_maps_exported_arabic_entry_to_platform_main(void) {
+    Pipeline pl = run(
+        ".عام الرئيسية\n"
+        "الرئيسية:\n"
+        "ارجع\n");
+    TEST_ASSERT_TRUE(pl.coff.ok);
+
+    uint32_t symptr = r32(pl.coff.data + 8);
+    const uint8_t *global = pl.coff.data + symptr + 18;
+    TEST_ASSERT_EQUAL_STRING("main", (const char *)global);
+    TEST_ASSERT_EQUAL_INT(2, global[16]); /* IMAGE_SYM_CLASS_EXTERNAL */
+}
+
 
 void test_coff_data_symbol_uses_data_section(void) {
     Pipeline pl = run(".نص\nارجع\n.بيانات\nرسالة: .سلسلة_منتهية_بصفر \"x\"\n");
@@ -443,6 +456,7 @@ int main(void) {
     /* Symbols */
     RUN_TEST(test_coff_symtab_has_entries);
     RUN_TEST(test_coff_symbol_storage_classes_follow_visibility);
+    RUN_TEST(test_coff_maps_exported_arabic_entry_to_platform_main);
     RUN_TEST(test_coff_data_symbol_uses_data_section);
     RUN_TEST(test_coff_text_relocation_for_mov_label);
     RUN_TEST(test_coff_preserves_symbols_and_relocation_beyond_old_limit);

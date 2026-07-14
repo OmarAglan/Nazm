@@ -38,3 +38,9 @@ bool output_symbols_collect(const SymbolTable *symtable,
 bool output_symbols_find_index(const OutputSymbolList *symbols,
                                const char *name,
                                uint32_t *out_index);
+
+/*
+ * Return the platform link name without changing the canonical Arabic source
+ * identity used by symbol and relocation lookup.
+ */
+const char *output_symbol_link_name(const OutputSymbol *symbol);

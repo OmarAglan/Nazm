@@ -159,6 +159,7 @@
 - [x] توليد corpus من خرج `-S` لكل اختبارات باء quick/full/stress على `x86_64-linux` و`x86_64-windows`.
 - [x] إنتاج مصفوفة machine-readable لكل تعليمة، حجم معامل، توجيه، قسم، رمز، وترحيل يصدرها باء.
 - [x] تثبيت `nazm-capabilities-v1` وربط كل صيغة باء مصنفة `supported` بثلاثة fixtures مركزة يجمعها CTest إلى ELF64 وCOFF؛ تبقى `partial` و`unsupported` فجوات ظاهرة لا نجاحا ضمنيا.
+- [x] تثبيت `الرئيسية` اسما عربيا خالصا لمدخل ABI وتحويله داخليا إلى رمز الربط `main` في ELF64 وCOFF، مع رفض أسماء ASCII في مصدر نظم.
 - [ ] إضافة أحجام 8/16/32/64 bit المطلوبة من باء مع اختبارات بايتات مستقلة.
 - [ ] إضافة `setcc` و`movzx` و`movsx` و`div` و`cqo` والصيغ غير المباشرة المطلوبة من Machine IR.
 - [ ] إضافة مجموعة SSE2 الدنيا التي يصدرها باء: `addsd/subsd/mulsd/divsd/ucomisd/xorpd/cvtsi2sd/cvttsd2si`.

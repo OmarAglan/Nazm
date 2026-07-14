@@ -212,7 +212,7 @@ static bool symbol_names_fit_elf_strtab(const OutputSymbolList *symbols) {
     size_t size = 1;
 
     for (size_t i = 0; i < symbols->count; i++) {
-        size_t name_len = strlen(symbols->data[i].name);
+        size_t name_len = strlen(output_symbol_link_name(&symbols->data[i]));
         if (name_len >= UINT32_MAX ||
             size > (size_t)UINT32_MAX - name_len - 1) {
             return false;
@@ -345,7 +345,7 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
 
     for (size_t i = 0; i < symbols.count; i++) {
         symbols.data[i].name_offset =
-            strtab_add(&strtab, symbols.data[i].name);
+            strtab_add(&strtab, output_symbol_link_name(&symbols.data[i]));
     }
 
     align_outbuf(&ob, 8);
