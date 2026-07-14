@@ -1,6 +1,6 @@
 # Baa Integration and Bootstrap Contract
 
-**Analysis Date:** 2026-06-27
+**Analysis Date:** 2026-07-14
 
 ## Strategic Intent
 
@@ -44,9 +44,9 @@ x86-64 encoding, relocations, and object-file serialization.
 
 ### Stage B Receipt
 
-Baa commit `04d3d65` checks in the canonical
-[`baa-assembly-surface-v1`](https://github.com/OmarAglan/Baa/blob/04d3d65/docs/generated/assembly_surface_v1.json)
-artifact and a reproducibility gate. It compiles all 99 assembly-producing
+Baa commit `229c0ef` updates the canonical
+[`baa-assembly-surface-v1`](https://github.com/OmarAglan/Baa/blob/229c0ef/docs/generated/assembly_surface_v1.json)
+artifact under the reproducibility gate introduced by `04d3d65`. It compiles all 100 assembly-producing
 quick/full/stress and example sources for each target, honoring per-source
 flags, with zero omitted or failed sources.
 
