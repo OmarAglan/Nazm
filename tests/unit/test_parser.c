@@ -337,6 +337,8 @@ void test_parse_all_canonical_directive_kinds(void) {
     } cases[] = {
         { ".نص", DIRECTIVE_TEXT },
         { ".بيانات", DIRECTIVE_DATA },
+        { ".بيانات_للقراءة", DIRECTIVE_READ_ONLY_DATA },
+        { ".غير_مهيأة", DIRECTIVE_BSS },
         { ".عدد٨", DIRECTIVE_INT8 },
         { ".عدد١٦", DIRECTIVE_INT16 },
         { ".عدد٣٢", DIRECTIVE_INT32 },

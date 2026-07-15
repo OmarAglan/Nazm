@@ -15,6 +15,7 @@
 #define COFF_MACHINE_AMD64       0x8664u
 #define COFF_SCN_CNT_CODE        0x00000020u
 #define COFF_SCN_CNT_INIT_DATA   0x00000040u
+#define COFF_SCN_CNT_UNINIT_DATA 0x00000080u
 #define COFF_SCN_MEM_EXECUTE     0x20000000u
 #define COFF_SCN_MEM_READ        0x40000000u
 #define COFF_SCN_MEM_WRITE       0x80000000u
@@ -160,12 +161,22 @@ static void write_reloc(Buf *out,
     buf_write(out, reloc, sizeof(reloc));
 }
 
-static int16_t coff_section_number(SymbolSection section, bool has_data) {
+static int16_t coff_section_number(SymbolSection section,
+                                   int data_section,
+                                   int read_only_data_section,
+                                   int bss_section) {
     if (section == SYMBOL_SECTION_UNKNOWN) {
         return 0; /* IMAGE_SYM_UNDEFINED */
     }
-    if (section == SYMBOL_SECTION_DATA && has_data) {
-        return 2;
+    if (section == SYMBOL_SECTION_DATA && data_section > 0) {
+        return (int16_t)data_section;
+    }
+    if (section == SYMBOL_SECTION_READ_ONLY_DATA &&
+        read_only_data_section > 0) {
+        return (int16_t)read_only_data_section;
+    }
+    if (section == SYMBOL_SECTION_BSS && bss_section > 0) {
+        return (int16_t)bss_section;
     }
 
     return 1;
@@ -246,7 +257,15 @@ static bool coff_relocations_have_symbols(const RelocationList *relocations,
 
 OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
     bool has_data = in->data_bytes != NULL && in->data_size > 0;
-    int nsections = has_data ? 2 : 1;
+    bool has_read_only_data = in->read_only_data_bytes != NULL &&
+                              in->read_only_data_size > 0;
+    bool has_bss = in->bss_size > 0;
+    int nsections = 1 + (has_data ? 1 : 0) +
+                    (has_read_only_data ? 1 : 0) + (has_bss ? 1 : 0);
+    int next_section = 2;
+    int data_section = has_data ? next_section++ : 0;
+    int read_only_data_section = has_read_only_data ? next_section++ : 0;
+    int bss_section = has_bss ? next_section++ : 0;
 
     OutputSymbolList symbols;
     if (!output_symbols_collect(in->symtable, arena, &symbols)) {
@@ -288,6 +307,16 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
         };
     }
     uint32_t data_reloc_count = (uint32_t)data_reloc_count_size;
+    size_t read_only_data_reloc_count_size = count_relocations_in_section(
+        in->relocations, RELOC_SECTION_READ_ONLY_DATA);
+    if (read_only_data_reloc_count_size > UINT16_MAX) {
+        return (OutputResult){
+            .ok = false,
+            .error_message = "عدد قيود ترحيل قسم القراءة يتجاوز حد صيغة كوف",
+        };
+    }
+    uint32_t read_only_data_reloc_count =
+        (uint32_t)read_only_data_reloc_count_size;
 
     Strtab strtab;
     strtab_init(&strtab, arena);
@@ -308,20 +337,33 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
     uint32_t hdr_size = 20;
     uint32_t shdrs_size = (uint32_t)(nsections * 40);
     uint32_t text_raw_ptr = hdr_size + shdrs_size;
-    uint32_t data_raw_ptr = text_raw_ptr + (uint32_t)in->text_size;
-    uint32_t after_raw = data_raw_ptr + (has_data ? (uint32_t)in->data_size : 0);
+    uint32_t raw_cursor = text_raw_ptr + (uint32_t)in->text_size;
+    uint32_t data_raw_ptr = has_data ? raw_cursor : 0;
+    if (has_data) raw_cursor += (uint32_t)in->data_size;
+    uint32_t read_only_data_raw_ptr = has_read_only_data ? raw_cursor : 0;
+    if (has_read_only_data)
+        raw_cursor += (uint32_t)in->read_only_data_size;
+    uint32_t after_raw = raw_cursor;
     uint32_t text_reloc_ptr = text_reloc_count > 0 ? after_raw : 0;
     uint32_t data_reloc_ptr = data_reloc_count > 0
                             ? after_raw + text_reloc_count * 10
                             : 0;
+    uint32_t read_only_data_reloc_ptr = read_only_data_reloc_count > 0
+                                      ? after_raw +
+                                            (text_reloc_count +
+                                             data_reloc_count) * 10
+                                      : 0;
     uint32_t after_relocs = after_raw
-                          + (text_reloc_count + data_reloc_count) * 10;
+                          + (text_reloc_count + data_reloc_count +
+                             read_only_data_reloc_count) * 10;
     uint32_t symtab_ptr = after_relocs;
 
     Buf out;
     buf_init(&out, arena,
-             hdr_size + shdrs_size + in->text_size + in->data_size
-             + ((size_t)text_reloc_count + (size_t)data_reloc_count) * 10
+             hdr_size + shdrs_size + in->text_size + in->data_size +
+             in->read_only_data_size
+             + ((size_t)text_reloc_count + (size_t)data_reloc_count +
+                (size_t)read_only_data_reloc_count) * 10
              + (size_t)total_symbols * 18
              + strtab.buf.size + 16);
 
@@ -355,12 +397,39 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
                        COFF_SCN_MEM_WRITE | COFF_SCN_ALIGN_1);
     }
 
+    if (has_read_only_data) {
+        write_shdr(&out,
+                   ".rdata\0\0",
+                   (uint32_t)in->read_only_data_size,
+                   read_only_data_raw_ptr,
+                   read_only_data_reloc_ptr,
+                   read_only_data_reloc_count,
+                   COFF_SCN_CNT_INIT_DATA | COFF_SCN_MEM_READ |
+                       COFF_SCN_ALIGN_1);
+    }
+
+    if (has_bss) {
+        write_shdr(&out,
+                   ".bss\0\0\0\0",
+                   (uint32_t)in->bss_size,
+                   0,
+                   0,
+                   0,
+                   COFF_SCN_CNT_UNINIT_DATA | COFF_SCN_MEM_READ |
+                       COFF_SCN_MEM_WRITE | COFF_SCN_ALIGN_1);
+    }
+
     if (in->text_size > 0) {
         buf_write(&out, in->text_bytes, in->text_size);
     }
 
     if (has_data) {
         buf_write(&out, in->data_bytes, in->data_size);
+    }
+
+    if (has_read_only_data) {
+        buf_write(
+            &out, in->read_only_data_bytes, in->read_only_data_size);
     }
 
     if (text_reloc_count > 0) {
@@ -409,6 +478,29 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
         }
     }
 
+    if (read_only_data_reloc_count > 0) {
+        for (size_t i = 0; i < in->relocations->count; i++) {
+            const Relocation *reloc = &in->relocations->data[i];
+            if (reloc->section != RELOC_SECTION_READ_ONLY_DATA) {
+                continue;
+            }
+
+            uint32_t symbol_index;
+            if (!output_symbols_find_index(
+                    &symbols, reloc->symbol, &symbol_index)) {
+                return (OutputResult){
+                    .ok = false,
+                    .error_message = "قيد ترحيل كوف يشير إلى رمز غير موجود",
+                };
+            }
+
+            write_reloc(&out,
+                        (uint32_t)reloc->offset,
+                        symbol_index,
+                        coff_relocation_type(reloc->kind));
+        }
+    }
+
     write_sym(&out,
               fname,
               fname_len,
@@ -430,7 +522,10 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
                   name_len,
                   symbols.data[i].name_offset,
                   (uint32_t)symbols.data[i].offset,
-                  coff_section_number(symbols.data[i].section, has_data),
+                  coff_section_number(symbols.data[i].section,
+                                      data_section,
+                                      read_only_data_section,
+                                      bss_section),
                   COFF_SYM_TYPE_NULL,
                   storage);
     }

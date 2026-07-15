@@ -15,6 +15,8 @@ typedef struct {
     SymbolTable symtable;
     size_t      text_size;   /* total bytes in .text section */
     size_t      data_size;   /* total bytes in .data section */
+    size_t      read_only_data_size; /* total bytes in .rodata/.rdata */
+    size_t      bss_size;    /* zero-initialized bytes in .bss */
     ErrorList   errors;
 } Pass1Result;
 

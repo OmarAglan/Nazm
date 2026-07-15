@@ -28,6 +28,9 @@ static Pipeline run(const char *src) {
     OutputInput oi = {
         .text_bytes=p2.text_bytes, .text_size=p2.text_size,
         .data_bytes=p2.data_bytes, .data_size=p2.data_size,
+        .read_only_data_bytes=p2.read_only_data_bytes,
+        .read_only_data_size=p2.read_only_data_size,
+        .bss_size=p2.bss_size,
         .symtable=&p1.symtable, .relocations=&p2.relocations, .source_name="test.نظم"
     };
     OutputResult coff = output_write_coff(&oi, &g_arena);
@@ -355,6 +358,25 @@ void test_coff_text_relocation_for_mov_label(void) {
     TEST_ASSERT_EQUAL_INT(0x0001, (int)r16(pl.coff.data + reloc_ptr + 8));
 }
 
+void test_coff_read_only_and_bss_sections(void) {
+    Pipeline pl = run(
+        ".نص\nارجع\n"
+        ".بيانات_للقراءة\nثابت: .عدد٣٢ ٤٢\n"
+        ".غير_مهيأة\nمخزن: .مساحة_صفرية ١٦\n");
+    TEST_ASSERT_TRUE(pl.coff.ok);
+    TEST_ASSERT_EQUAL_INT(3, (int)r16(pl.coff.data + 2));
+
+    const uint8_t *read_only = pl.coff.data + 20 + 40;
+    const uint8_t *bss = pl.coff.data + 20 + 80;
+    TEST_ASSERT_EQUAL_INT(0, memcmp(".rdata", read_only, 6));
+    TEST_ASSERT_EQUAL_INT(4, (int)r32(read_only + 16));
+    TEST_ASSERT_EQUAL_INT(0, (int)(r32(read_only + 36) & 0x80000000u));
+    TEST_ASSERT_EQUAL_INT(0, memcmp(".bss", bss, 4));
+    TEST_ASSERT_EQUAL_INT(16, (int)r32(bss + 16));
+    TEST_ASSERT_EQUAL_INT(0, (int)r32(bss + 20));
+    TEST_ASSERT_NOT_EQUAL(0, (int)(r32(bss + 36) & 0x00000080u));
+}
+
 void test_coff_data_relocation_for_symbol_initializer(void) {
     Pipeline pl = run(
         ".نص\n"
@@ -373,6 +395,24 @@ void test_coff_data_relocation_for_symbol_initializer(void) {
     TEST_ASSERT_EQUAL_INT(1, (int)r32(pl.coff.data + reloc_ptr + 4));
     TEST_ASSERT_EQUAL_INT(
         0x0001, (int)r16(pl.coff.data + reloc_ptr + 8));
+}
+
+void test_coff_read_only_data_relocation_for_symbol_initializer(void) {
+    Pipeline pl = run(
+        ".نص\n"
+        "الدالة:\n"
+        "ارجع\n"
+        ".بيانات_للقراءة\n"
+        "المؤشر: .عدد٦٤ الدالة\n");
+    TEST_ASSERT_TRUE(pl.coff.ok);
+
+    const uint8_t *read_only = pl.coff.data + 20 + 40;
+    uint32_t relocation_offset = r32(read_only + 24);
+    TEST_ASSERT_EQUAL_INT(1, (int)r16(read_only + 32));
+    TEST_ASSERT_TRUE(relocation_offset > 0);
+    TEST_ASSERT_EQUAL_INT(
+        0x0001,
+        (int)r16(pl.coff.data + relocation_offset + 8));
 }
 
 void test_coff_external_call_uses_undefined_symbol_and_rel32(void) {
@@ -508,8 +548,10 @@ int main(void) {
     RUN_TEST(test_coff_symbol_storage_classes_follow_visibility);
     RUN_TEST(test_coff_preserves_exported_arabic_entry_name);
     RUN_TEST(test_coff_data_symbol_uses_data_section);
+    RUN_TEST(test_coff_read_only_and_bss_sections);
     RUN_TEST(test_coff_text_relocation_for_mov_label);
     RUN_TEST(test_coff_data_relocation_for_symbol_initializer);
+    RUN_TEST(test_coff_read_only_data_relocation_for_symbol_initializer);
     RUN_TEST(test_coff_external_call_uses_undefined_symbol_and_rel32);
     RUN_TEST(test_coff_preserves_symbols_and_relocation_beyond_old_limit);
     RUN_TEST(test_coff_rejects_relocation_to_missing_symbol);

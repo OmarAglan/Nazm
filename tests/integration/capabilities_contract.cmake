@@ -94,8 +94,9 @@ foreach(INDEX RANGE ${DIRECTIVE_LAST})
 endforeach()
 
 string(JSON SECTION_COUNT LENGTH "${DOCUMENT}" sections)
-if(NOT SECTION_COUNT EQUAL 2)
-    message(FATAL_ERROR "Nazm capability contract must expose exactly .text and .data")
+if(NOT SECTION_COUNT EQUAL 5)
+    message(FATAL_ERROR
+        "Nazm capability contract must expose .text, .data, .rodata, .rdata, and .bss")
 endif()
 
 string(JSON FIXTURE_COUNT LENGTH "${DOCUMENT}" acceptance_fixtures)

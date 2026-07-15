@@ -25,6 +25,7 @@
 #define SHT_SYMTAB      2
 #define SHT_STRTAB      3
 #define SHT_RELA        4
+#define SHT_NOBITS      8
 
 #define SHF_WRITE       0x1
 #define SHF_ALLOC       0x2
@@ -200,12 +201,21 @@ static void write_rela(OutBuf *ob,
 
 static uint16_t symbol_section_index(SymbolSection section,
                                      int text_index,
-                                     int data_index) {
+                                     int data_index,
+                                     int read_only_data_index,
+                                     int bss_index) {
     if (section == SYMBOL_SECTION_UNKNOWN) {
         return 0; /* SHN_UNDEF */
     }
     if (section == SYMBOL_SECTION_DATA && data_index > 0) {
         return (uint16_t)data_index;
+    }
+    if (section == SYMBOL_SECTION_READ_ONLY_DATA &&
+        read_only_data_index > 0) {
+        return (uint16_t)read_only_data_index;
+    }
+    if (section == SYMBOL_SECTION_BSS && bss_index > 0) {
+        return (uint16_t)bss_index;
     }
 
     return (uint16_t)text_index;
@@ -271,10 +281,15 @@ static uint32_t elf_relocation_type(RelocationKind kind) {
 
 OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     bool has_data = in->data_bytes != NULL && in->data_size > 0;
+    bool has_read_only_data = in->read_only_data_bytes != NULL &&
+                              in->read_only_data_size > 0;
+    bool has_bss = in->bss_size > 0;
     bool has_rela_text = has_relocations_in_section(
         in->relocations, RELOC_SECTION_TEXT);
     bool has_rela_data = has_relocations_in_section(
         in->relocations, RELOC_SECTION_DATA);
+    bool has_rela_read_only_data = has_relocations_in_section(
+        in->relocations, RELOC_SECTION_READ_ONLY_DATA);
 
     OutputSymbolList symbols;
     if (!output_symbols_collect(in->symtable, arena, &symbols)) {
@@ -300,10 +315,15 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     int sh_text = 1;
     int next_section = 2;
     int sh_data = has_data ? next_section++ : 0;
+    int sh_read_only_data = has_read_only_data ? next_section++ : 0;
+    int sh_bss = has_bss ? next_section++ : 0;
     int sh_rela_text = has_rela_text ? next_section++ : 0;
     int sh_rela_data = has_rela_data ? next_section++ : 0;
+    int sh_rela_read_only_data = has_rela_read_only_data
+                               ? next_section++ : 0;
     (void)sh_rela_text;
     (void)sh_rela_data;
+    (void)sh_rela_read_only_data;
     int sh_symtab = next_section++;
     int sh_strtab = next_section++;
     int sh_shstrtab = next_section++;
@@ -312,7 +332,8 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
 
     OutBuf ob;
     outbuf_init(&ob, arena,
-                64 + in->text_size + in->data_size + 1024 + (size_t)sh_count * 64);
+                64 + in->text_size + in->data_size +
+                in->read_only_data_size + 1024 + (size_t)sh_count * 64);
 
     uint8_t ehdr[64] = {0};
     ehdr[0] = 0x7F;
@@ -345,6 +366,14 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
         outbuf_write(&ob, in->data_bytes, in->data_size);
     }
 
+    size_t read_only_data_off = 0;
+    if (has_read_only_data) {
+        align_outbuf(&ob, 8);
+        read_only_data_off = ob.size;
+        outbuf_write(
+            &ob, in->read_only_data_bytes, in->read_only_data_size);
+    }
+
     StrTab strtab;
     strtab_init(&strtab, arena);
 
@@ -367,7 +396,11 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                   info,
                   STV_DEFAULT,
                   symbol_section_index(
-                      symbols.data[i].section, sh_text, sh_data),
+                      symbols.data[i].section,
+                      sh_text,
+                      sh_data,
+                      sh_read_only_data,
+                      sh_bss),
                   (uint64_t)symbols.data[i].offset,
                   0);
     }
@@ -437,6 +470,38 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
         has_rela_data = rela_data_size > 0;
     }
 
+    size_t rela_read_only_data_off = 0;
+    size_t rela_read_only_data_size = 0;
+    if (has_rela_read_only_data) {
+        align_outbuf(&ob, 8);
+        rela_read_only_data_off = ob.size;
+
+        for (size_t i = 0; i < in->relocations->count; i++) {
+            const Relocation *reloc = &in->relocations->data[i];
+            if (reloc->section != RELOC_SECTION_READ_ONLY_DATA) {
+                continue;
+            }
+
+            uint32_t symbol_index;
+            if (!output_symbols_find_index(
+                    &symbols, reloc->symbol, &symbol_index)) {
+                return (OutputResult){
+                    .ok = false,
+                    .error_message = "قيد ترحيل إلف64 يشير إلى رمز غير موجود",
+                };
+            }
+
+            write_rela(&ob,
+                       (uint64_t)reloc->offset,
+                       symbol_index,
+                       elf_relocation_type(reloc->kind),
+                       reloc->addend);
+        }
+
+        rela_read_only_data_size = ob.size - rela_read_only_data_off;
+        has_rela_read_only_data = rela_read_only_data_size > 0;
+    }
+
     size_t strtab_off = ob.size;
     outbuf_write(&ob, strtab.data, strtab.size);
 
@@ -444,8 +509,14 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     strtab_init(&shstrtab, arena);
     uint32_t sh_text_name = strtab_add(&shstrtab, ".text");
     uint32_t sh_data_name = has_data ? strtab_add(&shstrtab, ".data") : 0;
+    uint32_t sh_read_only_data_name = has_read_only_data
+                                    ? strtab_add(&shstrtab, ".rodata") : 0;
+    uint32_t sh_bss_name = has_bss ? strtab_add(&shstrtab, ".bss") : 0;
     uint32_t sh_rela_text_name = has_rela_text ? strtab_add(&shstrtab, ".rela.text") : 0;
     uint32_t sh_rela_data_name = has_rela_data ? strtab_add(&shstrtab, ".rela.data") : 0;
+    uint32_t sh_rela_read_only_data_name = has_rela_read_only_data
+                                         ? strtab_add(
+                                               &shstrtab, ".rela.rodata") : 0;
     uint32_t sh_symtab_name = strtab_add(&shstrtab, ".symtab");
     uint32_t sh_strtab_name = strtab_add(&shstrtab, ".strtab");
     uint32_t sh_shstrtab_name = strtab_add(&shstrtab, ".shstrtab");
@@ -498,6 +569,34 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                    24);
     }
 
+    if (has_read_only_data) {
+        write_shdr(&ob,
+                   sh_read_only_data_name,
+                   SHT_PROGBITS,
+                   SHF_ALLOC,
+                   0,
+                   (uint64_t)read_only_data_off,
+                   (uint64_t)in->read_only_data_size,
+                   0,
+                   0,
+                   8,
+                   0);
+    }
+
+    if (has_bss) {
+        write_shdr(&ob,
+                   sh_bss_name,
+                   SHT_NOBITS,
+                   SHF_ALLOC | SHF_WRITE,
+                   0,
+                   (uint64_t)ob.size,
+                   (uint64_t)in->bss_size,
+                   0,
+                   0,
+                   8,
+                   0);
+    }
+
     if (has_rela_data) {
         write_shdr(&ob,
                    sh_rela_data_name,
@@ -508,6 +607,20 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                    (uint64_t)rela_data_size,
                    (uint32_t)sh_symtab,
                    (uint32_t)sh_data,
+                   8,
+                   24);
+    }
+
+    if (has_rela_read_only_data) {
+        write_shdr(&ob,
+                   sh_rela_read_only_data_name,
+                   SHT_RELA,
+                   0,
+                   0,
+                   (uint64_t)rela_read_only_data_off,
+                   (uint64_t)rela_read_only_data_size,
+                   (uint32_t)sh_symtab,
+                   (uint32_t)sh_read_only_data,
                    8,
                    24);
     }

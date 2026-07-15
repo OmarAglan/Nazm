@@ -484,7 +484,7 @@ void test_p1_rejects_data_directive_outside_data_section(void) {
 
     TEST_ASSERT_TRUE(error_has_any(&pl.p1.errors));
     TEST_ASSERT_NOT_NULL(strstr(
-        pl.p1.errors.errors[0].message, "داخل '.بيانات' فقط"));
+        pl.p1.errors.errors[0].message, "قسم بيانات"));
 }
 
 void test_p1_rejects_unknown_directive(void) {
@@ -571,6 +571,56 @@ void test_data_alignment_rejects_non_power_of_two(void) {
     TEST_ASSERT_TRUE(error_has_any(&three.p1.errors));
     TEST_ASSERT_NOT_NULL(strstr(
         three.p1.errors.errors[0].message, "قوة للعدد 2"));
+}
+
+void test_read_only_and_bss_sections_keep_distinct_sizes_and_symbols(void) {
+    Pipeline pl = run(
+        ".بيانات_للقراءة\n"
+        "ثابت: .عدد٣٢ ٤٢\n"
+        ".غير_مهيأة\n"
+        ".محاذاة ٨\n"
+        "مخزن: .مساحة_صفرية ١٦\n");
+    int64_t offset = -1;
+    SymbolSection section = SYMBOL_SECTION_UNKNOWN;
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(4, (int)pl.p1.read_only_data_size);
+    TEST_ASSERT_EQUAL_INT(16, (int)pl.p1.bss_size);
+    TEST_ASSERT_EQUAL_INT(4, (int)pl.p2.read_only_data_size);
+    TEST_ASSERT_EQUAL_INT(16, (int)pl.p2.bss_size);
+    TEST_ASSERT_EQUAL_HEX8(42, pl.p2.read_only_data_bytes[0]);
+    TEST_ASSERT_TRUE(symtable_lookup_ex(
+        &pl.p1.symtable, "ثابت", &offset, &section));
+    TEST_ASSERT_EQUAL_INT(SYMBOL_SECTION_READ_ONLY_DATA, section);
+    TEST_ASSERT_TRUE(symtable_lookup_ex(
+        &pl.p1.symtable, "مخزن", &offset, &section));
+    TEST_ASSERT_EQUAL_INT(SYMBOL_SECTION_BSS, section);
+}
+
+void test_bss_rejects_initialized_data(void) {
+    Pipeline pl = run(".غير_مهيأة\n.عدد٨ ١\n");
+
+    TEST_ASSERT_TRUE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        pl.p1.errors.errors[0].message, "مساحة_صفرية"));
+}
+
+void test_read_only_symbol_initializer_creates_abs64_relocation(void) {
+    Pipeline pl = run(
+        ".نص\n"
+        "الدالة:\n"
+        "ارجع\n"
+        ".بيانات_للقراءة\n"
+        "المؤشر: .عدد٦٤ الدالة\n");
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.relocations.count);
+    TEST_ASSERT_EQUAL_INT(
+        RELOC_SECTION_READ_ONLY_DATA,
+        pl.p2.relocations.data[0].section);
+    TEST_ASSERT_EQUAL_INT(RELOC_ABS64, pl.p2.relocations.data[0].kind);
 }
 
 void test_p2_mov_label_creates_abs64_relocation(void) {
@@ -702,6 +752,9 @@ int main(void) {
     RUN_TEST(test_p2_emits_data_boundary_values_without_truncation);
     RUN_TEST(test_data_alignment_pads_to_requested_byte_boundary);
     RUN_TEST(test_data_alignment_rejects_non_power_of_two);
+    RUN_TEST(test_read_only_and_bss_sections_keep_distinct_sizes_and_symbols);
+    RUN_TEST(test_bss_rejects_initialized_data);
+    RUN_TEST(test_read_only_symbol_initializer_creates_abs64_relocation);
     RUN_TEST(test_p2_mov_label_creates_abs64_relocation);
     RUN_TEST(test_p2_data_symbol_creates_abs64_relocation);
     RUN_TEST(test_p2_external_data_symbol_creates_abs64_relocation);

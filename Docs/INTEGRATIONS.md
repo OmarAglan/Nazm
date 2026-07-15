@@ -25,8 +25,8 @@ network calls, has no telemetry, and contacts no external service.
 - Formats: إلف64 via `--صيغة إلف64`, PE/COFF object via `--صيغة كوف`
 - Written through the same UTF-8 path boundary; buffered close failures are
   reported as I/O failure
-- Current section support: `.text` always, `.data` when data bytes exist, and
-  `.rela.text`/`.rela.data` or COFF text/data relocation tables when required
+- Current section support: `.text` always; optional `.data`, `.rodata`/`.rdata`,
+  and `.bss`; plus section-specific ELF64 or COFF relocation tables
 - Current symbol support: defined labels with section-aware `.text`/`.data`
   indexes and real local/global binding. Labels are local by default; `.عام`
   emits ELF64 `STB_GLOBAL` or COFF `EXTERNAL`, while `.محلي` emits ELF64
@@ -86,15 +86,15 @@ Not applicable. No network communication, no user accounts, no authentication of
 
 **Linux Linkers:**
 - Relationship: Consumers of ELF64 relocatable object files
-- Current expectation: `.text`, `.data`, `.symtab`, `.strtab`, `.shstrtab`,
-  `.rela.text`, and `.rela.data` are emitted when relevant
+- Current expectation: `.text`, `.data`, `.rodata`, `.bss`, `.symtab`,
+  `.strtab`, `.shstrtab`, and relevant relocation sections are emitted
 - Validation status: Unit/subprocess tests verify bytes and section fields;
   GitHub Actions also links and runs Arabic-entry ELF64 output.
 
 **Windows Linkers:**
 - Relationship: Consumers of PE/COFF `.obj` files
-- Current expectation: `.text`, optional `.data`, symbol table, string table,
-  and text/data relocation tables are emitted when relevant
+- Current expectation: `.text`, optional `.data`, `.rdata`, `.bss`, symbol
+  table, string table, and section relocation tables are emitted when relevant
 - Validation status: Unit tests verify bytes and table fields; Baa's Windows
   shadow job links and runs Nazm COFF output with the Arabic entry symbol.
 

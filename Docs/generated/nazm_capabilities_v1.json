@@ -524,6 +524,8 @@
   "directives": [
     { "gas": ".text", "gas_operands": [], "arabic": ".نص", "nazm_operands": [] },
     { "gas": ".data", "gas_operands": [], "arabic": ".بيانات", "nazm_operands": [] },
+    { "gas": ".section .rodata/.rdata", "gas_operands": [], "arabic": ".بيانات_للقراءة", "nazm_operands": [] },
+    { "gas": ".bss", "gas_operands": [], "arabic": ".غير_مهيأة", "nazm_operands": [] },
     { "gas": ".byte", "gas_operands": ["integer"], "arabic": ".عدد٨", "nazm_operands": ["immediate"] },
     { "gas": ".word", "gas_operands": ["integer"], "arabic": ".عدد١٦", "nazm_operands": ["immediate"] },
     { "gas": ".long", "gas_operands": ["integer"], "arabic": ".عدد٣٢", "nazm_operands": ["immediate"] },
@@ -580,13 +582,16 @@
   ],
   "sections": [
     { "gas": ".text", "nazm": ".نص", "object": ".text" },
-    { "gas": ".data", "nazm": ".بيانات", "object": ".data" }
+    { "gas": ".data", "nazm": ".بيانات", "object": ".data" },
+    { "gas": ".rodata", "nazm": ".بيانات_للقراءة", "object": ".rodata" },
+    { "gas": ".rdata", "nazm": ".بيانات_للقراءة", "object": ".rdata" },
+    { "gas": ".bss", "nazm": ".غير_مهيأة", "object": ".bss" }
   ],
   "symbols": {
     "definitions": true,
     "bindings": ["local", "global"],
     "external_undefined": true,
-    "sections": [".text", ".data"],
+    "sections": [".text", ".data", ".rodata", ".rdata", ".bss"],
     "abi_aliases": [],
     "entry_symbol": { "source_symbol": "الرئيسية", "object_symbol": "الرئيسية", "binding": "global", "section": ".text" }
   },
@@ -693,13 +698,16 @@
     },
     "sections": {
       ".data": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".rodata": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".rdata": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".bss": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".text": "tests/fixtures/baa_coverage/بيانات-باء.نظم"
     }
   },
   "known_limits": [
     "All 8-, 16-, 32-, and 64-bit general-purpose registers use canonical Arabic source names; high-byte AH/CH/DH/BH forms are intentionally excluded.",
     "No scalar SSE2 registers or instructions are implemented.",
-    "No leave, rdtsc, or read-only-section support is implemented.",
+    "No leave or rdtsc support is implemented.",
     "Latin source and object identifiers are not accepted; the entry symbol remains الرئيسية end to end.",
     "External symbols must retain Arabic names; linking to a Latin platform ABI requires a separately reviewed Arabic bridge.",
     "No RIP-relative memory, base-index-scale memory, or debug directive is implemented."

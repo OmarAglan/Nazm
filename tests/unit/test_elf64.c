@@ -34,6 +34,9 @@ static OutputResult assemble_elf(const char *src) {
         .text_size   = p2.text_size,
         .data_bytes  = p2.data_bytes,
         .data_size   = p2.data_size,
+        .read_only_data_bytes = p2.read_only_data_bytes,
+        .read_only_data_size = p2.read_only_data_size,
+        .bss_size = p2.bss_size,
         .symtable    = &p1.symtable,
         .relocations = &p2.relocations,
         .source_name = "test",
@@ -326,6 +329,25 @@ void test_elf_rela_text_for_mov_label(void) {
     TEST_ASSERT_EQUAL_INT(1, (int)(info & 0xffffffffu)); /* R_X86_64_64 */
 }
 
+void test_elf_read_only_and_bss_sections(void) {
+    OutputResult r = assemble_elf(
+        ".نص\nارجع\n"
+        ".بيانات_للقراءة\nثابت: .عدد٣٢ ٤٢\n"
+        ".غير_مهيأة\nمخزن: .مساحة_صفرية ١٦\n");
+    TEST_ASSERT_TRUE(r.ok);
+    TEST_ASSERT_EQUAL_INT(7, (int)rd16(r.data + 60));
+
+    uint64_t shoff = rd64(r.data + 40);
+    const uint8_t *read_only = r.data + shoff + 2 * 64;
+    const uint8_t *bss = r.data + shoff + 3 * 64;
+    TEST_ASSERT_EQUAL_INT(1, (int)rd32(read_only + 4)); /* PROGBITS */
+    TEST_ASSERT_EQUAL_INT(2, (int)rd64(read_only + 8)); /* ALLOC, not WRITE */
+    TEST_ASSERT_EQUAL_INT(4, (int)rd64(read_only + 32));
+    TEST_ASSERT_EQUAL_INT(8, (int)rd32(bss + 4)); /* NOBITS */
+    TEST_ASSERT_EQUAL_INT(3, (int)rd64(bss + 8)); /* ALLOC | WRITE */
+    TEST_ASSERT_EQUAL_INT(16, (int)rd64(bss + 32));
+}
+
 void test_elf_rela_data_for_symbol_initializer(void) {
     OutputResult r = assemble_elf(
         ".نص\n"
@@ -348,6 +370,25 @@ void test_elf_rela_data_for_symbol_initializer(void) {
     TEST_ASSERT_EQUAL_INT(0, (int)rd64(r.data + relocation_offset));
     uint64_t info = rd64(r.data + relocation_offset + 8);
     TEST_ASSERT_EQUAL_INT(1, (int)(info & 0xffffffffu)); /* R_X86_64_64 */
+}
+
+void test_elf_rela_read_only_data_for_symbol_initializer(void) {
+    OutputResult r = assemble_elf(
+        ".نص\n"
+        "الدالة:\n"
+        "ارجع\n"
+        ".بيانات_للقراءة\n"
+        "المؤشر: .عدد٦٤ الدالة\n");
+    TEST_ASSERT_TRUE(r.ok);
+
+    uint64_t shoff = rd64(r.data + 40);
+    const uint8_t *rela = r.data + shoff + 3 * 64;
+    TEST_ASSERT_EQUAL_INT(4, (int)rd32(rela + 4)); /* SHT_RELA */
+    TEST_ASSERT_EQUAL_INT(4, (int)rd32(rela + 40)); /* link = .symtab */
+    TEST_ASSERT_EQUAL_INT(2, (int)rd32(rela + 44)); /* info = .rodata */
+    uint64_t relocation_offset = rd64(rela + 24);
+    uint64_t info = rd64(r.data + relocation_offset + 8);
+    TEST_ASSERT_EQUAL_INT(1, (int)(info & 0xffffffffu));
 }
 
 void test_elf_external_call_uses_undefined_symbol_and_pc32(void) {
@@ -467,8 +508,10 @@ int main(void) {
     RUN_TEST(test_elf_minimum_size);
     RUN_TEST(test_elf_data_section_exists_when_data_emitted);
     RUN_TEST(test_elf_data_symbol_uses_data_section_index);
+    RUN_TEST(test_elf_read_only_and_bss_sections);
     RUN_TEST(test_elf_rela_text_for_mov_label);
     RUN_TEST(test_elf_rela_data_for_symbol_initializer);
+    RUN_TEST(test_elf_rela_read_only_data_for_symbol_initializer);
     RUN_TEST(test_elf_external_call_uses_undefined_symbol_and_pc32);
     RUN_TEST(test_elf_preserves_symbols_and_relocation_beyond_old_limit);
     RUN_TEST(test_elf_rejects_relocation_to_missing_symbol);

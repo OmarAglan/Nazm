@@ -200,6 +200,45 @@ static bool emit_data_directive(const Instruction *instr,
     return true;
 }
 
+static size_t *pass2_section_size(Pass2Result *result,
+                                  SymbolSection section) {
+    switch (section) {
+    case SYMBOL_SECTION_TEXT:
+        return &result->text_size;
+    case SYMBOL_SECTION_DATA:
+        return &result->data_size;
+    case SYMBOL_SECTION_READ_ONLY_DATA:
+        return &result->read_only_data_size;
+    case SYMBOL_SECTION_BSS:
+        return &result->bss_size;
+    case SYMBOL_SECTION_UNKNOWN:
+        return NULL;
+    }
+    return NULL;
+}
+
+static uint8_t *pass2_section_bytes(Pass2Result *result,
+                                    SymbolSection section) {
+    if (section == SYMBOL_SECTION_DATA) return result->data_bytes;
+    if (section == SYMBOL_SECTION_READ_ONLY_DATA)
+        return result->read_only_data_bytes;
+    return NULL;
+}
+
+static size_t pass2_section_capacity(const Pass1Result *pass1,
+                                     SymbolSection section) {
+    if (section == SYMBOL_SECTION_DATA) return pass1->data_size;
+    if (section == SYMBOL_SECTION_READ_ONLY_DATA)
+        return pass1->read_only_data_size;
+    return 0;
+}
+
+static RelocationSection pass2_relocation_section(SymbolSection section) {
+    return section == SYMBOL_SECTION_READ_ONLY_DATA
+         ? RELOC_SECTION_READ_ONLY_DATA
+         : RELOC_SECTION_DATA;
+}
+
 Pass2Result pass2_run(const InstructionList *instructions,
                       const Pass1Result     *pass1,
                       Arena                 *arena) {
@@ -213,54 +252,72 @@ Pass2Result pass2_run(const InstructionList *instructions,
     /* Pre-allocate output buffers */
     size_t text_cap = pass1->text_size;
     size_t data_cap = pass1->data_size;
+    size_t read_only_data_cap = pass1->read_only_data_size;
     size_t text_alloc = text_cap > 0 ? text_cap : 1;
     result.text_bytes = ARENA_ALLOC_N(arena, uint8_t, text_alloc);
     result.data_bytes = pass1->data_size > 0
                       ? ARENA_ALLOC_N(arena, uint8_t, data_cap)
                       : NULL;
+    result.read_only_data_bytes = pass1->read_only_data_size > 0
+                                ? ARENA_ALLOC_N(
+                                      arena, uint8_t, read_only_data_cap)
+                                : NULL;
     result.text_size  = 0;
     result.data_size  = 0;
+    result.read_only_data_size = 0;
+    result.bss_size = 0;
     result.emission_count = instructions->count;
     result.emissions = instructions->count > 0
                      ? ARENA_ALLOC_N(
                            arena, EmissionSpan, instructions->count)
                      : NULL;
 
-    bool in_data = false;
+    SymbolSection current_section = SYMBOL_SECTION_TEXT;
 
     for (size_t i = 0; i < instructions->count; i++) {
         const Instruction *instr = &instructions->data[i];
         EmissionSpan *emission = &result.emissions[i];
-        emission->section = in_data
-                          ? SYMBOL_SECTION_DATA
-                          : SYMBOL_SECTION_TEXT;
-        emission->offset = in_data
-                         ? result.data_size
-                         : result.text_size;
+        emission->section = current_section;
+        emission->offset = *pass2_section_size(&result, current_section);
 
         /* ── Section switches ── */
         if (instr->directive_kind != DIRECTIVE_NONE) {
             if (instr->directive_kind == DIRECTIVE_TEXT) {
-                in_data = false;
+                current_section = SYMBOL_SECTION_TEXT;
                 emission->section = SYMBOL_SECTION_TEXT;
                 emission->offset = result.text_size;
                 continue;
             }
             if (instr->directive_kind == DIRECTIVE_DATA) {
-                in_data = true;
+                current_section = SYMBOL_SECTION_DATA;
                 emission->section = SYMBOL_SECTION_DATA;
                 emission->offset = result.data_size;
                 continue;
             }
+            if (instr->directive_kind == DIRECTIVE_READ_ONLY_DATA) {
+                current_section = SYMBOL_SECTION_READ_ONLY_DATA;
+                emission->section = SYMBOL_SECTION_READ_ONLY_DATA;
+                emission->offset = result.read_only_data_size;
+                continue;
+            }
+            if (instr->directive_kind == DIRECTIVE_BSS) {
+                current_section = SYMBOL_SECTION_BSS;
+                emission->section = SYMBOL_SECTION_BSS;
+                emission->offset = result.bss_size;
+                continue;
+            }
             if (instr->directive_kind == DIRECTIVE_GLOBAL
-                || instr->directive_kind == DIRECTIVE_LOCAL) {
+                || instr->directive_kind == DIRECTIVE_LOCAL
+                || instr->directive_kind == DIRECTIVE_EXTERNAL) {
                 continue;
             }
 
             /* Data-emitting directive */
-            if (in_data) {
+            if (current_section != SYMBOL_SECTION_TEXT) {
+                size_t *section_size = pass2_section_size(
+                    &result, current_section);
                 int expected = data_directive_size_at(
-                    instr, result.data_size);
+                    instr, *section_size);
                 if (expected < 0) {
                     add_internal_error(
                         &result, arena, instructions, instr,
@@ -268,7 +325,12 @@ Pass2Result pass2_run(const InstructionList *instructions,
                     return result;
                 }
 
-                size_t before = result.data_size;
+                size_t before = *section_size;
+                if (current_section == SYMBOL_SECTION_BSS) {
+                    *section_size += (size_t)expected;
+                    emission->size = 0;
+                    continue;
+                }
                 if (instr->directive_kind == DIRECTIVE_INT64) {
                     for (int operand_index = 0;
                          operand_index < instr->op_count;
@@ -310,7 +372,8 @@ Pass2Result pass2_run(const InstructionList *instructions,
                             &result.relocations,
                             arena,
                             (Relocation){
-                                .section = RELOC_SECTION_DATA,
+                                .section = pass2_relocation_section(
+                                    current_section),
                                 .kind = RELOC_ABS64,
                                 .offset = before +
                                     (size_t)operand_index * 8,
@@ -319,17 +382,21 @@ Pass2Result pass2_run(const InstructionList *instructions,
                             });
                     }
                 }
+                uint8_t *section_bytes = pass2_section_bytes(
+                    &result, current_section);
+                size_t section_capacity = pass2_section_capacity(
+                    pass1, current_section);
                 if (!emit_data_directive(instr,
-                                         result.data_bytes,
-                                         data_cap,
-                                         &result.data_size)) {
+                                         section_bytes,
+                                         section_capacity,
+                                         section_size)) {
                     add_internal_error(
                         &result, arena, instructions, instr,
                         "خطأ داخلي: تجاوز خرج البيانات الحجم المحسوب في المرور الأول");
                     return result;
                 }
 
-                size_t actual = result.data_size - before;
+                size_t actual = *section_size - before;
                 emission->size = actual;
                 if (actual != (size_t)expected) {
                     char msg[256];
@@ -346,7 +413,7 @@ Pass2Result pass2_run(const InstructionList *instructions,
 
         /* ── Skip label-only lines ── */
         if (instr->opcode == OPCODE_INVALID) continue;
-        if (in_data) continue;
+        if (current_section != SYMBOL_SECTION_TEXT) continue;
 
         /* ── Resolve instruction size ── */
         int sz = encoder_instruction_size(instr->opcode,
@@ -540,12 +607,16 @@ Pass2Result pass2_run(const InstructionList *instructions,
     }
 
     if (result.text_size != pass1->text_size
-        || result.data_size != pass1->data_size) {
+        || result.data_size != pass1->data_size
+        || result.read_only_data_size != pass1->read_only_data_size
+        || result.bss_size != pass1->bss_size) {
         char msg[256];
         snprintf(msg, sizeof(msg),
-                 "خطأ داخلي: أحجام المرور الثاني لا تطابق المرور الأول (نص %zu/%zu، بيانات %zu/%zu)",
+                 "خطأ داخلي: أحجام المرور الثاني لا تطابق المرور الأول (نص %zu/%zu، بيانات %zu/%zu، قراءة %zu/%zu، غير مهيأة %zu/%zu)",
                  result.text_size, pass1->text_size,
-                 result.data_size, pass1->data_size);
+                 result.data_size, pass1->data_size,
+                 result.read_only_data_size, pass1->read_only_data_size,
+                 result.bss_size, pass1->bss_size);
         add_internal_error(
             &result, arena, instructions, NULL, msg);
     }

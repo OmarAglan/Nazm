@@ -277,6 +277,26 @@ static void report_undefined_visibility_symbols(
     }
 }
 
+static size_t *pass1_section_offset(SymbolSection section,
+                                    size_t *text_offset,
+                                    size_t *data_offset,
+                                    size_t *read_only_data_offset,
+                                    size_t *bss_offset) {
+    switch (section) {
+    case SYMBOL_SECTION_TEXT:
+        return text_offset;
+    case SYMBOL_SECTION_DATA:
+        return data_offset;
+    case SYMBOL_SECTION_READ_ONLY_DATA:
+        return read_only_data_offset;
+    case SYMBOL_SECTION_BSS:
+        return bss_offset;
+    case SYMBOL_SECTION_UNKNOWN:
+        return NULL;
+    }
+    return NULL;
+}
+
 Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
     Pass1Result result = {0};
     symtable_init(&result.symtable, arena);
@@ -288,7 +308,9 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
 
     size_t text_offset = 0;
     size_t data_offset = 0;
-    bool   in_data     = false;
+    size_t read_only_data_offset = 0;
+    size_t bss_offset = 0;
+    SymbolSection current_section = SYMBOL_SECTION_TEXT;
 
     for (size_t i = 0; i < instructions->count; i++) {
         const Instruction *instr = &instructions->data[i];
@@ -296,11 +318,19 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
         /* ── Section switches ── */
         if (instr->directive_kind != DIRECTIVE_NONE) {
             if (instr->directive_kind == DIRECTIVE_TEXT) {
-                in_data = false;
+                current_section = SYMBOL_SECTION_TEXT;
                 continue;
             }
             if (instr->directive_kind == DIRECTIVE_DATA) {
-                in_data = true;
+                current_section = SYMBOL_SECTION_DATA;
+                continue;
+            }
+            if (instr->directive_kind == DIRECTIVE_READ_ONLY_DATA) {
+                current_section = SYMBOL_SECTION_READ_ONLY_DATA;
+                continue;
+            }
+            if (instr->directive_kind == DIRECTIVE_BSS) {
+                current_section = SYMBOL_SECTION_BSS;
                 continue;
             }
 
@@ -364,14 +394,15 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
                     message);
                 continue;
             }
-            if (!in_data) {
+            if (current_section == SYMBOL_SECTION_TEXT ||
+                current_section == SYMBOL_SECTION_UNKNOWN) {
                 add_directive_error(
                     &result.errors,
                     arena,
                     instructions,
                     instr,
                     -1,
-                    "توجيهات البيانات مسموحة داخل '.بيانات' فقط");
+                    "توجيهات البيانات مسموحة داخل قسم بيانات فقط");
                 continue;
             }
             if (!validate_data_directive(
@@ -381,13 +412,31 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
                     arena)) {
                 continue;
             }
+            if (current_section == SYMBOL_SECTION_BSS &&
+                instr->directive_kind != DIRECTIVE_ZERO_SPACE &&
+                instr->directive_kind != DIRECTIVE_ALIGNMENT) {
+                add_directive_error(
+                    &result.errors,
+                    arena,
+                    instructions,
+                    instr,
+                    -1,
+                    "قسم '.غير_مهيأة' يقبل '.مساحة_صفرية' و'.محاذاة' فقط");
+                continue;
+            }
 
             /* Data-emitting directive */
-            int dsz = data_directive_size_at(instr, data_offset);
+            size_t *section_offset = pass1_section_offset(
+                current_section,
+                &text_offset,
+                &data_offset,
+                &read_only_data_offset,
+                &bss_offset);
+            int dsz = data_directive_size_at(instr, *section_offset);
             if (instr->label) {
                 if (!symtable_insert_section(&result.symtable, instr->label,
-                                             SYMBOL_SECTION_DATA,
-                                             (int64_t)data_offset)) {
+                                             current_section,
+                                             (int64_t)*section_offset)) {
                     char msg[256];
                     snprintf(msg, sizeof(msg), "وسم مكرر: '%s'", instr->label);
                     error_add_span(&result.errors, arena,
@@ -399,17 +448,22 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
                 }
             }
             if (dsz > 0) {
-                data_offset += (size_t)dsz;
+                *section_offset += (size_t)dsz;
             }
             continue;
         }
 
         /* ── Register label at current offset ── */
         if (instr->label) {
-            size_t cur_off = in_data ? data_offset : text_offset;
+            size_t *section_offset = pass1_section_offset(
+                current_section,
+                &text_offset,
+                &data_offset,
+                &read_only_data_offset,
+                &bss_offset);
             if (!symtable_insert_section(&result.symtable, instr->label,
-                                         in_data ? SYMBOL_SECTION_DATA : SYMBOL_SECTION_TEXT,
-                                         (int64_t)cur_off)) {
+                                         current_section,
+                                         (int64_t)*section_offset)) {
                 char msg[256];
                 snprintf(msg, sizeof(msg), "وسم مكرر: '%s'", instr->label);
                 error_add_span(&result.errors, arena,
@@ -423,6 +477,7 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
 
         /* ── Skip label-only lines ── */
         if (instr->opcode == OPCODE_INVALID) continue;
+        if (current_section != SYMBOL_SECTION_TEXT) continue;
 
         /* ── Size real instruction ── */
         int sz = encoder_instruction_size(instr->opcode,
@@ -437,5 +492,7 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
 
     result.text_size = text_offset;
     result.data_size = data_offset;
+    result.read_only_data_size = read_only_data_offset;
+    result.bss_size = bss_offset;
     return result;
 }

@@ -11,7 +11,7 @@ source bytes (.نظم)
   -> lexer: UTF-8 Arabic text to TokenArray
   -> parser: TokenArray to InstructionList
   -> pass1: instruction/data sizes and section-aware SymbolTable
-  -> pass2: encoded .text/.data bytes, emission spans, and relocation records
+  -> pass2: encoded .text/.data/read-only bytes, logical .bss size, emission spans, and relocation records
   -> output writer: ELF64 or COFF object bytes
   -> CLI result
 ```
@@ -140,7 +140,8 @@ contract.
 
 **SymbolTable**
 - Defined in `src/symtable/symtable.h`.
-- Maps labels to byte offsets and records whether each label belongs to `.text`, `.data`, or an unknown/future section.
+- Maps labels to byte offsets and records whether each label belongs to
+  `.text`, `.data`, read-only data, `.bss`, or an unknown/future section.
 
 **RelocationList**
 - Defined in `src/passes/pass2.h`.
@@ -200,8 +201,8 @@ Implemented now:
 - Arabic lexer and parser coverage for the current instruction representation.
 - Basic pass and symbol table structure.
 - Encoder helper modules and instruction table scaffolding.
-- ELF64 and COFF writers with `.text`, optional `.data`, symbol/string tables,
-  and text/data relocation support.
+- ELF64 and COFF writers with `.text`, optional `.data`, `.rodata`/`.rdata`,
+  `.bss`, symbol/string tables, and section-aware relocation support.
 - CLI option parser and `nazm` executable target.
 - Unit tests for arena, Unicode, symtable, keywords, immediates, REX, lexer,
   parser, encoder, passes, ELF64, COFF, diagnostics, examples, and CLI argument parsing through both CTest
@@ -210,7 +211,7 @@ Implemented now:
 Planned or limited:
 - Stable in-process API behavior for `include/nazm.h`.
 - Verified end-to-end linker compatibility across ELF64 and COFF on CI.
-- RIP-relative and future read-only/BSS relocation forms.
+- RIP-relative relocation forms.
 - Baa-required 8/16/32/64-bit, `setcc`/extension, SSE2, section, and relocation
   coverage.
 - Dual-assembler parity against Baa's current GAS output before default-on

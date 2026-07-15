@@ -14,6 +14,7 @@
 typedef enum {
     RELOC_SECTION_TEXT = 1,
     RELOC_SECTION_DATA = 2,
+    RELOC_SECTION_READ_ONLY_DATA = 3,
 } RelocationSection;
 
 typedef enum {
@@ -46,6 +47,9 @@ typedef struct {
     size_t          text_size;
     uint8_t        *data_bytes;   /* .data section bytes (NULL if empty) */
     size_t          data_size;
+    uint8_t        *read_only_data_bytes; /* .rodata/.rdata bytes */
+    size_t          read_only_data_size;
+    size_t          bss_size;     /* .bss logical size; no file bytes */
     EmissionSpan   *emissions;    /* one arena-owned span per instruction */
     size_t          emission_count;
     RelocationList  relocations;

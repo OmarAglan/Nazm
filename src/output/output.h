@@ -22,6 +22,9 @@ typedef struct {
     size_t          text_size;
     const uint8_t  *data_bytes;   /* NULL if no .data section */
     size_t          data_size;
+    const uint8_t  *read_only_data_bytes; /* NULL if no read-only section */
+    size_t          read_only_data_size;
+    size_t          bss_size;
     const SymbolTable *symtable;
     const RelocationList *relocations;
     const char      *source_name; /* for debug info */

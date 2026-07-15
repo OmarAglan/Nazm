@@ -15,6 +15,8 @@ typedef enum {
     SYMBOL_SECTION_UNKNOWN = 0,
     SYMBOL_SECTION_TEXT,
     SYMBOL_SECTION_DATA,
+    SYMBOL_SECTION_READ_ONLY_DATA,
+    SYMBOL_SECTION_BSS,
 } SymbolSection;
 
 typedef enum {

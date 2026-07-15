@@ -18,6 +18,10 @@ static const char *section_name(SymbolSection section) {
         return ".text";
     case SYMBOL_SECTION_DATA:
         return ".data";
+    case SYMBOL_SECTION_READ_ONLY_DATA:
+        return ".rodata";
+    case SYMBOL_SECTION_BSS:
+        return ".bss";
     case SYMBOL_SECTION_UNKNOWN:
         return "-----";
     }
@@ -146,11 +150,17 @@ bool listing_write_stream(FILE *stream,
         } else if (emission->section == SYMBOL_SECTION_DATA) {
             section_bytes = pass2->data_bytes;
             section_size = pass2->data_size;
+        } else if (emission->section == SYMBOL_SECTION_READ_ONLY_DATA) {
+            section_bytes = pass2->read_only_data_bytes;
+            section_size = pass2->read_only_data_size;
+        } else if (emission->section == SYMBOL_SECTION_BSS) {
+            section_size = pass2->bss_size;
         }
 
         if (emission->offset > section_size
             || emission->size > section_size - emission->offset
-            || (emission->size > 0 && section_bytes == NULL)) {
+            || (emission->size > 0 && section_bytes == NULL &&
+                emission->section != SYMBOL_SECTION_BSS)) {
             return false;
         }
 
