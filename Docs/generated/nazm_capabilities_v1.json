@@ -528,6 +528,7 @@
     { "gas": ".word", "gas_operands": ["integer"], "arabic": ".عدد١٦", "nazm_operands": ["immediate"] },
     { "gas": ".long", "gas_operands": ["integer"], "arabic": ".عدد٣٢", "nazm_operands": ["immediate"] },
     { "gas": ".quad", "gas_operands": ["integer"], "arabic": ".عدد٦٤", "nazm_operands": ["immediate", "label"] },
+    { "gas": ".quad", "gas_operands": ["local-symbol"], "arabic": ".عدد٦٤", "nazm_operands": ["label"] },
     { "gas": ".zero", "gas_operands": ["integer"], "arabic": ".مساحة_صفرية", "nazm_operands": ["immediate"] },
     { "gas": ".asciz", "gas_operands": ["string"], "arabic": ".سلسلة_منتهية_بصفر", "nazm_operands": ["string"] },
     {
@@ -678,6 +679,7 @@
       ".local|expression": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".long|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".quad|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".quad|local-symbol": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".text|": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".zero|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم"
     },
