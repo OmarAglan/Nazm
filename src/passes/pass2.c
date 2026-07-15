@@ -110,6 +110,27 @@ static size_t mov_reg_label_relocation_offset(void) {
     return 2; /* REX.W + B8+rd, then imm64 */
 }
 
+static size_t relative_label_relocation_offset(OpcodeEnum opcode) {
+    switch (opcode) {
+    case OPCODE_JMP:
+    case OPCODE_CALL:
+        return 1; /* E9/E8 then rel32 */
+    case OPCODE_JE:
+    case OPCODE_JNE:
+    case OPCODE_JG:
+    case OPCODE_JGE:
+    case OPCODE_JL:
+    case OPCODE_JLE:
+    case OPCODE_JZ:
+    case OPCODE_JNZ:
+    case OPCODE_JS:
+    case OPCODE_JNS:
+        return 2; /* 0F xx then rel32 */
+    default:
+        return 0;
+    }
+}
+
 /* Emit one data directive without writing past `buf_cap`. */
 static bool emit_data_directive(const Instruction *instr,
                                 uint8_t *buf, size_t buf_cap,
@@ -290,6 +311,38 @@ Pass2Result pass2_run(const InstructionList *instructions,
                                     resolved_ops[j].label,
                                     &target_offset,
                                     &target_section)) {
+                if (symtable_is_external(
+                        &pass1->symtable, resolved_ops[j].label)) {
+                    if (opcode_uses_relative_label(instr->opcode)) {
+                        push_relocation(
+                            &result.relocations,
+                            arena,
+                            (Relocation){
+                                .section = RELOC_SECTION_TEXT,
+                                .kind = RELOC_PC32,
+                                .offset = result.text_size +
+                                    relative_label_relocation_offset(
+                                        instr->opcode),
+                                .symbol = resolved_ops[j].label,
+                                .addend = -4,
+                            });
+                        continue;
+                    }
+                    if (is_mov_reg_label(instr, j)) {
+                        push_relocation(
+                            &result.relocations,
+                            arena,
+                            (Relocation){
+                                .section = RELOC_SECTION_TEXT,
+                                .kind = RELOC_ABS64,
+                                .offset = result.text_size +
+                                    mov_reg_label_relocation_offset(),
+                                .symbol = resolved_ops[j].label,
+                                .addend = 0,
+                            });
+                        continue;
+                    }
+                }
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                          "وسم غير محلول: '%s'", resolved_ops[j].label);

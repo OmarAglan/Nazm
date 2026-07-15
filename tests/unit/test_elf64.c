@@ -326,6 +326,27 @@ void test_elf_rela_text_for_mov_label(void) {
     TEST_ASSERT_EQUAL_INT(1, (int)(info & 0xffffffffu)); /* R_X86_64_64 */
 }
 
+void test_elf_external_call_uses_undefined_symbol_and_pc32(void) {
+    OutputResult r = assemble_elf(
+        ".نص\n.خارجي دالة_خارجية\nناد دالة_خارجية\n");
+    TEST_ASSERT_TRUE(r.ok);
+
+    const uint8_t *symtab = find_elf_section(&r, 2);
+    TEST_ASSERT_NOT_NULL(symtab);
+    uint64_t symtab_offset = rd64(symtab + 24);
+    const uint8_t *external = r.data + symtab_offset + 24;
+    TEST_ASSERT_EQUAL_INT(0, (int)rd16(external + 6)); /* SHN_UNDEF */
+    TEST_ASSERT_EQUAL_INT(1, (int)(external[4] >> 4)); /* STB_GLOBAL */
+
+    const uint8_t *rela = find_elf_section(&r, 4);
+    TEST_ASSERT_NOT_NULL(rela);
+    uint64_t rela_offset = rd64(rela + 24);
+    TEST_ASSERT_EQUAL_INT(1, (int)rd64(r.data + rela_offset));
+    uint64_t info = rd64(r.data + rela_offset + 8);
+    TEST_ASSERT_EQUAL_INT(2, (int)(info & 0xffffffffu)); /* R_X86_64_PC32 */
+    TEST_ASSERT_EQUAL_INT64(-4, (int64_t)rd64(r.data + rela_offset + 16));
+}
+
 void test_elf_preserves_symbols_and_relocation_beyond_old_limit(void) {
     SymbolTable symtable;
     symtable_init(&symtable, &g_arena);
@@ -423,6 +444,7 @@ int main(void) {
     RUN_TEST(test_elf_data_section_exists_when_data_emitted);
     RUN_TEST(test_elf_data_symbol_uses_data_section_index);
     RUN_TEST(test_elf_rela_text_for_mov_label);
+    RUN_TEST(test_elf_external_call_uses_undefined_symbol_and_pc32);
     RUN_TEST(test_elf_preserves_symbols_and_relocation_beyond_old_limit);
     RUN_TEST(test_elf_rejects_relocation_to_missing_symbol);
 

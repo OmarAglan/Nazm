@@ -355,6 +355,24 @@ void test_coff_text_relocation_for_mov_label(void) {
     TEST_ASSERT_EQUAL_INT(0x0001, (int)r16(pl.coff.data + reloc_ptr + 8));
 }
 
+void test_coff_external_call_uses_undefined_symbol_and_rel32(void) {
+    Pipeline pl = run(
+        ".نص\n.خارجي دالة_خارجية\nناد دالة_خارجية\n");
+    TEST_ASSERT_TRUE(pl.coff.ok);
+
+    const uint8_t *text_sh = pl.coff.data + 20;
+    uint32_t reloc_ptr = r32(text_sh + 24);
+    TEST_ASSERT_EQUAL_INT(1, (int)r16(text_sh + 32));
+    TEST_ASSERT_EQUAL_INT(1, (int)r32(pl.coff.data + reloc_ptr));
+    TEST_ASSERT_EQUAL_INT(0x0004,
+                          (int)r16(pl.coff.data + reloc_ptr + 8));
+
+    uint32_t symptr = r32(pl.coff.data + 8);
+    const uint8_t *external = pl.coff.data + symptr + 18;
+    TEST_ASSERT_EQUAL_INT(0, (int)r16(external + 12));
+    TEST_ASSERT_EQUAL_INT(2, external[16]); /* IMAGE_SYM_CLASS_EXTERNAL */
+}
+
 void test_coff_preserves_symbols_and_relocation_beyond_old_limit(void) {
     SymbolTable symtable;
     symtable_init(&symtable, &g_arena);
@@ -471,6 +489,7 @@ int main(void) {
     RUN_TEST(test_coff_preserves_exported_arabic_entry_name);
     RUN_TEST(test_coff_data_symbol_uses_data_section);
     RUN_TEST(test_coff_text_relocation_for_mov_label);
+    RUN_TEST(test_coff_external_call_uses_undefined_symbol_and_rel32);
     RUN_TEST(test_coff_preserves_symbols_and_relocation_beyond_old_limit);
     RUN_TEST(test_coff_rejects_relocation_to_missing_symbol);
 

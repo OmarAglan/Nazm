@@ -213,7 +213,8 @@ static void report_undefined_visibility_symbols(
         for (const SymEntry *entry = symtable->buckets[bucket];
              entry != NULL;
              entry = entry->next) {
-            if (entry->defined || !entry->binding_declared) {
+            if (entry->defined || entry->external_declared ||
+                !entry->binding_declared) {
                 continue;
             }
 
@@ -264,6 +265,25 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
             }
             if (instr->directive_kind == DIRECTIVE_DATA) {
                 in_data = true;
+                continue;
+            }
+
+            if (instr->directive_kind == DIRECTIVE_EXTERNAL) {
+                if (instr->op_count != 1 ||
+                    instr->ops[0].kind != OP_LABEL) {
+                    add_visibility_error(
+                        &result.errors, arena, instructions, instr,
+                        "التوجيه '.خارجي' يتطلب اسم رمز عربي واحداً");
+                } else if (!symtable_declare_external(
+                               &result.symtable, instr->ops[0].label)) {
+                    char message[256];
+                    snprintf(message,
+                             sizeof(message),
+                             "تعارض في إعلان الرمز الخارجي '%s'",
+                             instr->ops[0].label);
+                    add_visibility_error(
+                        &result.errors, arena, instructions, instr, message);
+                }
                 continue;
             }
 

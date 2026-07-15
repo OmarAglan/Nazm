@@ -345,6 +345,7 @@ void test_parse_all_canonical_directive_kinds(void) {
         { ".سلسلة_منتهية_بصفر", DIRECTIVE_NUL_STRING },
         { ".عام", DIRECTIVE_GLOBAL },
         { ".محلي", DIRECTIVE_LOCAL },
+        { ".خارجي", DIRECTIVE_EXTERNAL },
     };
 
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
@@ -596,11 +597,34 @@ void test_parse_int(void) {
 /* ── r8–r15 registers ──────────────────────────────────────────────────────*/
 
 void test_parse_extended_registers(void) {
-    ParseResult r = parse("انقل سجل_عام_8، سجل_عام_15");
+    ParseResult r = parse("انقل سجل_عام_٨، سجل_عام_١٥");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
     Instruction i = instr(&r, 0);
     TEST_ASSERT_EQUAL_INT(REG_R8,  i.ops[0].reg);
     TEST_ASSERT_EQUAL_INT(REG_R15, i.ops[1].reg);
+}
+
+void test_parse_arabic_integer_width_registers(void) {
+    ParseResult r = parse(
+        "انقل سجل_المركم_٨، سجل_عام_١٥_٨\n"
+        "انقل سجل_المركم_١٦، سجل_عام_١٥_١٦\n"
+        "انقل سجل_المركم_٣٢، سجل_عام_١٥_٣٢\n"
+        "انقل سجل_المركم، سجل_عام_١٥\n"
+    );
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+    TEST_ASSERT_EQUAL_INT(REG_AL, instr(&r, 0).ops[0].reg);
+    TEST_ASSERT_EQUAL_INT(REG_R15B, instr(&r, 0).ops[1].reg);
+    TEST_ASSERT_EQUAL_INT(REG_AX, instr(&r, 1).ops[0].reg);
+    TEST_ASSERT_EQUAL_INT(REG_R15W, instr(&r, 1).ops[1].reg);
+    TEST_ASSERT_EQUAL_INT(REG_EAX, instr(&r, 2).ops[0].reg);
+    TEST_ASSERT_EQUAL_INT(REG_R15D, instr(&r, 2).ops[1].reg);
+    TEST_ASSERT_EQUAL_INT(REG_RAX, instr(&r, 3).ops[0].reg);
+    TEST_ASSERT_EQUAL_INT(REG_R15, instr(&r, 3).ops[1].reg);
+}
+
+void test_parse_memory_base_requires_64_bits(void) {
+    ParseResult r = parse("انقل سجل_المركم، [سجل_العداد_٣٢]");
+    TEST_ASSERT_TRUE(error_has_any(&r.errors));
 }
 
 /* ── Main ──────────────────────────────────────────────────────────────────*/
@@ -691,6 +715,8 @@ int main(void) {
 
     /* Extended registers */
     RUN_TEST(test_parse_extended_registers);
+    RUN_TEST(test_parse_arabic_integer_width_registers);
+    RUN_TEST(test_parse_memory_base_requires_64_bits);
 
     return UNITY_END();
 }

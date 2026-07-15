@@ -3,14 +3,14 @@
 #include <stdint.h>
 #include <string.h>
 
-static size_t count_defined_symbols(const SymbolTable *symtable) {
+static size_t count_output_symbols(const SymbolTable *symtable) {
     size_t count = 0;
 
     for (int bucket = 0; bucket < SYMTABLE_BUCKETS; bucket++) {
         for (const SymEntry *entry = symtable->buckets[bucket];
              entry != NULL;
              entry = entry->next) {
-            if (entry->defined) {
+            if (entry->defined || entry->external_declared) {
                 count++;
             }
         }
@@ -27,7 +27,8 @@ static size_t collect_binding(const SymbolTable *symtable,
         for (const SymEntry *entry = symtable->buckets[bucket];
              entry != NULL;
              entry = entry->next) {
-            if (!entry->defined || entry->binding != binding) {
+            if ((!entry->defined && !entry->external_declared) ||
+                entry->binding != binding) {
                 continue;
             }
 
@@ -50,7 +51,7 @@ bool output_symbols_collect(const SymbolTable *symtable,
         return false;
     }
 
-    size_t count = count_defined_symbols(symtable);
+    size_t count = count_output_symbols(symtable);
 
     /*
      * Both current writers reserve entry zero. COFF also stores the complete

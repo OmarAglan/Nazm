@@ -194,6 +194,23 @@ void test_p1_visibility_target_must_be_defined(void) {
     TEST_ASSERT_EQUAL_INT(1, pl.p1.errors.errors[0].line);
 }
 
+void test_p1_external_symbol_remains_undefined_global(void) {
+    Pipeline pl = run(".خارجي دالة_خارجية\nناد دالة_خارجية");
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_TRUE(symtable_is_external(
+        &pl.p1.symtable, "دالة_خارجية"));
+}
+
+void test_p1_external_symbol_conflicts_with_definition(void) {
+    Pipeline pl = run(
+        ".خارجي دالة_خارجية\n"
+        "دالة_خارجية:\n"
+        "ارجع\n");
+
+    TEST_ASSERT_TRUE(error_has_any(&pl.p1.errors));
+}
+
 /* ── Pass 2: byte output ──────────────────────────────────────────────────── */
 
 void test_p2_ret_bytes(void) {
@@ -223,6 +240,21 @@ void test_p2_mov_rax_42(void) {
     TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, pl.p2.text_bytes, 7);
 }
 
+void test_p2_external_call_creates_pc32_relocation(void) {
+    Pipeline pl = run(".خارجي دالة_خارجية\nناد دالة_خارجية");
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(5, (int)pl.p2.text_size);
+    TEST_ASSERT_EQUAL_HEX8(0xE8, pl.p2.text_bytes[0]);
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.relocations.count);
+    TEST_ASSERT_EQUAL_INT(RELOC_PC32, pl.p2.relocations.data[0].kind);
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.relocations.data[0].offset);
+    TEST_ASSERT_EQUAL_INT64(-4, pl.p2.relocations.data[0].addend);
+    TEST_ASSERT_EQUAL_STRING(
+        "دالة_خارجية", pl.p2.relocations.data[0].symbol);
+}
+
 void test_descriptive_register_names_encode_architectural_ids(void) {
     static const struct {
         const char *name;
@@ -237,14 +269,14 @@ void test_descriptive_register_names_encode_architectural_ids(void) {
         { "مؤشر_القاعدة", 0x48, 0xE8 },
         { "فهرس_المصدر", 0x48, 0xF0 },
         { "فهرس_الوجهة", 0x48, 0xF8 },
-        { "سجل_عام_8", 0x4C, 0xC0 },
-        { "سجل_عام_9", 0x4C, 0xC8 },
-        { "سجل_عام_10", 0x4C, 0xD0 },
-        { "سجل_عام_11", 0x4C, 0xD8 },
-        { "سجل_عام_12", 0x4C, 0xE0 },
-        { "سجل_عام_13", 0x4C, 0xE8 },
-        { "سجل_عام_14", 0x4C, 0xF0 },
-        { "سجل_عام_15", 0x4C, 0xF8 },
+        { "سجل_عام_٨", 0x4C, 0xC0 },
+        { "سجل_عام_٩", 0x4C, 0xC8 },
+        { "سجل_عام_١٠", 0x4C, 0xD0 },
+        { "سجل_عام_١١", 0x4C, 0xD8 },
+        { "سجل_عام_١٢", 0x4C, 0xE0 },
+        { "سجل_عام_١٣", 0x4C, 0xE8 },
+        { "سجل_عام_١٤", 0x4C, 0xF0 },
+        { "سجل_عام_١٥", 0x4C, 0xF8 },
     };
 
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
@@ -348,7 +380,7 @@ void test_indirect_control_flow_sizes_keep_label_offsets_exact(void) {
     Pipeline pl = run(
         "اقفز سجل_المركم\n"
         "بعد_قفز:\n"
-        "ناد سجل_عام_8\n"
+        "ناد سجل_عام_٨\n"
         "بعد_نداء:\n"
         "ارجع\n"
     );
@@ -564,6 +596,8 @@ int main(void) {
     RUN_TEST(test_p1_conflicting_visibility_is_error);
     RUN_TEST(test_p1_visibility_requires_one_label);
     RUN_TEST(test_p1_visibility_target_must_be_defined);
+    RUN_TEST(test_p1_external_symbol_remains_undefined_global);
+    RUN_TEST(test_p1_external_symbol_conflicts_with_definition);
     RUN_TEST(test_p1_data_label_has_data_section);
     RUN_TEST(test_p1_zero_size_data_label_is_preserved);
     RUN_TEST(test_p1_data_string_size);
@@ -572,6 +606,7 @@ int main(void) {
     RUN_TEST(test_p2_ret_bytes);
     RUN_TEST(test_p2_nop_bytes);
     RUN_TEST(test_p2_syscall_bytes);
+    RUN_TEST(test_p2_external_call_creates_pc32_relocation);
     RUN_TEST(test_p2_mov_rax_42);
     RUN_TEST(test_descriptive_register_names_encode_architectural_ids);
     RUN_TEST(test_p2_mov_rax_uint32_max_preserves_value);

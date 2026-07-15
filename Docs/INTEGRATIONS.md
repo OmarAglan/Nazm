@@ -75,31 +75,31 @@ Not applicable. No network communication, no user accounts, no authentication of
 - Its acceptance step assembles Arabic source to Arabic ELF/listing paths,
   checks listing bytes, links with GNU `ld` using the Arabic entry symbol,
   executes the result under a timeout, and inspects the object with `readelf`.
-- The workflow is configured in the repository; a successful remote run is
-  still required before Linux CI acceptance is claimed as completed.
-- Windows COFF link acceptance and release packaging remain planned.
+- Linux CI has accepted the Arabic-entry ELF64 link/run path. Baa CI run
+  `29407371480` additionally proves opt-in Nazm shadow link/run parity on both
+  Windows and Linux. Release packaging remains a separate gate.
 
 ## External Tooling Contracts
 
 **Linux Linkers:**
 - Relationship: Consumers of ELF64 relocatable object files
 - Current expectation: `.text`, `.data`, `.symtab`, `.strtab`, `.shstrtab`, and `.rela.text` are emitted when relevant
-- Validation status: Unit/subprocess tests verify bytes and section fields.
-  The GitHub Actions Linux job contains GNU `ld` link/run acceptance; its first
-  successful remote run remains pending.
+- Validation status: Unit/subprocess tests verify bytes and section fields;
+  GitHub Actions also links and runs Arabic-entry ELF64 output.
 
 **Windows Linkers:**
 - Relationship: Consumers of PE/COFF `.obj` files
 - Current expectation: `.text`, optional `.data`, symbol table, string table, and `.text` relocation table are emitted when relevant
-- Validation status: Unit tests verify bytes and table fields; `link.exe`/`lld-link` validation is planned on Windows CI
+- Validation status: Unit tests verify bytes and table fields; Baa's Windows
+  shadow job links and runs Nazm COFF output with the Arabic entry symbol.
 
-**Baa Compiler (planned production integration):**
+**Baa Compiler (active non-default integration):**
 - Relationship: Baa currently lowers its Machine IR to English AT&T/GAS text
   after register allocation and invokes `gcc -c`; Nazm is intended to replace
   that assembly boundary with Arabic `.نظم` source and direct ELF64/COFF
   object output.
-- First integration mode: shadow subprocess comparison without exposing a
-  second public assembly dialect.
+- Current integration mode: `--emit-nazm` plus explicit shadow subprocess
+  comparison without changing GAS as the production default or allowing fallback.
 - Later integration mode: `nazm_assemble_buffer()` after the public API and
   ownership contracts are implemented.
 - Canonical output: Arabic textual assembly remains a first-class Baa

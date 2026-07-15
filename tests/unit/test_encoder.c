@@ -68,6 +68,145 @@ void test_enc_int_rejects_out_of_range_immediates(void) {
     check_error(OPCODE_INT, too_large, 1);
 }
 
+void test_enc_mov_all_integer_widths(void) {
+    {
+        uint8_t expected[]={0xB0,0x7F};
+        ENC(OPCODE_MOV, reg_op(REG_AL), imm_op(0x7F));
+    }
+    {
+        uint8_t expected[]={0x66,0x89,0xD8};
+        ENC(OPCODE_MOV, reg_op(REG_AX), reg_op(REG_BX));
+    }
+    {
+        uint8_t expected[]={0x44,0x89,0xF8};
+        ENC(OPCODE_MOV, reg_op(REG_EAX), reg_op(REG_R15D));
+    }
+    {
+        uint8_t expected[]={0x48,0x89,0xD8};
+        ENC(OPCODE_MOV, reg_op(REG_RAX), reg_op(REG_RBX));
+    }
+}
+
+void test_enc_low_byte_registers_require_rex_when_needed(void) {
+    {
+        uint8_t expected[]={0x40,0x88,0xC4};
+        ENC(OPCODE_MOV, reg_op(REG_SPL), reg_op(REG_AL));
+    }
+    {
+        uint8_t expected[]={0x45,0x88,0xF8};
+        ENC(OPCODE_MOV, reg_op(REG_R8B), reg_op(REG_R15B));
+    }
+    {
+        uint8_t expected[]={0x40,0x8A,0x75,0xF8};
+        ENC(OPCODE_MOV, reg_op(REG_SIL), memd_op(REG_RBP, -8));
+    }
+}
+
+void test_enc_sub_all_integer_widths(void) {
+    {
+        uint8_t expected[]={0x80,0xE8,0x01};
+        ENC(OPCODE_SUB, reg_op(REG_AL), imm_op(1));
+    }
+    {
+        uint8_t expected[]={0x66,0x83,0xE8,0x01};
+        ENC(OPCODE_SUB, reg_op(REG_AX), imm_op(1));
+    }
+    {
+        uint8_t expected[]={0x83,0xE8,0x01};
+        ENC(OPCODE_SUB, reg_op(REG_EAX), imm_op(1));
+    }
+    {
+        uint8_t expected[]={0x48,0x83,0xE8,0x01};
+        ENC(OPCODE_SUB, reg_op(REG_RAX), imm_op(1));
+    }
+}
+
+void test_enc_idiv_all_integer_widths(void) {
+    {
+        uint8_t expected[]={0xF6,0xFB};
+        ENC(OPCODE_IDIV, reg_op(REG_BL));
+    }
+    {
+        uint8_t expected[]={0x66,0xF7,0xFB};
+        ENC(OPCODE_IDIV, reg_op(REG_BX));
+    }
+    {
+        uint8_t expected[]={0xF7,0xFB};
+        ENC(OPCODE_IDIV, reg_op(REG_EBX));
+    }
+    {
+        uint8_t expected[]={0x48,0xF7,0xFB};
+        ENC(OPCODE_IDIV, reg_op(REG_RBX));
+    }
+}
+
+void test_enc_width_mismatches_and_narrow_memory_bases_fail(void) {
+    Operand mismatch[]={reg_op(REG_RAX), reg_op(REG_EBX)};
+    Operand narrow_base[]={reg_op(REG_RAX), mem_op(REG_EBP)};
+    Operand narrow_push[]={reg_op(REG_EAX)};
+    check_error(OPCODE_MOV, mismatch, 2);
+    check_error(OPCODE_MOV, narrow_base, 2);
+    check_error(OPCODE_PUSH, narrow_push, 1);
+}
+
+void test_enc_setcc_condition_bytes_and_rex(void) {
+    static const struct {
+        OpcodeEnum opcode;
+        uint8_t opcode2;
+    } cases[] = {
+        { OPCODE_SETE, 0x94 }, { OPCODE_SETNE, 0x95 },
+        { OPCODE_SETG, 0x9F }, { OPCODE_SETL, 0x9C },
+        { OPCODE_SETGE, 0x9D }, { OPCODE_SETLE, 0x9E },
+        { OPCODE_SETA, 0x97 }, { OPCODE_SETB, 0x92 },
+        { OPCODE_SETAE, 0x93 }, { OPCODE_SETBE, 0x96 },
+        { OPCODE_SETP, 0x9A }, { OPCODE_SETNP, 0x9B },
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        Operand ops[]={reg_op(REG_AL)};
+        EncodedInstruction encoded = encoder_encode(cases[i].opcode, ops, 1, 0);
+        uint8_t expected[]={0x0F, cases[i].opcode2, 0xC0};
+        check(encoded, expected, 3);
+    }
+    {
+        uint8_t expected[]={0x40,0x0F,0x95,0xC6};
+        ENC(OPCODE_SETNE, reg_op(REG_SIL));
+    }
+    {
+        uint8_t expected[]={0x41,0x0F,0x9F,0xC0};
+        ENC(OPCODE_SETG, reg_op(REG_R8B));
+    }
+}
+
+void test_enc_movzx_movsx_width_forms(void) {
+    {
+        uint8_t expected[]={0x48,0x0F,0xB6,0xC0};
+        ENC(OPCODE_MOVZX, reg_op(REG_RAX), reg_op(REG_AL));
+    }
+    {
+        uint8_t expected[]={0x4D,0x0F,0xB6,0xD3};
+        ENC(OPCODE_MOVZX, reg_op(REG_R10), reg_op(REG_R11B));
+    }
+    {
+        uint8_t expected[]={0x0F,0xBE,0xC3};
+        ENC(OPCODE_MOVSX, reg_op(REG_EAX), reg_op(REG_BL));
+    }
+    {
+        uint8_t expected[]={0x48,0x63,0xC3};
+        ENC(OPCODE_MOVSX, reg_op(REG_RAX), reg_op(REG_EBX));
+    }
+}
+
+void test_enc_cqo_and_unsigned_div(void) {
+    {
+        uint8_t expected[]={0x48,0x99};
+        ENC0(OPCODE_CQO);
+    }
+    {
+        uint8_t expected[]={0x48,0xF7,0xF1};
+        ENC(OPCODE_DIV, reg_op(REG_RCX));
+    }
+}
+
 /* ── MOV reg, imm ─────────────────────────────────────────────────────────── */
 void test_enc_mov_rax_42(void) {
     /* REX.W(48) C7 /0(C0) 2A000000 */
@@ -555,6 +694,14 @@ int main(void) {
     RUN_TEST(test_enc_int_0x80);
     RUN_TEST(test_enc_int_0xff);
     RUN_TEST(test_enc_int_rejects_out_of_range_immediates);
+    RUN_TEST(test_enc_mov_all_integer_widths);
+    RUN_TEST(test_enc_low_byte_registers_require_rex_when_needed);
+    RUN_TEST(test_enc_sub_all_integer_widths);
+    RUN_TEST(test_enc_idiv_all_integer_widths);
+    RUN_TEST(test_enc_width_mismatches_and_narrow_memory_bases_fail);
+    RUN_TEST(test_enc_setcc_condition_bytes_and_rex);
+    RUN_TEST(test_enc_movzx_movsx_width_forms);
+    RUN_TEST(test_enc_cqo_and_unsigned_div);
 
     RUN_TEST(test_enc_mov_rax_42);
     RUN_TEST(test_enc_mov_rcx_0);

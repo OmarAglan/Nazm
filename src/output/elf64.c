@@ -201,6 +201,9 @@ static void write_rela(OutBuf *ob,
 static uint16_t symbol_section_index(SymbolSection section,
                                      int text_index,
                                      int data_index) {
+    if (section == SYMBOL_SECTION_UNKNOWN) {
+        return 0; /* SHN_UNDEF */
+    }
     if (section == SYMBOL_SECTION_DATA && data_index > 0) {
         return (uint16_t)data_index;
     }

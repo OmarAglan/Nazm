@@ -26,7 +26,8 @@ typedef struct {
 } OutputSymbolList;
 
 /*
- * Collect every defined symbol in deterministic hash-table traversal order.
+ * Collect every defined or explicitly external symbol in deterministic
+ * hash-table traversal order.
  * The returned array is arena-owned. Returns false if the object-format symbol
  * index cannot represent the complete table.
  */

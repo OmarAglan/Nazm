@@ -181,21 +181,23 @@
 - Implementation complexity: Medium; this needs parser directives, symbol flags, relocation records, and output-writer support.
 
 **Baa assembly corpus and parity harness:**
-- Current evidence: Baa commit `04d3d65` checks in a deterministic inventory of
+- Current evidence: Baa checks in a deterministic 100-source inventory of
   the instructions, operand forms, directives, sections, symbol categories,
-  and relocation candidates emitted by 99 sources on both targets.
-- Remaining problem: Nazm still needs generated acceptance fixtures, an
-  explicit supported/unsupported coverage matrix, and GAS/Nazm object-semantic
-  comparison.
-- Implementation complexity: Medium; consume the checked Baa inventory,
-  implement the missing forms with byte tests, then compare GAS and Nazm
-  object semantics.
+  and relocation candidates on both targets. The versioned capability and
+  source-level matrices classify every source; nine sources pass real
+  GAS/Nazm object, link, and runtime parity in the Windows/Linux shadow jobs.
+- Remaining problem: expand parity through global/string data, external and
+  PC-relative relocations, read-only sections, and the scalar SSE2 surface.
+- Implementation complexity: High; the next wave spans parser, relocation,
+  object-writer, emitter, and cross-platform linker contracts.
 
 ## Test Coverage Gaps
 
 **Real linker acceptance:**
-- What's not tested: `ld`/`lld` linking on Linux and `link.exe`/`lld-link` linking on Windows.
-- Priority: High for the next backend-focused milestone.
+- What's covered: Arabic-entry ELF64 link/run in Nazm CI and real Windows/Linux
+  Baa shadow object/link/runtime comparison in Baa CI run `29407371480`.
+- What's not tested: external-symbol and data-relocation forms that are not yet source-reachable.
+- Priority: High for the relocation wave.
 
 **External and PC-relative relocations:**
 - What's covered: Absolute local label-address relocation for `انقل سجل_البيانات، وسم`.

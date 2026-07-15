@@ -29,6 +29,7 @@ typedef struct SymEntry {
     SymbolBinding    binding;
     bool             defined;
     bool             binding_declared;
+    bool             external_declared;
     struct SymEntry *next;
 } SymEntry;
 
@@ -52,6 +53,9 @@ bool symtable_insert_section(SymbolTable *st,
 bool symtable_declare_binding(SymbolTable *st,
                               const char *name,
                               SymbolBinding binding);
+/* Declare an undefined global symbol that the linker must resolve. */
+bool symtable_declare_external(SymbolTable *st, const char *name);
+bool symtable_is_external(const SymbolTable *st, const char *name);
 bool symtable_lookup(const SymbolTable *st, const char *name, int64_t *out_offset);
 bool symtable_lookup_ex(const SymbolTable *st,
                         const char *name,

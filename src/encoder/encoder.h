@@ -22,9 +22,27 @@ typedef enum {
     /* 32-bit */
     REG_EAX, REG_ECX, REG_EDX, REG_EBX,
     REG_ESP, REG_EBP, REG_ESI, REG_EDI,
+    REG_R8D, REG_R9D, REG_R10D, REG_R11D,
+    REG_R12D, REG_R13D, REG_R14D, REG_R15D,
+
+    /* 16-bit */
+    REG_AX, REG_CX, REG_DX, REG_BX,
+    REG_SP, REG_BP, REG_SI, REG_DI,
+    REG_R8W, REG_R9W, REG_R10W, REG_R11W,
+    REG_R12W, REG_R13W, REG_R14W, REG_R15W,
+
+    /* 8-bit low registers (AH/CH/DH/BH are intentionally not exposed). */
+    REG_AL, REG_CL, REG_DL, REG_BL,
+    REG_SPL, REG_BPL, REG_SIL, REG_DIL,
+    REG_R8B, REG_R9B, REG_R10B, REG_R11B,
+    REG_R12B, REG_R13B, REG_R14B, REG_R15B,
 
     REG_INVALID = 0xFF,
 } RegId;
+
+/* Width/index metadata shared by the parser and encoder. */
+int reg_index(RegId r);
+int reg_width_bits(RegId r);
 
 /* ── Operand kinds ───────────────────────────────────────────────────────── */
 typedef enum {
@@ -58,12 +76,16 @@ typedef enum {
     OPCODE_PUSH,      /* ادفع  */
     OPCODE_POP,       /* اسحب  */
     OPCODE_LEA,       /* احسب_عنوان */
+    OPCODE_MOVZX,     /* وسع_بصفر */
+    OPCODE_MOVSX,     /* وسع_بإشارة */
 
     /* Arithmetic */
     OPCODE_ADD,       /* أضف   */
     OPCODE_SUB,       /* اطرح  */
     OPCODE_IMUL,      /* اضرب_موقع */
     OPCODE_IDIV,      /* اقسم_موقع */
+    OPCODE_DIV,       /* اقسم_غير_موقع */
+    OPCODE_CQO,       /* وسع_إشارة_القسمة */
     OPCODE_INC,       /* زد    */
     OPCODE_DEC,       /* انقص  */
     OPCODE_NEG,       /* اعكس_الإشارة */
@@ -80,6 +102,18 @@ typedef enum {
     /* Comparison */
     OPCODE_CMP,       /* قارن  */
     OPCODE_TEST,      /* اختبر_البتات */
+    OPCODE_SETE,      /* عين_مساو */
+    OPCODE_SETNE,     /* عين_غير_مساو */
+    OPCODE_SETG,      /* عين_أكبر */
+    OPCODE_SETL,      /* عين_أصغر */
+    OPCODE_SETGE,     /* عين_أكبر_أو_مساو */
+    OPCODE_SETLE,     /* عين_أصغر_أو_مساو */
+    OPCODE_SETA,      /* عين_فوق */
+    OPCODE_SETB,      /* عين_تحت */
+    OPCODE_SETAE,     /* عين_فوق_أو_مساو */
+    OPCODE_SETBE,     /* عين_تحت_أو_مساو */
+    OPCODE_SETP,      /* عين_تكافؤ */
+    OPCODE_SETNP,     /* عين_عدم_تكافؤ */
 
     /* Control flow — unconditional */
     OPCODE_JMP,       /* اقفز  */

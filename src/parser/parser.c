@@ -117,6 +117,7 @@ static const DirectiveEntry DIRECTIVE_TABLE[] = {
     { ".سلسلة_منتهية_بصفر", DIRECTIVE_NUL_STRING },
     { ".عام", DIRECTIVE_GLOBAL },
     { ".محلي", DIRECTIVE_LOCAL },
+    { ".خارجي", DIRECTIVE_EXTERNAL },
     { NULL, DIRECTIVE_INVALID },
 };
 
@@ -230,6 +231,12 @@ static bool parse_mem_operand(Parser *p, const Token *open_tok, Operand *out) {
         char msg[160];
         snprintf(msg, sizeof(msg), "سجل غير معروف: %.*s", (int)reg_tok->len, reg_tok->value);
         token_error(p, reg_tok, msg);
+        sync_to_newline(p);
+        return false;
+    }
+
+    if (reg_width_bits((RegId)rid) != 64) {
+        token_error(p, reg_tok, "قاعدة عنوان الذاكرة يجب أن تكون سجلا بعرض ٦٤ بت");
         sync_to_newline(p);
         return false;
     }

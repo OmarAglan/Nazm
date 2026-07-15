@@ -13,12 +13,16 @@ const Keyword KEYWORD_TABLE[] = {
     { "ادفع",           OPCODE_PUSH     },  /* push */
     { "اسحب",           OPCODE_POP      },  /* pop  */
     { "احسب_عنوان",     OPCODE_LEA      },  /* lea  */
+    { "وسع_بصفر",       OPCODE_MOVZX    },  /* movzx */
+    { "وسع_بإشارة",     OPCODE_MOVSX    },  /* movsx */
 
     /* ── Arithmetic ────────────────────────────────── */
     { "أضف",            OPCODE_ADD      },  /* add  */
     { "اطرح",           OPCODE_SUB      },  /* sub  */
     { "اضرب_موقع",      OPCODE_IMUL     },  /* imul */
     { "اقسم_موقع",      OPCODE_IDIV     },  /* idiv */
+    { "اقسم_غير_موقع",  OPCODE_DIV      },  /* div  */
+    { "وسع_إشارة_القسمة", OPCODE_CQO     },  /* cqo  */
     { "زد",             OPCODE_INC      },  /* inc  */
     { "انقص",           OPCODE_DEC      },  /* dec  */
     { "اعكس_الإشارة",   OPCODE_NEG      },  /* neg  */
@@ -35,6 +39,18 @@ const Keyword KEYWORD_TABLE[] = {
     /* ── Comparison ─────────────────────────────────── */
     { "قارن",           OPCODE_CMP      },  /* cmp  */
     { "اختبر_البتات",   OPCODE_TEST     },  /* test */
+    { "عين_مساو",       OPCODE_SETE     },  /* sete  */
+    { "عين_غير_مساو",   OPCODE_SETNE    },  /* setne */
+    { "عين_أكبر",       OPCODE_SETG     },  /* setg  */
+    { "عين_أصغر",       OPCODE_SETL     },  /* setl  */
+    { "عين_أكبر_أو_مساو", OPCODE_SETGE  },  /* setge */
+    { "عين_أصغر_أو_مساو", OPCODE_SETLE  },  /* setle */
+    { "عين_فوق",        OPCODE_SETA     },  /* seta  */
+    { "عين_تحت",        OPCODE_SETB     },  /* setb  */
+    { "عين_فوق_أو_مساو", OPCODE_SETAE   },  /* setae */
+    { "عين_تحت_أو_مساو", OPCODE_SETBE   },  /* setbe */
+    { "عين_تكافؤ",      OPCODE_SETP     },  /* setp  */
+    { "عين_عدم_تكافؤ",  OPCODE_SETNP    },  /* setnp */
 
     /* ── Unconditional control flow ─────────────────── */
     { "اقفز",           OPCODE_JMP      },  /* jmp  */

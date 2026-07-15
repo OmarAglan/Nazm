@@ -161,6 +161,9 @@ static void write_reloc(Buf *out,
 }
 
 static int16_t coff_section_number(SymbolSection section, bool has_data) {
+    if (section == SYMBOL_SECTION_UNKNOWN) {
+        return 0; /* IMAGE_SYM_UNDEFINED */
+    }
     if (section == SYMBOL_SECTION_DATA && has_data) {
         return 2;
     }

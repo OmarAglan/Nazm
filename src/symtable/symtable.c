@@ -38,7 +38,7 @@ bool symtable_insert_section(SymbolTable *st,
     SymEntry *e = find_entry(st, name);
 
     if (e != NULL) {
-        if (e->defined) {
+        if (e->defined || e->external_declared) {
             return false;
         }
 
@@ -90,6 +90,40 @@ bool symtable_declare_binding(SymbolTable *st,
     e->binding = binding;
     e->binding_declared = true;
     return true;
+}
+
+bool symtable_declare_external(SymbolTable *st, const char *name) {
+    uint32_t idx = hash_str(name) % SYMTABLE_BUCKETS;
+    SymEntry *e = find_entry(st, name);
+
+    if (e == NULL) {
+        e = ARENA_ALLOC(st->arena, SymEntry);
+        e->name = arena_strdup(st->arena, name);
+        e->section = SYMBOL_SECTION_UNKNOWN;
+        e->binding = SYMBOL_BINDING_GLOBAL;
+        e->binding_declared = true;
+        e->external_declared = true;
+        e->next = st->buckets[idx];
+        st->buckets[idx] = e;
+        st->count++;
+        return true;
+    }
+
+    if (e->defined ||
+        (e->binding_declared && e->binding != SYMBOL_BINDING_GLOBAL)) {
+        return false;
+    }
+
+    e->section = SYMBOL_SECTION_UNKNOWN;
+    e->binding = SYMBOL_BINDING_GLOBAL;
+    e->binding_declared = true;
+    e->external_declared = true;
+    return true;
+}
+
+bool symtable_is_external(const SymbolTable *st, const char *name) {
+    SymEntry *e = find_entry(st, name);
+    return e != NULL && e->external_declared && !e->defined;
 }
 
 bool symtable_lookup_ex(const SymbolTable *st,
