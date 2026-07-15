@@ -433,6 +433,24 @@ void test_coff_external_call_uses_undefined_symbol_and_rel32(void) {
     TEST_ASSERT_EQUAL_INT(2, external[16]); /* IMAGE_SYM_CLASS_EXTERNAL */
 }
 
+void test_coff_rip_relative_data_uses_rel32(void) {
+    Pipeline pl = run(
+        ".بيانات_للقراءة\n"
+        "رسالة: .عدد٦٤ ١\n"
+        ".نص\n"
+        "انقل سجل_المركم، [مؤشر_التعليمة+رسالة]\n");
+    TEST_ASSERT_TRUE(pl.coff.ok);
+
+    const uint8_t *text_section = pl.coff.data + 20;
+    uint32_t relocation_offset = r32(text_section + 24);
+    TEST_ASSERT_EQUAL_INT(1, (int)r16(text_section + 32));
+    TEST_ASSERT_EQUAL_INT(
+        3, (int)r32(pl.coff.data + relocation_offset));
+    TEST_ASSERT_EQUAL_INT(
+        0x0004,
+        (int)r16(pl.coff.data + relocation_offset + 8));
+}
+
 void test_coff_preserves_symbols_and_relocation_beyond_old_limit(void) {
     SymbolTable symtable;
     symtable_init(&symtable, &g_arena);
@@ -553,6 +571,7 @@ int main(void) {
     RUN_TEST(test_coff_data_relocation_for_symbol_initializer);
     RUN_TEST(test_coff_read_only_data_relocation_for_symbol_initializer);
     RUN_TEST(test_coff_external_call_uses_undefined_symbol_and_rel32);
+    RUN_TEST(test_coff_rip_relative_data_uses_rel32);
     RUN_TEST(test_coff_preserves_symbols_and_relocation_beyond_old_limit);
     RUN_TEST(test_coff_rejects_relocation_to_missing_symbol);
 

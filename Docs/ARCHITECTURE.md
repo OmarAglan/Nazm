@@ -132,7 +132,8 @@ contract.
 
 **Operand**
 - Defined in `src/encoder/encoder.h`.
-- Represents register, immediate, memory, label, or decoded string operands.
+- Represents register, immediate, base/displacement memory, symbolic
+  instruction-pointer-relative memory, label, or decoded string operands.
 - Carries operand source span data so pass2 can report unresolved labels at the operand, not merely at the instruction.
 - Shared today by parser, passes, and encoder.
 - Data alignment uses an explicit power-of-two byte boundary; pass 1 computes
@@ -148,7 +149,8 @@ contract.
 - Carries relocation records produced by pass 2 for output writers.
 - Current implemented forms: absolute 64-bit relocation for direct
   label-address loads from `.text` and symbolic `.عدد٦٤` entries in `.data`,
-  plus PC32 call/jump relocations to Arabic external symbols.
+  plus PC32 call/jump relocations and MOV/LEA instruction-pointer-relative
+  symbolic memory. Every source and target symbol remains Arabic.
 
 **EmissionSpan**
 - Defined in `src/passes/pass2.h`.
@@ -211,9 +213,9 @@ Implemented now:
 Planned or limited:
 - Stable in-process API behavior for `include/nazm.h`.
 - Verified end-to-end linker compatibility across ELF64 and COFF on CI.
-- RIP-relative relocation forms.
-- Baa-required 8/16/32/64-bit, `setcc`/extension, SSE2, section, and relocation
-  coverage.
+- Baa-required scalar SSE2, base-index-scale, debug, and remaining relocation
+  coverage. Integer widths, `setcc`/extension, core data sections, and symbolic
+  instruction-pointer-relative MOV/LEA are implemented.
 - Dual-assembler parity against Baa's current GAS output before default-on
   integration.
 - Subprocess CLI integration tests and link/run fixtures.

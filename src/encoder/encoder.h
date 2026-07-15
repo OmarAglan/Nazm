@@ -51,6 +51,7 @@ typedef enum {
     OP_IMM,        /* immediate value           */
     OP_MEM_REG,    /* [reg]                     */
     OP_MEM_DISP,   /* [reg + disp]              */
+    OP_MEM_RIP_LABEL, /* [instruction-pointer + label] */
     OP_LABEL,      /* label reference           */
     OP_STRING,     /* decoded string literal     */
 } OperandKind;

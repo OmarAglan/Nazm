@@ -14,9 +14,10 @@
     "memory": {
       "forms": [
         "base",
-        "base-displacement-signed32"
+        "base-displacement-signed32",
+        "instruction-pointer-symbol"
       ],
-      "rip_relative": false,
+      "rip_relative": true,
       "index_scale": false
     },
     "labels": ["arabic-only"]
@@ -90,13 +91,22 @@
   "instructions": [
     {
       "arabic": "انقل",
-      "gas_mnemonics": ["movq", "movabsq"],
+      "gas_mnemonics": ["movb", "movw", "movl", "movq", "movabsq"],
       "width_bits": [8, 16, 32, 64],
       "forms": [
         { "gas": ["immediate-integer", "register"], "nazm": ["register", "immediate"] },
         { "gas": ["register", "register"], "nazm": ["register", "register"] },
         { "gas": ["memory-base-displacement", "register"], "nazm": ["register", "memory-base-displacement"] },
-        { "gas": ["register", "memory-base-displacement"], "nazm": ["memory-base-displacement", "register"] }
+        { "gas": ["register", "memory-base-displacement"], "nazm": ["memory-base-displacement", "register"] },
+        { "gas": ["memory-rip-relative", "register"], "nazm": ["register", "memory-rip-relative"] },
+        { "gas": ["register", "memory-rip-relative"], "nazm": ["memory-rip-relative", "register"] },
+        {
+          "gas": ["immediate-integer", "memory-rip-relative"],
+          "nazm": ["lowered-register", "memory-rip-relative"],
+          "coverage_status": "partial",
+          "reason": "Nazm source requires the producer to materialize the immediate in a register before the symbolic store.",
+          "lowering": "materialize-immediate-then-store"
+        }
       ]
     },
     {
@@ -120,7 +130,8 @@
       "gas_mnemonics": ["leaq"],
       "width_bits": 64,
       "forms": [
-        { "gas": ["memory-base-displacement", "register"], "nazm": ["register", "memory-base-displacement"] }
+        { "gas": ["memory-base-displacement", "register"], "nazm": ["register", "memory-base-displacement"] },
+        { "gas": ["memory-rip-relative", "register"], "nazm": ["register", "memory-rip-relative"] }
       ]
     },
     {
@@ -614,6 +625,14 @@
         "coff": "IMAGE_REL_AMD64_REL32"
       },
       {
+        "source_form": "mov-or-lea-instruction-pointer-relative-arabic-symbol",
+        "nazm_kind": "PC32",
+        "source_section": ".text",
+        "target_section": ".text-or-data-or-read-only-data-or-bss-or-undefined",
+        "elf64": "R_X86_64_PC32 with addend -4",
+        "coff": "IMAGE_REL_AMD64_REL32"
+      },
+      {
         "source_form": "int64-local-or-external-arabic-symbol",
         "nazm_kind": "ABS64",
         "source_section": ".data",
@@ -625,7 +644,7 @@
     "writer_only_not_source_reachable": [],
     "external_symbols": true,
     "data_relocations": true,
-    "rip_relative": false
+    "rip_relative": true
   },
   "acceptance_fixtures": [
     "tests/fixtures/baa_coverage/حركة-باء.نظم",
@@ -651,10 +670,22 @@
       "jmp|local-symbol": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "jne|local-symbol": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "leaq|memory-base-displacement,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "leaq|memory-rip-relative,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
       "movabsq|immediate-integer,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movb|immediate-integer,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movb|memory-base-displacement,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movb|register,memory-base-displacement": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movb|register,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movl|immediate-integer,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movl|memory-base-displacement,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
       "movq|immediate-integer,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
       "movq|memory-base-displacement,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movl|memory-rip-relative,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movl|register,memory-base-displacement": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movl|register,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movq|memory-rip-relative,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
       "movq|register,memory-base-displacement": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movq|register,memory-rip-relative": "tests/fixtures/baa_coverage/حركة-باء.نظم",
       "movq|register,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
       "movsbl|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "movsbq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
@@ -710,6 +741,6 @@
     "No leave or rdtsc support is implemented.",
     "Latin source and object identifiers are not accepted; the entry symbol remains الرئيسية end to end.",
     "External symbols must retain Arabic names; linking to a Latin platform ABI requires a separately reviewed Arabic bridge.",
-    "No RIP-relative memory, base-index-scale memory, or debug directive is implemented."
+    "RIP-relative symbolic memory is limited to MOV loads/stores and 64-bit LEA; base-index-scale memory and debug directives are not implemented."
   ]
 }

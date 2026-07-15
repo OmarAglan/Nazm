@@ -12,6 +12,7 @@ static Operand reg_op(RegId r)        { Operand o={0}; o.kind=OP_REG; o.reg=r; r
 static Operand imm_op(int64_t v)      { Operand o={0}; o.kind=OP_IMM; o.imm=v; return o; }
 static Operand mem_op(RegId b)        { Operand o={0}; o.kind=OP_MEM_REG; o.mem.base=b; return o; }
 static Operand memd_op(RegId b,int32_t d){ Operand o={0}; o.kind=OP_MEM_DISP; o.mem.base=b; o.mem.disp=d; return o; }
+static Operand rip_op(const char *label) { Operand o={0}; o.kind=OP_MEM_RIP_LABEL; o.label=label; return o; }
 
 static void check(EncodedInstruction e,
                   const uint8_t *expected, int len) {
@@ -147,6 +148,49 @@ void test_enc_width_mismatches_and_narrow_memory_bases_fail(void) {
     check_error(OPCODE_MOV, mismatch, 2);
     check_error(OPCODE_MOV, narrow_base, 2);
     check_error(OPCODE_PUSH, narrow_push, 1);
+}
+
+void test_enc_rip_relative_mov_and_lea_bytes(void) {
+    {
+        uint8_t expected[]={0x48,0x8B,0x05,0x00,0x00,0x00,0x00};
+        Operand ops[]={reg_op(REG_RAX), rip_op("رسالة")};
+        EncodedInstruction encoded=encoder_encode(OPCODE_MOV, ops, 2, 0);
+        if (encoded.error) fprintf(stderr, "RIP-relative 64-bit load failed\n");
+        TEST_ASSERT_FALSE(encoded.error);
+        check(encoded, expected, (int)sizeof(expected));
+    }
+    {
+        uint8_t expected[]={0x4C,0x89,0x15,0x00,0x00,0x00,0x00};
+        Operand ops[]={rip_op("رسالة"), reg_op(REG_R10)};
+        EncodedInstruction encoded=encoder_encode(OPCODE_MOV, ops, 2, 0);
+        if (encoded.error) fprintf(stderr, "RIP-relative 64-bit store failed\n");
+        TEST_ASSERT_FALSE(encoded.error);
+        check(encoded, expected, (int)sizeof(expected));
+    }
+    {
+        uint8_t expected[]={0x44,0x8B,0x0D,0x00,0x00,0x00,0x00};
+        Operand ops[]={reg_op(REG_R9D), rip_op("رسالة")};
+        EncodedInstruction encoded=encoder_encode(OPCODE_MOV, ops, 2, 0);
+        if (encoded.error) fprintf(stderr, "RIP-relative 32-bit load failed\n");
+        TEST_ASSERT_FALSE(encoded.error);
+        check(encoded, expected, (int)sizeof(expected));
+    }
+    {
+        uint8_t expected[]={0x40,0x8A,0x25,0x00,0x00,0x00,0x00};
+        Operand ops[]={reg_op(REG_SPL), rip_op("رسالة")};
+        EncodedInstruction encoded=encoder_encode(OPCODE_MOV, ops, 2, 0);
+        if (encoded.error) fprintf(stderr, "RIP-relative low-byte load failed\n");
+        TEST_ASSERT_FALSE(encoded.error);
+        check(encoded, expected, (int)sizeof(expected));
+    }
+    {
+        uint8_t expected[]={0x4C,0x8D,0x1D,0x00,0x00,0x00,0x00};
+        Operand ops[]={reg_op(REG_R11), rip_op("رسالة")};
+        EncodedInstruction encoded=encoder_encode(OPCODE_LEA, ops, 2, 0);
+        if (encoded.error) fprintf(stderr, "RIP-relative LEA failed\n");
+        TEST_ASSERT_FALSE(encoded.error);
+        check(encoded, expected, (int)sizeof(expected));
+    }
 }
 
 void test_enc_setcc_condition_bytes_and_rex(void) {
@@ -699,6 +743,7 @@ int main(void) {
     RUN_TEST(test_enc_sub_all_integer_widths);
     RUN_TEST(test_enc_idiv_all_integer_widths);
     RUN_TEST(test_enc_width_mismatches_and_narrow_memory_bases_fail);
+    RUN_TEST(test_enc_rip_relative_mov_and_lea_bytes);
     RUN_TEST(test_enc_setcc_condition_bytes_and_rex);
     RUN_TEST(test_enc_movzx_movsx_width_forms);
     RUN_TEST(test_enc_cqo_and_unsigned_div);

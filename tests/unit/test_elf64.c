@@ -412,6 +412,25 @@ void test_elf_external_call_uses_undefined_symbol_and_pc32(void) {
     TEST_ASSERT_EQUAL_INT64(-4, (int64_t)rd64(r.data + rela_offset + 16));
 }
 
+void test_elf_rip_relative_data_uses_pc32(void) {
+    OutputResult r = assemble_elf(
+        ".بيانات_للقراءة\n"
+        "رسالة: .عدد٦٤ ١\n"
+        ".نص\n"
+        "انقل سجل_المركم، [مؤشر_التعليمة+رسالة]\n");
+    TEST_ASSERT_TRUE(r.ok);
+
+    const uint8_t *rela = find_elf_section(&r, 4);
+    TEST_ASSERT_NOT_NULL(rela);
+    TEST_ASSERT_EQUAL_INT(1, (int)rd32(rela + 44)); /* info = .text */
+    uint64_t relocation_offset = rd64(rela + 24);
+    TEST_ASSERT_EQUAL_INT(3, (int)rd64(r.data + relocation_offset));
+    uint64_t info = rd64(r.data + relocation_offset + 8);
+    TEST_ASSERT_EQUAL_INT(2, (int)(info & 0xffffffffu)); /* R_X86_64_PC32 */
+    TEST_ASSERT_EQUAL_INT64(
+        -4, (int64_t)rd64(r.data + relocation_offset + 16));
+}
+
 void test_elf_preserves_symbols_and_relocation_beyond_old_limit(void) {
     SymbolTable symtable;
     symtable_init(&symtable, &g_arena);
@@ -513,6 +532,7 @@ int main(void) {
     RUN_TEST(test_elf_rela_data_for_symbol_initializer);
     RUN_TEST(test_elf_rela_read_only_data_for_symbol_initializer);
     RUN_TEST(test_elf_external_call_uses_undefined_symbol_and_pc32);
+    RUN_TEST(test_elf_rip_relative_data_uses_pc32);
     RUN_TEST(test_elf_preserves_symbols_and_relocation_beyond_old_limit);
     RUN_TEST(test_elf_rejects_relocation_to_missing_symbol);
 

@@ -255,6 +255,49 @@ void test_p2_external_call_creates_pc32_relocation(void) {
         "دالة_خارجية", pl.p2.relocations.data[0].symbol);
 }
 
+void test_p2_rip_relative_memory_creates_pc32_relocation(void) {
+    Pipeline pl = run(
+        ".بيانات_للقراءة\n"
+        "رسالة: .عدد٦٤ ١\n"
+        ".نص\n"
+        "انقل سجل_المركم، [مؤشر_التعليمة+رسالة]");
+
+    const uint8_t expected[]={0x48,0x8B,0x05,0x00,0x00,0x00,0x00};
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, pl.p2.text_bytes, 7);
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.relocations.count);
+    TEST_ASSERT_EQUAL_INT(RELOC_PC32, pl.p2.relocations.data[0].kind);
+    TEST_ASSERT_EQUAL_INT(RELOC_SECTION_TEXT, pl.p2.relocations.data[0].section);
+    TEST_ASSERT_EQUAL_INT(3, (int)pl.p2.relocations.data[0].offset);
+    TEST_ASSERT_EQUAL_INT64(-4, pl.p2.relocations.data[0].addend);
+    TEST_ASSERT_EQUAL_STRING("رسالة", pl.p2.relocations.data[0].symbol);
+}
+
+void test_p2_rip_relative_external_symbol_creates_pc32_relocation(void) {
+    Pipeline pl = run(
+        ".خارجي قيمة_خارجية\n"
+        "احسب_عنوان سجل_عام_١١، [مؤشر_التعليمة+قيمة_خارجية]");
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.relocations.count);
+    TEST_ASSERT_EQUAL_INT(RELOC_PC32, pl.p2.relocations.data[0].kind);
+    TEST_ASSERT_EQUAL_INT(3, (int)pl.p2.relocations.data[0].offset);
+    TEST_ASSERT_EQUAL_STRING(
+        "قيمة_خارجية", pl.p2.relocations.data[0].symbol);
+}
+
+void test_p2_rejects_unresolved_rip_relative_symbol(void) {
+    Pipeline pl = run(
+        "انقل سجل_المركم، [مؤشر_التعليمة+رمز_مفقود]");
+
+    TEST_ASSERT_TRUE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        pl.p2.errors.errors[0].message, "رمز ذاكرة نسبي غير محلول"));
+    TEST_ASSERT_EQUAL_INT(0, (int)pl.p2.relocations.count);
+}
+
 void test_descriptive_register_names_encode_architectural_ids(void) {
     static const struct {
         const char *name;
@@ -732,6 +775,9 @@ int main(void) {
     RUN_TEST(test_p2_nop_bytes);
     RUN_TEST(test_p2_syscall_bytes);
     RUN_TEST(test_p2_external_call_creates_pc32_relocation);
+    RUN_TEST(test_p2_rip_relative_memory_creates_pc32_relocation);
+    RUN_TEST(test_p2_rip_relative_external_symbol_creates_pc32_relocation);
+    RUN_TEST(test_p2_rejects_unresolved_rip_relative_symbol);
     RUN_TEST(test_p2_mov_rax_42);
     RUN_TEST(test_descriptive_register_names_encode_architectural_ids);
     RUN_TEST(test_p2_mov_rax_uint32_max_preserves_value);

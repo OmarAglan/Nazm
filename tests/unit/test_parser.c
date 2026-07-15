@@ -330,6 +330,31 @@ void test_parse_directive_data(void) {
     TEST_ASSERT_EQUAL_INT(DIRECTIVE_DATA, instr(&r,0).directive_kind);
 }
 
+void test_parse_rip_relative_symbolic_memory(void) {
+    ParseResult r = parse(
+        "انقل سجل_المركم، [مؤشر_التعليمة+رسالة]\n"
+        "احسب_عنوان سجل_عام_١١، [مؤشر_التعليمة+ثابت]");
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+    TEST_ASSERT_EQUAL_INT(OP_MEM_RIP_LABEL, instr(&r, 0).ops[1].kind);
+    TEST_ASSERT_EQUAL_STRING("رسالة", instr(&r, 0).ops[1].label);
+    TEST_ASSERT_EQUAL_INT(OP_MEM_RIP_LABEL, instr(&r, 1).ops[1].kind);
+    TEST_ASSERT_EQUAL_STRING("ثابت", instr(&r, 1).ops[1].label);
+}
+
+void test_parse_rip_relative_memory_requires_symbol(void) {
+    ParseResult missing_plus = parse(
+        "انقل سجل_المركم، [مؤشر_التعليمة رسالة]");
+    TEST_ASSERT_TRUE(error_has_any(&missing_plus.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        missing_plus.errors.errors[0].message, "بعد 'مؤشر_التعليمة'"));
+
+    ParseResult missing_symbol = parse(
+        "انقل سجل_المركم، [مؤشر_التعليمة+١]");
+    TEST_ASSERT_TRUE(error_has_any(&missing_symbol.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        missing_symbol.errors.errors[0].message, "اسم رمز عربي"));
+}
+
 void test_parse_all_canonical_directive_kinds(void) {
     static const struct {
         const char   *spelling;
@@ -651,6 +676,8 @@ int main(void) {
     RUN_TEST(test_parse_memory_disp32_boundaries);
     RUN_TEST(test_parse_memory_rejects_disp32_overflow);
     RUN_TEST(test_parse_mov_reg_label);
+    RUN_TEST(test_parse_rip_relative_symbolic_memory);
+    RUN_TEST(test_parse_rip_relative_memory_requires_symbol);
     RUN_TEST(test_parse_string_directive_operand);
 
     /* Arithmetic */

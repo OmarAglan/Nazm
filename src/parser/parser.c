@@ -201,6 +201,12 @@ static bool set_memory_displacement(Parser *p,
     return true;
 }
 
+static bool token_value_equals(const Token *token, const char *expected) {
+    size_t expected_length = strlen(expected);
+    return token->len == expected_length
+        && memcmp(token->value, expected, expected_length) == 0;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
  * Operand parsing
  * ═══════════════════════════════════════════════════════════════════════════ */
@@ -211,6 +217,42 @@ static bool parse_mem_operand(Parser *p, const Token *open_tok, Operand *out) {
     out->line    = open_tok->line;
     out->col     = open_tok->col;
     out->end_col = open_tok->end_col;
+
+    if (cur_type(p) == TOKEN_LABEL_REF
+        && token_value_equals(cur(p), "مؤشر_التعليمة")) {
+        advance(p);
+        if (cur_type(p) != TOKEN_PLUS) {
+            parse_error(
+                p,
+                "توقعت '+' بعد 'مؤشر_التعليمة' داخل عنوان الذاكرة النسبي");
+            sync_to_newline(p);
+            return false;
+        }
+        advance(p);
+
+        if (cur_type(p) != TOKEN_LABEL_REF) {
+            parse_error(
+                p,
+                "توقعت اسم رمز عربي بعد 'مؤشر_التعليمة+' داخل عنوان الذاكرة النسبي");
+            sync_to_newline(p);
+            return false;
+        }
+
+        const Token *label_token = advance(p);
+        out->kind = OP_MEM_RIP_LABEL;
+        out->label = arena_strndup(
+            p->arena, label_token->value, label_token->len);
+
+        if (cur_type(p) != TOKEN_RBRACKET) {
+            parse_error(p, "توقعت ']' لإغلاق عنوان الذاكرة النسبي");
+            sync_to_newline(p);
+            return false;
+        }
+
+        const Token *close_token = advance(p);
+        out->end_col = close_token->end_col;
+        return true;
+    }
 
     if (cur_type(p) != TOKEN_REGISTER) {
         const Token *token = cur(p);
@@ -223,7 +265,9 @@ static bool parse_mem_operand(Parser *p, const Token *open_tok, Operand *out) {
             return false;
         }
 
-        parse_error(p, "توقعت اسم سجل داخل عنوان الذاكرة '[...]'");
+        parse_error(
+            p,
+            "توقعت اسم سجل أو 'مؤشر_التعليمة+رمز' داخل عنوان الذاكرة '[...]'");
         sync_to_newline(p);
         return false;
     }

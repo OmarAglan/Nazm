@@ -83,6 +83,12 @@ boundaries: memory operands and all 12 relative control-flow opcodes accept
 `INT32_MIN`/`INT32_MAX`, reject the adjacent overflow values, and preserve the
 source span of pass-two branch diagnostics.
 
+Focused symbolic-memory tests pin `[مؤشر_التعليمة+الرمز]` parsing, exact MOV
+load/store and LEA bytes across 8/32/64-bit register cases, unresolved-symbol
+diagnostics, the PC32 displacement-field offset, ELF64 `R_X86_64_PC32` with
+addend `-4`, and COFF `IMAGE_REL_AMD64_REL32`. The Baa movement fixture
+assembles the same forms through the public CLI into both object formats.
+
 Pass tests also pin data-directive semantics: directives must appear in
 `.بيانات`, operand kinds must match, 8/16/32-bit signed/unsigned boundaries are
 accepted, adjacent overflow values are rejected, and unknown directives do not

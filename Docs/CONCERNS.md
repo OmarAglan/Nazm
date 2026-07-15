@@ -42,11 +42,12 @@
 - Current mitigation: `libnazm` builds without `src/main.c`, so the API can be implemented without coupling to CLI file I/O.
 - Fix approach: Add the API implementation and a small C unit test before promising external embedding support.
 
-**Baa backend coverage is substantially larger than Nazm's current subset:**
-- Symptoms: the Baa `0.6.0` integration baseline emits 8/16/32/64-bit integer forms, `setcc`,
-  `movzx`/`movsx`, unsigned division, `cqo`, SSE2 scalar floating-point,
-  external calls/globals, target-specific read-only data, PIC/PIE references,
-  and raw inline GAS.
+**Baa backend coverage is still larger than Nazm's current subset:**
+- Symptoms: the Baa integration baseline still emits SSE2 scalar floating-point,
+  base-index-scale addressing, additional PIC/PIE relocation forms, debug
+  directives, and raw inline GAS. Integer widths, integer extension/division,
+  core data sections, external calls, and symbolic instruction-pointer-relative
+  MOV/LEA now have explicit Nazm contracts.
 - Impact: Replacing `gcc -c` with Nazm today would reject valid Baa output or,
   where validation is weak, risk wrong objects.
 - Current mitigation: No integration claim is made; GAS remains the external
@@ -65,6 +66,12 @@
   link/run cases when those linkers are available in CI.
 
 ## Recently Resolved From Earlier Audits
+
+- Arabic-only `[مؤشر_التعليمة+الرمز]` operands now reach MOV loads/stores and
+  64-bit LEA. Pass 2 validates local or external symbols and emits a visible
+  PC32 relocation at the final disp32 field; ELF64 uses `R_X86_64_PC32` with
+  addend `-4`, COFF uses `IMAGE_REL_AMD64_REL32`, and missing symbols fail in
+  Arabic rather than falling back to absolute addressing.
 
 - `Docs/UNICODE.md` now freezes the 0.4 source contract: exact canonical
   unvowelled bytes, no normalization or implicit aliases, and byte-exact label

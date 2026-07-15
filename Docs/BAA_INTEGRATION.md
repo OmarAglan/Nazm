@@ -1,6 +1,6 @@
 # Baa Integration and Bootstrap Contract
 
-**Analysis Date:** 2026-07-14
+**Analysis Date:** 2026-07-15
 
 ## Strategic Intent
 
@@ -179,6 +179,11 @@ that is unrelated to the Arabic-first goal.
 - Compare assembly success, object structure, linked behavior, and diagnostics.
 - Treat unsupported Nazm input as a visible coverage failure; never substitute
   guessed bytes or hide it behind a silent fallback.
+- The Arabic-only symbolic-memory boundary is now implemented as
+  `[مؤشر_التعليمة+الرمز]` for MOV loads/stores and 64-bit LEA. Pass 2 emits
+  PC32 relocations for local or external Arabic symbols and the ELF64/COFF
+  writers preserve them; Baa must consume this form explicitly before its
+  global-value corpus rows can be admitted.
 
 ### Stage D: Atomic Nazm Cutover
 

@@ -33,7 +33,9 @@ network calls, has no telemetry, and contacts no external service.
   `STB_LOCAL` or COFF `STATIC`
 - Current relocation support: absolute addresses for loading a label into a
   register or placing an Arabic symbol in `.عدد٦٤`, plus PC32 call/jump
-  relocations to Arabic external symbols
+  relocations and PC32 MOV/LEA references written as the Arabic-only source
+  form `[مؤشر_التعليمة+الرمز]`; ELF64 records addend `-4` and COFF records
+  `IMAGE_REL_AMD64_REL32`
 - Location: Path provided with `--خرج`; defaults to `.o` for إلف64 and `.obj`
   for كوف
 - Written via: `src/output/elf64.c` or `src/output/coff.c`

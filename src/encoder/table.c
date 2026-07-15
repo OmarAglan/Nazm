@@ -190,6 +190,17 @@ static void emit_mem(Buf *b, uint8_t opcode,
     emit32(b, disp);
 }
 
+/* Emit a symbolic RIP-relative memory operand. Pass 2 owns the disp32
+ * relocation and leaves the encoded displacement at zero here. */
+static void emit_rip_relative_mem(Buf *b, uint8_t opcode,
+                                  RegId reg_field, int width) {
+    emit_width_prefix(b, width);
+    emit_rex_for_width(b, width, reg_field, REG_INVALID);
+    emit(b, opcode);
+    emit(b, modrm_byte(0, rf(reg_field), 5));
+    emit32(b, 0);
+}
+
 /* ── Size of disp field for a memory operand ─────────────────────────────── */
 /* ── MOV ─────────────────────────────────────────────────────────────────── */
 
@@ -260,6 +271,14 @@ static EncodedInstruction enc_mov(const Operand *ops, int n) {
         return from_buf(&b);
     }
 
+    if (dst->kind == OP_REG && src->kind == OP_MEM_RIP_LABEL) {
+        int width = reg_width_bits(dst->reg);
+        if (!valid_integer_width(width)) return make_error();
+        emit_rip_relative_mem(
+            &b, width == 8 ? 0x8A : 0x8B, dst->reg, width);
+        return from_buf(&b);
+    }
+
     if (operand_is_mem(dst) && src->kind == OP_REG) {
         int width = reg_width_bits(src->reg);
         if (!valid_integer_width(width) || reg_width_bits(dst->mem.base) != 64)
@@ -268,6 +287,14 @@ static EncodedInstruction enc_mov(const Operand *ops, int n) {
         int32_t disp = operand_disp(dst);
         emit_mem(&b, width == 8 ? 0x88 : 0x89,
                  src->reg, base, disp, width);
+        return from_buf(&b);
+    }
+
+    if (dst->kind == OP_MEM_RIP_LABEL && src->kind == OP_REG) {
+        int width = reg_width_bits(src->reg);
+        if (!valid_integer_width(width)) return make_error();
+        emit_rip_relative_mem(
+            &b, width == 8 ? 0x88 : 0x89, src->reg, width);
         return from_buf(&b);
     }
 
@@ -711,6 +738,12 @@ static EncodedInstruction enc_int(const Operand *ops, int n) {
 
 static EncodedInstruction enc_lea(const Operand *ops, int n) {
     if (n != 2 || ops[0].kind != OP_REG) return make_error();
+    if (ops[1].kind == OP_MEM_RIP_LABEL) {
+        if (reg_width_bits(ops[0].reg) != 64) return make_error();
+        Buf b = {0};
+        emit_rip_relative_mem(&b, 0x8D, ops[0].reg, 64);
+        return from_buf(&b);
+    }
     if (!operand_is_mem(&ops[1])) {
         return make_error();
     }

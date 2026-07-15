@@ -131,6 +131,10 @@ static size_t relative_label_relocation_offset(OpcodeEnum opcode) {
     }
 }
 
+static bool is_rip_relative_symbol_operand(const Operand *operand) {
+    return operand->kind == OP_MEM_RIP_LABEL && operand->label != NULL;
+}
+
 /* Emit one data directive without writing past `buf_cap`. */
 static bool emit_data_directive(const Instruction *instr,
                                 uint8_t *buf, size_t buf_cap,
@@ -430,6 +434,43 @@ Pass2Result pass2_run(const InstructionList *instructions,
         bool resolution_error = false;
 
         for (int j = 0; j < instr->op_count; j++) {
+            if (is_rip_relative_symbol_operand(&resolved_ops[j])) {
+                int64_t ignored_offset = 0;
+                SymbolSection ignored_section = SYMBOL_SECTION_UNKNOWN;
+                bool resolved = symtable_lookup_ex(
+                    &pass1->symtable,
+                    resolved_ops[j].label,
+                    &ignored_offset,
+                    &ignored_section);
+                if (!resolved && !symtable_is_external(
+                        &pass1->symtable, resolved_ops[j].label)) {
+                    char message[256];
+                    snprintf(
+                        message,
+                        sizeof(message),
+                        "رمز ذاكرة نسبي غير محلول: '%s'",
+                        resolved_ops[j].label);
+                    error_add_span(
+                        &result.errors,
+                        arena,
+                        instructions->source_name
+                            ? instructions->source_name
+                            : "unknown",
+                        resolved_ops[j].line
+                            ? resolved_ops[j].line
+                            : instr->line,
+                        resolved_ops[j].col
+                            ? resolved_ops[j].col
+                            : instr->col,
+                        resolved_ops[j].end_col
+                            ? resolved_ops[j].end_col
+                            : instr->end_col,
+                        message);
+                    resolution_error = true;
+                }
+                continue;
+            }
+
             if (resolved_ops[j].kind != OP_LABEL) {
                 continue;
             }
@@ -593,6 +634,28 @@ Pass2Result pass2_run(const InstructionList *instructions,
             add_internal_error(
                 &result, arena, instructions, instr, msg);
             return result;
+        }
+
+        for (int j = 0; j < instr->op_count; j++) {
+            if (!is_rip_relative_symbol_operand(&resolved_ops[j])) {
+                continue;
+            }
+            if (enc.len < 4) {
+                add_internal_error(
+                    &result, arena, instructions, instr,
+                    "خطأ داخلي: تعليمة الذاكرة النسبية لا تحتوي إزاحة 32 بت");
+                return result;
+            }
+            push_relocation(
+                &result.relocations,
+                arena,
+                (Relocation){
+                    .section = RELOC_SECTION_TEXT,
+                    .kind = RELOC_PC32,
+                    .offset = result.text_size + (size_t)enc.len - 4,
+                    .symbol = resolved_ops[j].label,
+                    .addend = -4,
+                });
         }
 
         if (!buffer_append(result.text_bytes, text_cap,
