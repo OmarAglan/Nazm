@@ -177,6 +177,16 @@ static bool emit_data_directive(const Instruction *instr,
         return true;
     }
 
+    if (instr->directive_kind == DIRECTIVE_ALIGNMENT) {
+        if (instr->op_count != 1 || instr->ops[0].kind != OP_IMM ||
+            instr->ops[0].imm <= 0) {
+            return true;
+        }
+        size_t alignment = (size_t)instr->ops[0].imm;
+        size_t padding = (alignment - (*written % alignment)) % alignment;
+        return buffer_fill(buf, buf_cap, written, 0, padding);
+    }
+
     /* .مساحة_صفرية N — zero fill */
     if (instr->directive_kind == DIRECTIVE_ZERO_SPACE) {
         int n = (instr->op_count > 0 && instr->ops[0].kind == OP_IMM)
@@ -249,7 +259,8 @@ Pass2Result pass2_run(const InstructionList *instructions,
 
             /* Data-emitting directive */
             if (in_data) {
-                int expected = data_directive_size(instr);
+                int expected = data_directive_size_at(
+                    instr, result.data_size);
                 if (expected < 0) {
                     add_internal_error(
                         &result, arena, instructions, instr,

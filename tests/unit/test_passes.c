@@ -544,6 +544,35 @@ void test_p2_emits_data_boundary_values_without_truncation(void) {
         expected, pl.p2.data_bytes, sizeof(expected));
 }
 
+void test_data_alignment_pads_to_requested_byte_boundary(void) {
+    Pipeline pl = run(
+        ".بيانات\n"
+        ".عدد٨ ١\n"
+        ".محاذاة ٨\n"
+        "محاذى: .عدد٨ ٢\n");
+    uint8_t expected[] = {1, 0, 0, 0, 0, 0, 0, 0, 2};
+    int64_t offset = -1;
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(9, (int)pl.p1.data_size);
+    TEST_ASSERT_EQUAL_INT(9, (int)pl.p2.data_size);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(
+        expected, pl.p2.data_bytes, sizeof(expected));
+    TEST_ASSERT_TRUE(symtable_lookup(&pl.p1.symtable, "محاذى", &offset));
+    TEST_ASSERT_EQUAL_INT64(8, offset);
+}
+
+void test_data_alignment_rejects_non_power_of_two(void) {
+    Pipeline zero = run(".بيانات\n.محاذاة ٠\n");
+    Pipeline three = run(".بيانات\n.محاذاة ٣\n");
+
+    TEST_ASSERT_TRUE(error_has_any(&zero.p1.errors));
+    TEST_ASSERT_TRUE(error_has_any(&three.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        three.p1.errors.errors[0].message, "قوة للعدد 2"));
+}
+
 void test_p2_mov_label_creates_abs64_relocation(void) {
     Pipeline pl = run(".نص\nانقل سجل_البيانات، رسالة\n.بيانات\nرسالة: .سلسلة_منتهية_بصفر \"x\"");
     TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
@@ -671,6 +700,8 @@ int main(void) {
     RUN_TEST(test_p1_rejects_wrong_data_operand_kinds);
     RUN_TEST(test_p1_rejects_data_values_that_do_not_fit);
     RUN_TEST(test_p2_emits_data_boundary_values_without_truncation);
+    RUN_TEST(test_data_alignment_pads_to_requested_byte_boundary);
+    RUN_TEST(test_data_alignment_rejects_non_power_of_two);
     RUN_TEST(test_p2_mov_label_creates_abs64_relocation);
     RUN_TEST(test_p2_data_symbol_creates_abs64_relocation);
     RUN_TEST(test_p2_external_data_symbol_creates_abs64_relocation);

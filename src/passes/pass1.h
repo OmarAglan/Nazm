@@ -22,3 +22,6 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena);
 
 /* Returns the byte size a .data directive contributes (0 if not a data directive). */
 int data_directive_size(const Instruction *instr);
+
+/* Returns section-relative size, including variable alignment padding. */
+int data_directive_size_at(const Instruction *instr, size_t section_offset);

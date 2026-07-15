@@ -135,6 +135,8 @@ contract.
 - Represents register, immediate, memory, label, or decoded string operands.
 - Carries operand source span data so pass2 can report unresolved labels at the operand, not merely at the instruction.
 - Shared today by parser, passes, and encoder.
+- Data alignment uses an explicit power-of-two byte boundary; pass 1 computes
+  context-sensitive padding and pass 2 emits exactly that many zero bytes.
 
 **SymbolTable**
 - Defined in `src/symtable/symtable.h`.

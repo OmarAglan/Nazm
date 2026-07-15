@@ -529,6 +529,13 @@
     { "gas": ".long", "gas_operands": ["integer"], "arabic": ".عدد٣٢", "nazm_operands": ["immediate"] },
     { "gas": ".quad", "gas_operands": ["integer"], "arabic": ".عدد٦٤", "nazm_operands": ["immediate", "label"] },
     { "gas": ".quad", "gas_operands": ["local-symbol"], "arabic": ".عدد٦٤", "nazm_operands": ["label"] },
+    {
+      "gas": ".p2align",
+      "gas_operands": ["integer"],
+      "arabic": ".محاذاة",
+      "nazm_operands": ["power-of-two-byte-alignment"],
+      "lowering": "Convert the GAS power-of-two exponent to an explicit byte boundary."
+    },
     { "gas": ".zero", "gas_operands": ["integer"], "arabic": ".مساحة_صفرية", "nazm_operands": ["immediate"] },
     { "gas": ".asciz", "gas_operands": ["string"], "arabic": ".سلسلة_منتهية_بصفر", "nazm_operands": ["string"] },
     {
@@ -678,6 +685,7 @@
       ".globl|symbol": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".local|expression": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".long|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".p2align|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".quad|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".quad|local-symbol": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".text|": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
@@ -694,6 +702,6 @@
     "No leave, rdtsc, or read-only-section support is implemented.",
     "Latin source and object identifiers are not accepted; the entry symbol remains الرئيسية end to end.",
     "External symbols must retain Arabic names; linking to a Latin platform ABI requires a separately reviewed Arabic bridge.",
-    "No RIP-relative memory, base-index-scale memory, alignment directive, or debug directive is implemented."
+    "No RIP-relative memory, base-index-scale memory, or debug directive is implemented."
   ]
 }

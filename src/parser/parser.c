@@ -113,6 +113,7 @@ static const DirectiveEntry DIRECTIVE_TABLE[] = {
     { ".عدد١٦", DIRECTIVE_INT16 },
     { ".عدد٣٢", DIRECTIVE_INT32 },
     { ".عدد٦٤", DIRECTIVE_INT64 },
+    { ".محاذاة", DIRECTIVE_ALIGNMENT },
     { ".مساحة_صفرية", DIRECTIVE_ZERO_SPACE },
     { ".سلسلة_منتهية_بصفر", DIRECTIVE_NUL_STRING },
     { ".عام", DIRECTIVE_GLOBAL },

@@ -34,12 +34,24 @@ int data_directive_size(const Instruction *instr) {
         return instr->op_count > 0 ? instr->op_count * 4 : 0;
     if (instr->directive_kind == DIRECTIVE_INT64)
         return instr->op_count > 0 ? instr->op_count * 8 : 0;
+    if (instr->directive_kind == DIRECTIVE_ALIGNMENT)
+        return 0;
     if (instr->directive_kind == DIRECTIVE_ZERO_SPACE) {
         if (instr->op_count > 0 && instr->ops[0].kind == OP_IMM)
             return (int)instr->ops[0].imm;
         return 0;
     }
     return 0;
+}
+
+int data_directive_size_at(const Instruction *instr, size_t section_offset) {
+    if (instr->directive_kind == DIRECTIVE_ALIGNMENT &&
+        instr->op_count == 1 && instr->ops[0].kind == OP_IMM &&
+        instr->ops[0].imm > 0) {
+        size_t alignment = (size_t)instr->ops[0].imm;
+        return (int)((alignment - (section_offset % alignment)) % alignment);
+    }
+    return data_directive_size(instr);
 }
 
 static bool visibility_directive_binding(const Instruction *instr,
@@ -113,6 +125,7 @@ static bool is_data_directive(DirectiveKind directive) {
         || directive == DIRECTIVE_INT16
         || directive == DIRECTIVE_INT32
         || directive == DIRECTIVE_INT64
+        || directive == DIRECTIVE_ALIGNMENT
         || directive == DIRECTIVE_ZERO_SPACE
         || directive == DIRECTIVE_NUL_STRING;
 }
@@ -165,6 +178,24 @@ static bool validate_data_directive(
             add_directive_error(
                 errors, arena, instructions, instr, 0,
                 "حجم '.مساحة_صفرية' يجب أن يكون بين 0 وINT_MAX");
+            return false;
+        }
+        return true;
+    }
+
+    if (directive == DIRECTIVE_ALIGNMENT) {
+        if (instr->op_count != 1 || instr->ops[0].kind != OP_IMM) {
+            add_directive_error(
+                errors, arena, instructions, instr, -1,
+                "التوجيه '.محاذاة' يتطلب عددا واحدا");
+            return false;
+        }
+        int64_t alignment = instr->ops[0].imm;
+        if (alignment < 1 || alignment > 4096 ||
+            ((uint64_t)alignment & ((uint64_t)alignment - 1u)) != 0) {
+            add_directive_error(
+                errors, arena, instructions, instr, 0,
+                "قيمة '.محاذاة' يجب أن تكون قوة للعدد 2 بين 1 و4096");
             return false;
         }
         return true;
@@ -352,7 +383,7 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
             }
 
             /* Data-emitting directive */
-            int dsz = data_directive_size(instr);
+            int dsz = data_directive_size_at(instr, data_offset);
             if (instr->label) {
                 if (!symtable_insert_section(&result.symtable, instr->label,
                                              SYMBOL_SECTION_DATA,
