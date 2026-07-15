@@ -162,8 +162,9 @@ static bool emit_data_directive(const Instruction *instr,
 
     if (elem_size > 0) {
         for (int i = 0; i < instr->op_count; i++) {
-            if (instr->ops[i].kind != OP_IMM) continue;
-            uint64_t v = (uint64_t)instr->ops[i].imm;
+            uint64_t v = instr->ops[i].kind == OP_IMM
+                       ? (uint64_t)instr->ops[i].imm
+                       : 0;
             uint8_t bytes[8];
             for (int b = 0; b < elem_size; b++) {
                 bytes[b] = (uint8_t)(v >> (b * 8));
@@ -257,6 +258,56 @@ Pass2Result pass2_run(const InstructionList *instructions,
                 }
 
                 size_t before = result.data_size;
+                if (instr->directive_kind == DIRECTIVE_INT64) {
+                    for (int operand_index = 0;
+                         operand_index < instr->op_count;
+                         operand_index++) {
+                        const Operand *operand = &instr->ops[operand_index];
+                        if (operand->kind != OP_LABEL) {
+                            continue;
+                        }
+
+                        int64_t ignored_offset = 0;
+                        SymbolSection ignored_section = SYMBOL_SECTION_UNKNOWN;
+                        bool resolved = symtable_lookup_ex(
+                            &pass1->symtable,
+                            operand->label,
+                            &ignored_offset,
+                            &ignored_section);
+                        if (!resolved && !symtable_is_external(
+                                &pass1->symtable, operand->label)) {
+                            char message[256];
+                            snprintf(message, sizeof(message),
+                                     "رمز بيانات غير محلول: '%s'",
+                                     operand->label);
+                            error_add_span(
+                                &result.errors,
+                                arena,
+                                instructions->source_name
+                                    ? instructions->source_name
+                                    : "unknown",
+                                operand->line ? operand->line : instr->line,
+                                operand->col ? operand->col : instr->col,
+                                operand->end_col
+                                    ? operand->end_col
+                                    : instr->end_col,
+                                message);
+                            continue;
+                        }
+
+                        push_relocation(
+                            &result.relocations,
+                            arena,
+                            (Relocation){
+                                .section = RELOC_SECTION_DATA,
+                                .kind = RELOC_ABS64,
+                                .offset = before +
+                                    (size_t)operand_index * 8,
+                                .symbol = operand->label,
+                                .addend = 0,
+                            });
+                    }
+                }
                 if (!emit_data_directive(instr,
                                          result.data_bytes,
                                          data_cap,

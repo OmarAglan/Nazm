@@ -555,6 +555,52 @@ void test_p2_mov_label_creates_abs64_relocation(void) {
     TEST_ASSERT_EQUAL_STRING("رسالة", pl.p2.relocations.data[0].symbol);
 }
 
+void test_p2_data_symbol_creates_abs64_relocation(void) {
+    Pipeline pl = run(
+        ".نص\n"
+        "الدالة:\n"
+        "ارجع\n"
+        ".بيانات\n"
+        "المؤشر: .عدد٦٤ الدالة\n");
+    uint8_t zeros[8] = {0};
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(8, (int)pl.p2.data_size);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(zeros, pl.p2.data_bytes, sizeof(zeros));
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.relocations.count);
+    TEST_ASSERT_EQUAL_INT(
+        RELOC_SECTION_DATA, pl.p2.relocations.data[0].section);
+    TEST_ASSERT_EQUAL_INT(RELOC_ABS64, pl.p2.relocations.data[0].kind);
+    TEST_ASSERT_EQUAL_INT(0, (int)pl.p2.relocations.data[0].offset);
+    TEST_ASSERT_EQUAL_STRING("الدالة", pl.p2.relocations.data[0].symbol);
+}
+
+void test_p2_external_data_symbol_creates_abs64_relocation(void) {
+    Pipeline pl = run(
+        ".خارجي دالة_خارجية\n"
+        ".بيانات\n"
+        "المؤشر: .عدد٦٤ دالة_خارجية\n");
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.relocations.count);
+    TEST_ASSERT_EQUAL_INT(
+        RELOC_SECTION_DATA, pl.p2.relocations.data[0].section);
+    TEST_ASSERT_EQUAL_STRING(
+        "دالة_خارجية", pl.p2.relocations.data[0].symbol);
+}
+
+void test_p2_rejects_unresolved_data_symbol(void) {
+    Pipeline pl = run(".بيانات\n.عدد٦٤ رمز_مفقود\n");
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_TRUE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        pl.p2.errors.errors[0].message, "رمز بيانات غير محلول"));
+    TEST_ASSERT_EQUAL_INT(0, (int)pl.p2.relocations.count);
+}
+
 void test_p2_text_capacity_mismatch_is_hard_error(void) {
     Pass2Result p2 = run_with_forced_capacities("ارجع", 0, 0);
     TEST_ASSERT_TRUE(error_has_any(&p2.errors));
@@ -626,6 +672,9 @@ int main(void) {
     RUN_TEST(test_p1_rejects_data_values_that_do_not_fit);
     RUN_TEST(test_p2_emits_data_boundary_values_without_truncation);
     RUN_TEST(test_p2_mov_label_creates_abs64_relocation);
+    RUN_TEST(test_p2_data_symbol_creates_abs64_relocation);
+    RUN_TEST(test_p2_external_data_symbol_creates_abs64_relocation);
+    RUN_TEST(test_p2_rejects_unresolved_data_symbol);
     RUN_TEST(test_p2_text_capacity_mismatch_is_hard_error);
     RUN_TEST(test_p2_data_capacity_mismatch_is_hard_error);
 

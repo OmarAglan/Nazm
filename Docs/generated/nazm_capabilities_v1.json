@@ -527,7 +527,7 @@
     { "gas": ".byte", "gas_operands": ["integer"], "arabic": ".عدد٨", "nazm_operands": ["immediate"] },
     { "gas": ".word", "gas_operands": ["integer"], "arabic": ".عدد١٦", "nazm_operands": ["immediate"] },
     { "gas": ".long", "gas_operands": ["integer"], "arabic": ".عدد٣٢", "nazm_operands": ["immediate"] },
-    { "gas": ".quad", "gas_operands": ["integer"], "arabic": ".عدد٦٤", "nazm_operands": ["immediate"] },
+    { "gas": ".quad", "gas_operands": ["integer"], "arabic": ".عدد٦٤", "nazm_operands": ["immediate", "label"] },
     { "gas": ".zero", "gas_operands": ["integer"], "arabic": ".مساحة_صفرية", "nazm_operands": ["immediate"] },
     { "gas": ".asciz", "gas_operands": ["string"], "arabic": ".سلسلة_منتهية_بصفر", "nazm_operands": ["string"] },
     {
@@ -599,11 +599,19 @@
         "target_section": "undefined",
         "elf64": "R_X86_64_PC32",
         "coff": "IMAGE_REL_AMD64_REL32"
+      },
+      {
+        "source_form": "int64-local-or-external-arabic-symbol",
+        "nazm_kind": "ABS64",
+        "source_section": ".data",
+        "target_section": ".text-or-data-or-undefined",
+        "elf64": "R_X86_64_64 in .rela.data",
+        "coff": "IMAGE_REL_AMD64_ADDR64 in .data relocations"
       }
     ],
     "writer_only_not_source_reachable": [],
     "external_symbols": true,
-    "data_relocations": false,
+    "data_relocations": true,
     "rip_relative": false
   },
   "acceptance_fixtures": [
@@ -684,6 +692,6 @@
     "No leave, rdtsc, or read-only-section support is implemented.",
     "Latin source and object identifiers are not accepted; the entry symbol remains الرئيسية end to end.",
     "External symbols must retain Arabic names; linking to a Latin platform ABI requires a separately reviewed Arabic bridge.",
-    "No data relocation, RIP-relative memory, base-index-scale memory, alignment directive, or debug directive is implemented."
+    "No RIP-relative memory, base-index-scale memory, alignment directive, or debug directive is implemented."
   ]
 }

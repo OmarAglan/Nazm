@@ -184,10 +184,15 @@ static bool validate_data_directive(
     }
 
     for (int i = 0; i < instr->op_count; i++) {
+        if (bits == 64 && instr->ops[i].kind == OP_LABEL) {
+            continue;
+        }
         if (instr->ops[i].kind != OP_IMM) {
             add_directive_error(
                 errors, arena, instructions, instr, i,
-                "معامل توجيه العدد يجب أن يكون قيمة فورية");
+                bits == 64
+                    ? "معامل '.عدد٦٤' يجب أن يكون قيمة فورية أو اسم رمز عربي"
+                    : "معامل توجيه العدد يجب أن يكون قيمة فورية");
             return false;
         }
         if (!data_value_fits_width(instr->ops[i].imm, bits)) {

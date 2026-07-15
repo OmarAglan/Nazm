@@ -25,12 +25,15 @@ network calls, has no telemetry, and contacts no external service.
 - Formats: إلف64 via `--صيغة إلف64`, PE/COFF object via `--صيغة كوف`
 - Written through the same UTF-8 path boundary; buffered close failures are
   reported as I/O failure
-- Current section support: `.text` always, `.data` when data bytes exist, `.rela.text`/COFF text relocations when the source needs current supported relocations
+- Current section support: `.text` always, `.data` when data bytes exist, and
+  `.rela.text`/`.rela.data` or COFF text/data relocation tables when required
 - Current symbol support: defined labels with section-aware `.text`/`.data`
   indexes and real local/global binding. Labels are local by default; `.عام`
   emits ELF64 `STB_GLOBAL` or COFF `EXTERNAL`, while `.محلي` emits ELF64
   `STB_LOCAL` or COFF `STATIC`
-- Current relocation support: absolute address relocations for loading a local label into a register, such as `انقل سجل_المركم، رسالة`
+- Current relocation support: absolute addresses for loading a label into a
+  register or placing an Arabic symbol in `.عدد٦٤`, plus PC32 call/jump
+  relocations to Arabic external symbols
 - Location: Path provided with `--خرج`; defaults to `.o` for إلف64 and `.obj`
   for كوف
 - Written via: `src/output/elf64.c` or `src/output/coff.c`
@@ -83,13 +86,15 @@ Not applicable. No network communication, no user accounts, no authentication of
 
 **Linux Linkers:**
 - Relationship: Consumers of ELF64 relocatable object files
-- Current expectation: `.text`, `.data`, `.symtab`, `.strtab`, `.shstrtab`, and `.rela.text` are emitted when relevant
+- Current expectation: `.text`, `.data`, `.symtab`, `.strtab`, `.shstrtab`,
+  `.rela.text`, and `.rela.data` are emitted when relevant
 - Validation status: Unit/subprocess tests verify bytes and section fields;
   GitHub Actions also links and runs Arabic-entry ELF64 output.
 
 **Windows Linkers:**
 - Relationship: Consumers of PE/COFF `.obj` files
-- Current expectation: `.text`, optional `.data`, symbol table, string table, and `.text` relocation table are emitted when relevant
+- Current expectation: `.text`, optional `.data`, symbol table, string table,
+  and text/data relocation tables are emitted when relevant
 - Validation status: Unit tests verify bytes and table fields; Baa's Windows
   shadow job links and runs Nazm COFF output with the Arabic entry symbol.
 

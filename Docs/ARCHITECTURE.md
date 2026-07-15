@@ -143,7 +143,9 @@ contract.
 **RelocationList**
 - Defined in `src/passes/pass2.h`.
 - Carries relocation records produced by pass 2 for output writers.
-- Current implemented kind: absolute 64-bit relocation for direct label-address loads from `.text`.
+- Current implemented forms: absolute 64-bit relocation for direct
+  label-address loads from `.text` and symbolic `.عدد٦٤` entries in `.data`,
+  plus PC32 call/jump relocations to Arabic external symbols.
 
 **EmissionSpan**
 - Defined in `src/passes/pass2.h`.
@@ -196,7 +198,8 @@ Implemented now:
 - Arabic lexer and parser coverage for the current instruction representation.
 - Basic pass and symbol table structure.
 - Encoder helper modules and instruction table scaffolding.
-- ELF64 and COFF writers with `.text`, optional `.data`, symbol/string tables, and current text relocation support.
+- ELF64 and COFF writers with `.text`, optional `.data`, symbol/string tables,
+  and text/data relocation support.
 - CLI option parser and `nazm` executable target.
 - Unit tests for arena, Unicode, symtable, keywords, immediates, REX, lexer,
   parser, encoder, passes, ELF64, COFF, diagnostics, examples, and CLI argument parsing through both CTest
@@ -205,7 +208,7 @@ Implemented now:
 Planned or limited:
 - Stable in-process API behavior for `include/nazm.h`.
 - Verified end-to-end linker compatibility across ELF64 and COFF on CI.
-- Relocation support for external symbols and call/jump forms.
+- RIP-relative and future read-only/BSS relocation forms.
 - Baa-required 8/16/32/64-bit, `setcc`/extension, SSE2, section, and relocation
   coverage.
 - Dual-assembler parity against Baa's current GAS output before default-on

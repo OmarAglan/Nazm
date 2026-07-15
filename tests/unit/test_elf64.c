@@ -326,6 +326,30 @@ void test_elf_rela_text_for_mov_label(void) {
     TEST_ASSERT_EQUAL_INT(1, (int)(info & 0xffffffffu)); /* R_X86_64_64 */
 }
 
+void test_elf_rela_data_for_symbol_initializer(void) {
+    OutputResult r = assemble_elf(
+        ".نص\n"
+        "الدالة:\n"
+        "ارجع\n"
+        ".بيانات\n"
+        ".عام المؤشر\n"
+        "المؤشر: .عدد٦٤ الدالة\n");
+    TEST_ASSERT_TRUE(r.ok);
+    TEST_ASSERT_EQUAL_INT(7, (int)rd16(r.data + 60));
+
+    uint64_t shoff = rd64(r.data + 40);
+    const uint8_t *rela_data = r.data + shoff + 3 * 64;
+    TEST_ASSERT_EQUAL_INT(4, (int)rd32(rela_data + 4)); /* SHT_RELA */
+    TEST_ASSERT_EQUAL_INT(4, (int)rd32(rela_data + 40)); /* link = .symtab */
+    TEST_ASSERT_EQUAL_INT(2, (int)rd32(rela_data + 44)); /* info = .data */
+    TEST_ASSERT_EQUAL_INT(24, (int)rd64(rela_data + 56));
+
+    uint64_t relocation_offset = rd64(rela_data + 24);
+    TEST_ASSERT_EQUAL_INT(0, (int)rd64(r.data + relocation_offset));
+    uint64_t info = rd64(r.data + relocation_offset + 8);
+    TEST_ASSERT_EQUAL_INT(1, (int)(info & 0xffffffffu)); /* R_X86_64_64 */
+}
+
 void test_elf_external_call_uses_undefined_symbol_and_pc32(void) {
     OutputResult r = assemble_elf(
         ".نص\n.خارجي دالة_خارجية\nناد دالة_خارجية\n");
@@ -444,6 +468,7 @@ int main(void) {
     RUN_TEST(test_elf_data_section_exists_when_data_emitted);
     RUN_TEST(test_elf_data_symbol_uses_data_section_index);
     RUN_TEST(test_elf_rela_text_for_mov_label);
+    RUN_TEST(test_elf_rela_data_for_symbol_initializer);
     RUN_TEST(test_elf_external_call_uses_undefined_symbol_and_pc32);
     RUN_TEST(test_elf_preserves_symbols_and_relocation_beyond_old_limit);
     RUN_TEST(test_elf_rejects_relocation_to_missing_symbol);
