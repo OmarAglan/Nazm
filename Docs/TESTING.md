@@ -128,7 +128,10 @@ more correct merely because it is shorter.
 ## Object Writer Test Style
 
 - `tests/unit/test_elf64.c` and `tests/unit/test_coff.c` inspect fields and byte ranges directly instead of relying on opaque full-file snapshots.
-- ELF64 tests cover headers, section names/counts, `.text`, `.data`, `.symtab`, `.strtab`, and `.rela.text` for the currently supported relocation kind.
+- ELF64 tests cover headers, section names/counts, `.text`, `.data`, `.symtab`,
+  `.strtab`, and `.rela.text` for the currently supported relocation kind.
+  The mixed `.rodata` plus `.rela.text` case also verifies that symbol section
+  indices match the physical section-header order consumed by the linker.
 - COFF tests cover the file header, section headers, raw `.text`/`.data` bytes, symbol table, string table, and `.text` relocation table.
 - Both writer suites build 513-symbol tables, verify the complete emitted count
   and relocation index beyond the old 511-symbol cap, and reject relocations

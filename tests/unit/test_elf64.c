@@ -429,6 +429,22 @@ void test_elf_rip_relative_data_uses_pc32(void) {
     TEST_ASSERT_EQUAL_INT(2, (int)(info & 0xffffffffu)); /* R_X86_64_PC32 */
     TEST_ASSERT_EQUAL_INT64(
         -4, (int64_t)rd64(r.data + relocation_offset + 16));
+
+    /*
+     * Keep logical section indices synchronized with physical section-header
+     * order when .rodata and .rela.text coexist. Otherwise the linker resolves
+     * the data symbol against the non-allocated relocation section.
+     */
+    const uint8_t *symtab = find_elf_section(&r, 2);
+    TEST_ASSERT_NOT_NULL(symtab);
+    uint64_t symtab_offset = rd64(symtab + 24);
+    const uint8_t *message_symbol = r.data + symtab_offset + 24;
+    TEST_ASSERT_EQUAL_INT(2, (int)rd16(message_symbol + 6));
+
+    uint64_t shoff = rd64(r.data + 40);
+    const uint8_t *read_only = r.data + shoff + 2 * 64;
+    TEST_ASSERT_EQUAL_INT(1, (int)rd32(read_only + 4)); /* SHT_PROGBITS */
+    TEST_ASSERT_EQUAL_INT(2, (int)rd64(read_only + 8)); /* SHF_ALLOC */
 }
 
 void test_elf_preserves_symbols_and_relocation_beyond_old_limit(void) {

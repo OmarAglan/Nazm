@@ -555,20 +555,6 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                    0);
     }
 
-    if (has_rela_text) {
-        write_shdr(&ob,
-                   sh_rela_text_name,
-                   SHT_RELA,
-                   0,
-                   0,
-                   (uint64_t)rela_text_off,
-                   (uint64_t)rela_text_size,
-                   (uint32_t)sh_symtab,
-                   (uint32_t)sh_text,
-                   8,
-                   24);
-    }
-
     if (has_read_only_data) {
         write_shdr(&ob,
                    sh_read_only_data_name,
@@ -595,6 +581,20 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                    0,
                    8,
                    0);
+    }
+
+    if (has_rela_text) {
+        write_shdr(&ob,
+                   sh_rela_text_name,
+                   SHT_RELA,
+                   0,
+                   0,
+                   (uint64_t)rela_text_off,
+                   (uint64_t)rela_text_size,
+                   (uint32_t)sh_symtab,
+                   (uint32_t)sh_text,
+                   8,
+                   24);
     }
 
     if (has_rela_data) {
