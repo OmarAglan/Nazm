@@ -247,6 +247,14 @@ void test_p2_nop_bytes(void) {
     TEST_ASSERT_EQUAL_HEX8(0x90, pl.p2.text_bytes[0]);
 }
 
+void test_p2_rdtsc_bytes(void) {
+    Pipeline pl = run("اقرأ_عداد_الزمن");
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(2, (int)pl.p2.text_size);
+    TEST_ASSERT_EQUAL_HEX8(0x0F, pl.p2.text_bytes[0]);
+    TEST_ASSERT_EQUAL_HEX8(0x31, pl.p2.text_bytes[1]);
+}
+
 void test_p2_syscall_bytes(void) {
     Pipeline pl = run("ناد_النظام");
     TEST_ASSERT_EQUAL_INT(2, (int)pl.p2.text_size);
@@ -796,6 +804,7 @@ int main(void) {
     /* Pass 2 */
     RUN_TEST(test_p2_ret_bytes);
     RUN_TEST(test_p2_nop_bytes);
+    RUN_TEST(test_p2_rdtsc_bytes);
     RUN_TEST(test_p2_syscall_bytes);
     RUN_TEST(test_p2_external_call_creates_pc32_relocation);
     RUN_TEST(test_p2_rip_relative_memory_creates_pc32_relocation);

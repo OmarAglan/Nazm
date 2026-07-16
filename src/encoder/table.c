@@ -745,6 +745,16 @@ static EncodedInstruction enc_nop(void) {
     return from_buf(&b);
 }
 
+/* ── RDTSC ───────────────────────────────────────────────────────────────── */
+
+static EncodedInstruction enc_rdtsc(void) {
+    Buf b = {0};
+
+    emit(&b, 0x0F);
+    emit(&b, 0x31);
+    return from_buf(&b);
+}
+
 /* ── HLT ─────────────────────────────────────────────────────────────────── */
 
 static EncodedInstruction enc_hlt(void) {
@@ -872,6 +882,7 @@ EncodedInstruction encoder_encode(OpcodeEnum opcode,
 
     case OPCODE_SYSCALL: return enc_syscall();
     case OPCODE_NOP:     return enc_nop();
+    case OPCODE_RDTSC:   return enc_rdtsc();
     case OPCODE_HLT:     return enc_hlt();
     case OPCODE_INT:     return enc_int(ops, op_count);
 
@@ -993,6 +1004,7 @@ int encoder_instruction_size(OpcodeEnum opcode,
     case OPCODE_RET:     return 1;
     case OPCODE_SYSCALL: return 2;
     case OPCODE_NOP:     return 1;
+    case OPCODE_RDTSC:   return 2;
     case OPCODE_HLT:     return 1;
     case OPCODE_INT:
         return (op_count==1 && ops[0].kind==OP_IMM

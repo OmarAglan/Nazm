@@ -82,6 +82,7 @@ const Keyword KEYWORD_TABLE[] = {
     /* ── System ─────────────────────────────────────── */
     { "ناد_النظام",     OPCODE_SYSCALL  },  /* syscall */
     { "لا_تفعل",        OPCODE_NOP      },  /* nop     */
+    { "اقرأ_عداد_الزمن", OPCODE_RDTSC    },  /* rdtsc   */
     { "أوقف",           OPCODE_HLT      },  /* hlt     */
     { "اطلب_مقاطعة",    OPCODE_INT      },  /* int     */
 

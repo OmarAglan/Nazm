@@ -154,6 +154,7 @@ typedef enum {
     /* System */
     OPCODE_SYSCALL,   /* ناد_النظام */
     OPCODE_NOP,       /* لا_تفعل */
+    OPCODE_RDTSC,     /* اقرأ_عداد_الزمن */
     OPCODE_HLT,       /* أوقف         */
     OPCODE_INT,       /* اطلب_مقاطعة */
 

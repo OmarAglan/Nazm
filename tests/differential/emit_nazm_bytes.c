@@ -242,6 +242,7 @@ int main(int argc, char **argv) {
     EMIT_FIXED(OPCODE_RET);
     EMIT_FIXED(OPCODE_SYSCALL);
     EMIT_FIXED(OPCODE_NOP);
+    EMIT_FIXED(OPCODE_RDTSC);
     EMIT_FIXED(OPCODE_HLT);
     Operand int_80[] = { immediate_operand(0x80) };
     EMIT(OPCODE_INT, int_80);

@@ -57,6 +57,13 @@ void test_parse_nop(void) {
     TEST_ASSERT_EQUAL_INT(OPCODE_NOP, instr(&r,0).opcode);
 }
 
+void test_parse_rdtsc(void) {
+    ParseResult r = parse("اقرأ_عداد_الزمن");
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+    TEST_ASSERT_EQUAL_INT(OPCODE_RDTSC, instr(&r,0).opcode);
+    TEST_ASSERT_EQUAL_INT(0, instr(&r,0).op_count);
+}
+
 /* ── MOV variants ──────────────────────────────────────────────────────────*/
 
 void test_parse_mov_reg_imm(void) {
@@ -717,6 +724,7 @@ int main(void) {
     RUN_TEST(test_parse_ret);
     RUN_TEST(test_parse_syscall);
     RUN_TEST(test_parse_nop);
+    RUN_TEST(test_parse_rdtsc);
 
     /* MOV variants */
     RUN_TEST(test_parse_mov_reg_imm);

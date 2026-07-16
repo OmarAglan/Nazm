@@ -17,9 +17,9 @@ if(NOT SCHEMA STREQUAL "nazm-capabilities-v1")
 endif()
 
 string(JSON INSTRUCTION_COUNT LENGTH "${DOCUMENT}" instructions)
-if(NOT INSTRUCTION_COUNT EQUAL 61)
+if(NOT INSTRUCTION_COUNT EQUAL 62)
     message(FATAL_ERROR
-        "Capability manifest must describe all 61 canonical instructions; found ${INSTRUCTION_COUNT}")
+        "Capability manifest must describe all 62 canonical instructions; found ${INSTRUCTION_COUNT}")
 endif()
 
 math(EXPR INSTRUCTION_LAST "${INSTRUCTION_COUNT} - 1")

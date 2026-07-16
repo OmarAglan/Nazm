@@ -575,6 +575,14 @@
       ]
     },
     {
+      "arabic": "اقرأ_عداد_الزمن",
+      "gas_mnemonics": ["rdtsc"],
+      "width_bits": 64,
+      "forms": [
+        { "gas": [], "nazm": [] }
+      ]
+    },
+    {
       "arabic": "أوقف",
       "gas_mnemonics": ["hlt"],
       "width_bits": 64,
@@ -818,6 +826,7 @@
       "movzbl|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "movzbq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "nop|": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "rdtsc|": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "orq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "push|register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
       "pushq|register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
@@ -872,7 +881,7 @@
   "known_limits": [
     "All 8-, 16-, 32-, and 64-bit general-purpose registers and all 16 scalar decimal registers use canonical Arabic source names; high-byte AH/CH/DH/BH forms are intentionally excluded.",
     "The scalar decimal surface is limited to Baa's current SSE2 forms; packed SIMD operations are not implemented.",
-    "No leave or rdtsc support is implemented.",
+    "No leave support is implemented.",
     "Latin source and object identifiers are not accepted; the entry symbol remains الرئيسية end to end.",
     "External symbols must retain Arabic names; linking to a Latin platform ABI requires a separately reviewed Arabic bridge.",
     "RIP-relative symbolic memory is limited to MOV loads/stores and 64-bit LEA; base-index-scale memory and debug directives are not implemented."

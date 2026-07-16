@@ -228,7 +228,7 @@ hand-written examples:
 
 `Docs/generated/nazm_capabilities_v1.json` now records the implemented source,
 instruction-width, directive, section, symbol, and relocation boundary.
-`integration_capabilities_contract` checks that its 61 instruction names, 80
+`integration_capabilities_contract` checks that its 62 instruction names, 80
 registers, directives, and fixture paths still match the owning C tables.
 `integration_baa_coverage_fixtures` assembles the four focused Baa-form
 fixtures to both ELF64 and COFF. Baa's generated `baa-nazm-coverage-v1`

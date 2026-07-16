@@ -451,6 +451,7 @@ static const OpArity ARITY_TABLE[] = {
     { OPCODE_JNS,     1, 1 },
     { OPCODE_SYSCALL, 0, 0 },
     { OPCODE_NOP,     0, 0 },
+    { OPCODE_RDTSC,   0, 0 },
     { OPCODE_HLT,     0, 0 },
     { OPCODE_INT,     1, 1 },
     { OPCODE_INVALID, 0, 0 },

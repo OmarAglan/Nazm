@@ -173,6 +173,10 @@ that is unrelated to the Arabic-first goal.
   `supported` form points to one of the four checked ELF64/COFF fixtures under
   `tests/fixtures/baa_coverage/`. `partial` and `unsupported` rows remain open
   work, not successful coverage.**
+- The raw-inline migration slice is complete: `اقرأ_عداد_الزمن` encodes
+  `0F 31`, the focused control fixture covers it on ELF64 and COFF, and Baa
+  lowers its typed Arabic timing builtin through the same canonical source
+  instruction without Latin mnemonics or register constraints in Baa source.
 
 ### Stage C: Shadow Subprocess Integration
 

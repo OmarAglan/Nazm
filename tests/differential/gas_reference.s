@@ -53,5 +53,6 @@ call r12
 ret
 syscall
 nop
+rdtsc
 hlt
 int 0x80

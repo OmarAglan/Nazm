@@ -45,9 +45,10 @@ static void check_error(OpcodeEnum opcode, Operand *ops, int op_count) {
     check(_e, expected, (int)sizeof(expected)); \
 } while(0)
 
-/* ── RET / NOP / HLT / SYSCALL ───────────────────────────────────────────── */
+/* ── RET / NOP / RDTSC / HLT / SYSCALL ──────────────────────────────────── */
 void test_enc_ret(void)     { uint8_t expected[]={0xC3};       ENC0(OPCODE_RET); }
 void test_enc_nop(void)     { uint8_t expected[]={0x90};       ENC0(OPCODE_NOP); }
+void test_enc_rdtsc(void)   { uint8_t expected[]={0x0F,0x31};  ENC0(OPCODE_RDTSC); }
 void test_enc_hlt(void)     { uint8_t expected[]={0xF4};       ENC0(OPCODE_HLT); }
 void test_enc_syscall(void) { uint8_t expected[]={0x0F,0x05};  ENC0(OPCODE_SYSCALL); }
 
@@ -767,6 +768,7 @@ void test_enc_scalar_sse2_rejects_wrong_register_classes(void) {
 /* ── Instruction sizes ────────────────────────────────────────────────────── */
 void test_size_ret(void)     { TEST_ASSERT_EQUAL_INT(1, encoder_instruction_size(OPCODE_RET, NULL, 0)); }
 void test_size_nop(void)     { TEST_ASSERT_EQUAL_INT(1, encoder_instruction_size(OPCODE_NOP, NULL, 0)); }
+void test_size_rdtsc(void)   { TEST_ASSERT_EQUAL_INT(2, encoder_instruction_size(OPCODE_RDTSC, NULL, 0)); }
 void test_size_syscall(void) { TEST_ASSERT_EQUAL_INT(2, encoder_instruction_size(OPCODE_SYSCALL, NULL, 0)); }
 void test_size_mov_reg_imm32(void) {
     Operand ops[]={reg_op(REG_RAX), imm_op(42)};
@@ -855,6 +857,7 @@ int main(void) {
 
     RUN_TEST(test_enc_ret);
     RUN_TEST(test_enc_nop);
+    RUN_TEST(test_enc_rdtsc);
     RUN_TEST(test_enc_hlt);
     RUN_TEST(test_enc_syscall);
     RUN_TEST(test_enc_int_0x80);
@@ -941,6 +944,7 @@ int main(void) {
 
     RUN_TEST(test_size_ret);
     RUN_TEST(test_size_nop);
+    RUN_TEST(test_size_rdtsc);
     RUN_TEST(test_size_syscall);
     RUN_TEST(test_size_mov_reg_imm32);
     RUN_TEST(test_size_mov_reg_imm64);

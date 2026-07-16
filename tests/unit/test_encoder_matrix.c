@@ -310,7 +310,7 @@ void test_control_flow_and_fixed_size_matrix(void) {
         OPCODE_JLE, OPCODE_JZ, OPCODE_JNZ, OPCODE_JS, OPCODE_JNS,
     };
     static const OpcodeEnum fixed[] = {
-        OPCODE_RET, OPCODE_SYSCALL, OPCODE_NOP, OPCODE_HLT,
+        OPCODE_RET, OPCODE_SYSCALL, OPCODE_NOP, OPCODE_RDTSC, OPCODE_HLT,
     };
 
     for (size_t op = 0;
@@ -341,7 +341,7 @@ void test_control_flow_and_fixed_size_matrix(void) {
         CHECK_CASE(OPCODE_INT, &operand, 1, 0);
     }
 
-    TEST_ASSERT_EQUAL_size_t(50, g_case_count);
+    TEST_ASSERT_EQUAL_size_t(51, g_case_count);
 }
 
 int main(void) {
