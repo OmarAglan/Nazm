@@ -17,6 +17,7 @@
 #include "modrm.h"
 #include "rex.h"
 #include "immediate.h"
+#include "sse2.h"
 #include <string.h>
 
 /* ── Emit helpers ────────────────────────────────────────────────────────── */
@@ -804,7 +805,10 @@ EncodedInstruction encoder_encode(OpcodeEnum opcode,
                                   const Operand *ops, int op_count,
                                   int64_t resolved_target) {
     switch (opcode) {
-    case OPCODE_MOV:     return enc_mov(ops, op_count);
+    case OPCODE_MOV:
+        return sse2_operands_use_xmm(ops, op_count)
+            ? sse2_encode_move(ops, op_count)
+            : enc_mov(ops, op_count);
     case OPCODE_PUSH:    return enc_push(ops, op_count);
     case OPCODE_POP:     return enc_pop(ops, op_count);
     case OPCODE_LEA:     return enc_lea(ops, op_count);
@@ -825,6 +829,15 @@ EncodedInstruction encoder_encode(OpcodeEnum opcode,
     case OPCODE_DEC:     return enc_unary(ops, op_count, 1);
     case OPCODE_NEG:     return enc_unary(ops, op_count, 3);
     case OPCODE_NOT:     return enc_unary(ops, op_count, 2);
+    case OPCODE_ADDSD:
+    case OPCODE_SUBSD:
+    case OPCODE_MULSD:
+    case OPCODE_DIVSD:
+    case OPCODE_UCOMISD:
+    case OPCODE_XORPD:
+    case OPCODE_CVTSI2SD:
+    case OPCODE_CVTTSD2SI:
+        return sse2_encode(opcode, ops, op_count);
     case OPCODE_TEST:    return enc_test(ops, op_count);
     case OPCODE_SETE:    return enc_setcc(ops, op_count, 0x94);
     case OPCODE_SETNE:   return enc_setcc(ops, op_count, 0x95);
@@ -869,7 +882,13 @@ EncodedInstruction encoder_encode(OpcodeEnum opcode,
 int encoder_instruction_size(OpcodeEnum opcode,
                              const Operand *ops, int op_count) {
     switch (opcode) {
-    case OPCODE_MOV:     return size_mov(ops, op_count);
+    case OPCODE_MOV: {
+        if (!sse2_operands_use_xmm(ops, op_count)) {
+            return size_mov(ops, op_count);
+        }
+        EncodedInstruction encoded = sse2_encode_move(ops, op_count);
+        return encoded.error ? MAX_INSTRUCTION_BYTES : encoded.len;
+    }
     case OPCODE_PUSH:
         if (op_count != 1 || ops[0].kind != OP_REG
             || reg_width_bits(ops[0].reg) != 64) return MAX_INSTRUCTION_BYTES;
@@ -916,6 +935,17 @@ int encoder_instruction_size(OpcodeEnum opcode,
                     : opcode == OPCODE_DEC ? 1
                     : opcode == OPCODE_NEG ? 3 : 2;
         EncodedInstruction encoded = enc_unary(ops, op_count, ext);
+        return encoded.error ? MAX_INSTRUCTION_BYTES : encoded.len;
+    }
+    case OPCODE_ADDSD:
+    case OPCODE_SUBSD:
+    case OPCODE_MULSD:
+    case OPCODE_DIVSD:
+    case OPCODE_UCOMISD:
+    case OPCODE_XORPD:
+    case OPCODE_CVTSI2SD:
+    case OPCODE_CVTTSD2SI: {
+        EncodedInstruction encoded = sse2_encode(opcode, ops, op_count);
         return encoded.error ? MAX_INSTRUCTION_BYTES : encoded.len;
     }
     case OPCODE_TEST: {

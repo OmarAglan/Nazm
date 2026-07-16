@@ -7,7 +7,7 @@
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
 - `build.sh test` is the direct no-CMake path and currently runs the same 18 unit-test suites registered for CTest.
-- Current total: 349 portable Unity tests across the 18 suites, plus two
+- Current total: 411 portable Unity tests across the 18 suites, plus two
   Windows-only tests for case-insensitive path identity and UTF-16-to-UTF-8
   argv conversion.
 - CTest additionally registers `differential_encoder_gas` when GNU `as` and
@@ -105,12 +105,20 @@ accepted, adjacent overflow values are rejected, and unknown directives do not
 silently disappear. A label attached to `.مساحة_صفرية 0` remains defined at the
 current `.data` offset even though the directive emits no bytes.
 
+Focused scalar-decimal tests pin all 16 Arabic decimal-register names, reject
+them as memory bases, and verify exact bytes for 64-bit bit transport between
+general registers, decimal registers, and memory. They also cover
+`جمع_عشري`/`طرح_عشري`/`ضرب_عشري`/`قسمة_عشرية`,
+`مقارنة_عشرية`/`خلاف_عشري`, and both integer/decimal conversions across
+legacy and extended registers. The differential stream independently compares
+the same canonical forms with GNU `as`.
+
 ## Unicode Contract Tests
 
 `test_unicode.c` rejects non-shortest UTF-8, surrogate encodings, values above
 U+10FFFF, truncation, and invalid continuation bytes. `test_keywords.c` pins
 every canonical 0.4 mnemonic, unvowelled spelling, and diagnostic-only mapping
-for removed 0.3 names. `test_lexer.c` pins all 16 descriptive register names,
+for removed 0.3 names. `test_lexer.c` pins all 80 canonical register names,
 rejects numeric/old aliases, verifies malformed UTF-8 diagnostics, and preserves canonically
 equivalent but byte-distinct label spellings as separate identifiers. The
 language contract is documented in `Docs/UNICODE.md`.
@@ -121,7 +129,7 @@ When GNU `as` and `objcopy` are discoverable at configure time, CTest builds
 `nazm_differential_emitter` and registers `differential_encoder_gas`.
 `tests/differential/gas_reference.s` is a curated corpus of forms for which GNU
 and Nazm intentionally select the same valid encoding; it currently compares
-141 logical `.text` bytes. MinGW COFF alignment NOPs are accepted only as a
+217 logical `.text` bytes. MinGW COFF alignment NOPs are accepted only as a
 trailing all-`0x90` suffix. This test does not claim that one legal encoding is
 more correct merely because it is shorter.
 
@@ -220,9 +228,9 @@ hand-written examples:
 
 `Docs/generated/nazm_capabilities_v1.json` now records the implemented source,
 instruction-width, directive, section, symbol, and relocation boundary.
-`integration_capabilities_contract` checks that its 37 instruction names, 16
+`integration_capabilities_contract` checks that its 61 instruction names, 80
 registers, directives, and fixture paths still match the owning C tables.
-`integration_baa_coverage_fixtures` assembles the three focused Baa-form
+`integration_baa_coverage_fixtures` assembles the four focused Baa-form
 fixtures to both ELF64 and COFF. Baa's generated `baa-nazm-coverage-v1`
 attaches every currently `supported` inventory row to one of those fixtures;
 partial and unsupported rows are intentionally not parity success.

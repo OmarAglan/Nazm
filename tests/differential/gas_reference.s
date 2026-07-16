@@ -35,6 +35,19 @@ shl r8, 1
 shr r9, 2
 sar r10, cl
 
+movq xmm0, rax
+movq r9, xmm10
+movq xmm15, QWORD PTR [r12 + 8]
+movq QWORD PTR [rbp - 8], xmm8
+addsd xmm0, xmm1
+subsd xmm8, xmm15
+mulsd xmm2, xmm3
+divsd xmm14, xmm9
+ucomisd xmm0, xmm1
+xorpd xmm0, xmm1
+cvtsi2sd xmm9, r10d
+cvttsd2si r10, xmm9
+
 jmp r11
 call r12
 ret

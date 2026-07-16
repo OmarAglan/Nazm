@@ -21,8 +21,12 @@ int reg_requires_rex_byte(RegId r);
 /* Return the 3-bit register field (strips REX bit) */
 int reg_field(RegId r);
 
-/* Return the architectural GPR index (RAX=0 ... R15=15), or -1. */
+/* Return the architectural register index within its GPR/XMM class, or -1. */
 int reg_index(RegId r);
 
-/* Return 8, 16, 32, or 64 for a general-purpose register, or 0. */
+/* Return 8/16/32/64 for a GPR, 128 for XMM, or 0. */
 int reg_width_bits(RegId r);
+
+/* Register-class predicates. */
+int reg_is_gpr(RegId r);
+int reg_is_xmm(RegId r);

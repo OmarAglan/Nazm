@@ -186,6 +186,55 @@ int main(int argc, char **argv) {
     };
     EMIT(OPCODE_SAR, sar_r10_cl);
 
+    Operand mov_xmm0_rax[] = {
+        reg_operand(REG_XMM0), reg_operand(REG_RAX),
+    };
+    EMIT(OPCODE_MOV, mov_xmm0_rax);
+    Operand mov_r9_xmm10[] = {
+        reg_operand(REG_R9), reg_operand(REG_XMM10),
+    };
+    EMIT(OPCODE_MOV, mov_r9_xmm10);
+    Operand mov_xmm15_r12_mem[] = {
+        reg_operand(REG_XMM15), memory_operand(REG_R12, 8),
+    };
+    EMIT(OPCODE_MOV, mov_xmm15_r12_mem);
+    Operand mov_rbp_mem_xmm8[] = {
+        memory_operand(REG_RBP, -8), reg_operand(REG_XMM8),
+    };
+    EMIT(OPCODE_MOV, mov_rbp_mem_xmm8);
+    Operand addsd_xmm0_xmm1[] = {
+        reg_operand(REG_XMM0), reg_operand(REG_XMM1),
+    };
+    EMIT(OPCODE_ADDSD, addsd_xmm0_xmm1);
+    Operand subsd_xmm8_xmm15[] = {
+        reg_operand(REG_XMM8), reg_operand(REG_XMM15),
+    };
+    EMIT(OPCODE_SUBSD, subsd_xmm8_xmm15);
+    Operand mulsd_xmm2_xmm3[] = {
+        reg_operand(REG_XMM2), reg_operand(REG_XMM3),
+    };
+    EMIT(OPCODE_MULSD, mulsd_xmm2_xmm3);
+    Operand divsd_xmm14_xmm9[] = {
+        reg_operand(REG_XMM14), reg_operand(REG_XMM9),
+    };
+    EMIT(OPCODE_DIVSD, divsd_xmm14_xmm9);
+    Operand ucomisd_xmm0_xmm1[] = {
+        reg_operand(REG_XMM0), reg_operand(REG_XMM1),
+    };
+    EMIT(OPCODE_UCOMISD, ucomisd_xmm0_xmm1);
+    Operand xorpd_xmm0_xmm1[] = {
+        reg_operand(REG_XMM0), reg_operand(REG_XMM1),
+    };
+    EMIT(OPCODE_XORPD, xorpd_xmm0_xmm1);
+    Operand cvtsi2sd_xmm9_r10d[] = {
+        reg_operand(REG_XMM9), reg_operand(REG_R10D),
+    };
+    EMIT(OPCODE_CVTSI2SD, cvtsi2sd_xmm9_r10d);
+    Operand cvttsd2si_r10_xmm9[] = {
+        reg_operand(REG_R10), reg_operand(REG_XMM9),
+    };
+    EMIT(OPCODE_CVTTSD2SI, cvttsd2si_r10_xmm9);
+
     Operand jmp_r11[] = { reg_operand(REG_R11) };
     EMIT(OPCODE_JMP, jmp_r11);
     Operand call_r12[] = { reg_operand(REG_R12) };

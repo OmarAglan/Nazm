@@ -61,6 +61,7 @@ set(NAZM_LIBRARY_SOURCES
 
     src/encoder/encoder.c
     src/encoder/table.c
+    src/encoder/sse2.c
     src/encoder/modrm.c
     src/encoder/rex.c
     src/encoder/immediate.c

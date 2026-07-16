@@ -684,6 +684,86 @@ void test_enc_test_rejects_out_of_range_imm32(void) {
     check_error(OPCODE_TEST, ops, 2);
 }
 
+void test_enc_scalar_sse2_moves(void) {
+    {
+        uint8_t expected[]={0x66,0x48,0x0F,0x6E,0xC0};
+        ENC(OPCODE_MOV, reg_op(REG_XMM0), reg_op(REG_RAX));
+    }
+    {
+        uint8_t expected[]={0x66,0x4D,0x0F,0x7E,0xD1};
+        ENC(OPCODE_MOV, reg_op(REG_R9), reg_op(REG_XMM10));
+    }
+    {
+        uint8_t expected[]={0xF3,0x45,0x0F,0x7E,0x7C,0x24,0x08};
+        ENC(OPCODE_MOV, reg_op(REG_XMM15), memd_op(REG_R12, 8));
+    }
+    {
+        uint8_t expected[]={0x66,0x44,0x0F,0xD6,0x45,0xF8};
+        ENC(OPCODE_MOV, memd_op(REG_RBP, -8), reg_op(REG_XMM8));
+    }
+    {
+        uint8_t expected[]={0xF3,0x45,0x0F,0x7E,0xC1};
+        ENC(OPCODE_MOV, reg_op(REG_XMM8), reg_op(REG_XMM9));
+    }
+}
+
+void test_enc_scalar_sse2_arithmetic_and_compare(void) {
+    {
+        uint8_t expected[]={0xF2,0x0F,0x58,0xC1};
+        ENC(OPCODE_ADDSD, reg_op(REG_XMM0), reg_op(REG_XMM1));
+    }
+    {
+        uint8_t expected[]={0xF2,0x45,0x0F,0x5C,0xC7};
+        ENC(OPCODE_SUBSD, reg_op(REG_XMM8), reg_op(REG_XMM15));
+    }
+    {
+        uint8_t expected[]={0xF2,0x0F,0x59,0xD3};
+        ENC(OPCODE_MULSD, reg_op(REG_XMM2), reg_op(REG_XMM3));
+    }
+    {
+        uint8_t expected[]={0xF2,0x45,0x0F,0x5E,0xF1};
+        ENC(OPCODE_DIVSD, reg_op(REG_XMM14), reg_op(REG_XMM9));
+    }
+    {
+        uint8_t expected[]={0x66,0x0F,0x2E,0xC1};
+        ENC(OPCODE_UCOMISD, reg_op(REG_XMM0), reg_op(REG_XMM1));
+    }
+    {
+        uint8_t expected[]={0x66,0x0F,0x57,0xC1};
+        ENC(OPCODE_XORPD, reg_op(REG_XMM0), reg_op(REG_XMM1));
+    }
+}
+
+void test_enc_scalar_sse2_conversions(void) {
+    {
+        uint8_t expected[]={0xF2,0x48,0x0F,0x2A,0xC0};
+        ENC(OPCODE_CVTSI2SD, reg_op(REG_XMM0), reg_op(REG_RAX));
+    }
+    {
+        uint8_t expected[]={0xF2,0x45,0x0F,0x2A,0xCA};
+        ENC(OPCODE_CVTSI2SD, reg_op(REG_XMM9), reg_op(REG_R10D));
+    }
+    {
+        uint8_t expected[]={0xF2,0x48,0x0F,0x2C,0xC0};
+        ENC(OPCODE_CVTTSD2SI, reg_op(REG_RAX), reg_op(REG_XMM0));
+    }
+    {
+        uint8_t expected[]={0xF2,0x45,0x0F,0x2C,0xD1};
+        ENC(OPCODE_CVTTSD2SI, reg_op(REG_R10D), reg_op(REG_XMM9));
+    }
+}
+
+void test_enc_scalar_sse2_rejects_wrong_register_classes(void) {
+    Operand add_gpr[]={reg_op(REG_RAX), reg_op(REG_RBX)};
+    Operand move_narrow[]={reg_op(REG_XMM0), reg_op(REG_EAX)};
+    Operand convert_byte[]={reg_op(REG_XMM0), reg_op(REG_AL)};
+    Operand convert_xmm_dst[]={reg_op(REG_XMM0), reg_op(REG_XMM1)};
+    check_error(OPCODE_ADDSD, add_gpr, 2);
+    check_error(OPCODE_MOV, move_narrow, 2);
+    check_error(OPCODE_CVTSI2SD, convert_byte, 2);
+    check_error(OPCODE_CVTTSD2SI, convert_xmm_dst, 2);
+}
+
 /* ── Instruction sizes ────────────────────────────────────────────────────── */
 void test_size_ret(void)     { TEST_ASSERT_EQUAL_INT(1, encoder_instruction_size(OPCODE_RET, NULL, 0)); }
 void test_size_nop(void)     { TEST_ASSERT_EQUAL_INT(1, encoder_instruction_size(OPCODE_NOP, NULL, 0)); }
@@ -757,6 +837,17 @@ void test_size_push_r8(void) {
     Operand ops[]={reg_op(REG_R8)};
     TEST_ASSERT_EQUAL_INT(2, encoder_instruction_size(OPCODE_PUSH, ops, 1));
 }
+void test_size_scalar_sse2(void) {
+    Operand add[]={reg_op(REG_XMM0), reg_op(REG_XMM1)};
+    Operand move[]={reg_op(REG_XMM15), memd_op(REG_R12, 8)};
+    Operand convert[]={reg_op(REG_XMM0), reg_op(REG_RAX)};
+    TEST_ASSERT_EQUAL_INT(
+        4, encoder_instruction_size(OPCODE_ADDSD, add, 2));
+    TEST_ASSERT_EQUAL_INT(
+        7, encoder_instruction_size(OPCODE_MOV, move, 2));
+    TEST_ASSERT_EQUAL_INT(
+        5, encoder_instruction_size(OPCODE_CVTSI2SD, convert, 2));
+}
 
 /* ── Main ─────────────────────────────────────────────────────────────────── */
 int main(void) {
@@ -779,6 +870,10 @@ int main(void) {
     RUN_TEST(test_enc_setcc_memory_forms);
     RUN_TEST(test_enc_movzx_movsx_width_forms);
     RUN_TEST(test_enc_cqo_and_unsigned_div);
+    RUN_TEST(test_enc_scalar_sse2_moves);
+    RUN_TEST(test_enc_scalar_sse2_arithmetic_and_compare);
+    RUN_TEST(test_enc_scalar_sse2_conversions);
+    RUN_TEST(test_enc_scalar_sse2_rejects_wrong_register_classes);
 
     RUN_TEST(test_enc_mov_rax_42);
     RUN_TEST(test_enc_mov_rcx_0);
@@ -857,6 +952,7 @@ int main(void) {
     RUN_TEST(test_size_rejects_unrepresentable_immediates);
     RUN_TEST(test_size_push);
     RUN_TEST(test_size_push_r8);
+    RUN_TEST(test_size_scalar_sse2);
 
     return UNITY_END();
 }

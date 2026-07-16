@@ -43,9 +43,9 @@
 - Fix approach: Add the API implementation and a small C unit test before promising external embedding support.
 
 **Baa backend coverage is still larger than Nazm's current subset:**
-- Symptoms: the Baa integration baseline still emits SSE2 scalar floating-point,
-  base-index-scale addressing, additional PIC/PIE relocation forms, debug
-  directives, and raw inline GAS. Integer widths, integer extension/division,
+- Symptoms: the Baa integration baseline still emits base-index-scale
+  addressing, additional PIC/PIE relocation forms, debug directives, and raw
+  inline GAS. Integer widths, integer extension/division, scalar-decimal SSE2,
   core data sections, external calls, and symbolic instruction-pointer-relative
   MOV/LEA now have explicit Nazm contracts.
 - Impact: Replacing `gcc -c` with Nazm today would reject valid Baa output or,
@@ -85,7 +85,7 @@
   plus three, producing invalid bytes (`04/2C/24/0C/34/3C`). The GNU `as`
   differential corpus exposed the mismatch; Nazm now uses the architectural
   plus-two opcodes (`03/2B/23/0B/33/3B`), pinned by both a focused unit test
-  and a 141-byte external comparison.
+  and a 217-byte external comparison.
 - IMUL now accepts 16/32/64-bit base/displacement memory sources using
   `0F AF /r`; focused byte tests cover REX, SIB, forced zero displacement, and
   disp8, while the size matrix and GNU `as` differential stream cover the
@@ -201,7 +201,8 @@
   source-level matrices classify every source; nine sources pass real
   GAS/Nazm object, link, and runtime parity in the Windows/Linux shadow jobs.
 - Remaining problem: expand parity through global/string data, external and
-  PC-relative relocations, read-only sections, and the scalar SSE2 surface.
+  PC-relative relocations, read-only sections, and Baa admission of the
+  implemented scalar-decimal surface.
 - Implementation complexity: High; the next wave spans parser, relocation,
   object-writer, emitter, and cross-platform linker contracts.
 

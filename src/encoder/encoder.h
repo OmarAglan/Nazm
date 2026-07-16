@@ -37,12 +37,20 @@ typedef enum {
     REG_R8B, REG_R9B, REG_R10B, REG_R11B,
     REG_R12B, REG_R13B, REG_R14B, REG_R15B,
 
+    /* 128-bit XMM register identities used by scalar SSE2 instructions. */
+    REG_XMM0,  REG_XMM1,  REG_XMM2,  REG_XMM3,
+    REG_XMM4,  REG_XMM5,  REG_XMM6,  REG_XMM7,
+    REG_XMM8,  REG_XMM9,  REG_XMM10, REG_XMM11,
+    REG_XMM12, REG_XMM13, REG_XMM14, REG_XMM15,
+
     REG_INVALID = 0xFF,
 } RegId;
 
 /* Width/index metadata shared by the parser and encoder. */
 int reg_index(RegId r);
 int reg_width_bits(RegId r);
+int reg_is_gpr(RegId r);
+int reg_is_xmm(RegId r);
 
 /* ── Operand kinds ───────────────────────────────────────────────────────── */
 typedef enum {
@@ -90,6 +98,16 @@ typedef enum {
     OPCODE_INC,       /* زد    */
     OPCODE_DEC,       /* انقص  */
     OPCODE_NEG,       /* اعكس_الإشارة */
+
+    /* Scalar SSE2 */
+    OPCODE_ADDSD,     /* جمع_عشري */
+    OPCODE_SUBSD,     /* طرح_عشري */
+    OPCODE_MULSD,     /* ضرب_عشري */
+    OPCODE_DIVSD,     /* قسمة_عشرية */
+    OPCODE_UCOMISD,   /* مقارنة_عشرية */
+    OPCODE_XORPD,     /* خلاف_عشري */
+    OPCODE_CVTSI2SD,  /* تحويل_صحيح_إلى_عشري */
+    OPCODE_CVTTSD2SI, /* تحويل_عشري_إلى_صحيح */
 
     /* Logic */
     OPCODE_AND,       /* و_بتيا */

@@ -108,7 +108,9 @@ At minimum, the current Baa backend requires:
 - Base-plus-displacement memory operands and symbol-address operands.
 - SSE2 scalar floating-point forms currently emitted by Baa:
   `addsd`, `subsd`, `mulsd`, `divsd`, `ucomisd`, `xorpd`, `cvtsi2sd`, and
-  `cvttsd2si`.
+  `cvttsd2si`. **Implemented in Nazm with Arabic-only decimal-register and
+  instruction names; admission through Baa's generated shadow corpus remains
+  a separate producer-side gate.**
 
 ### Sections, Symbols, and Relocations
 
@@ -168,7 +170,7 @@ that is unrelated to the Arabic-first goal.
 - Convert the inventory into Nazm acceptance fixtures and a coverage matrix.
   **Complete for the current capability boundary in
   `baa-nazm-coverage-v1`: every emitted form is classified, and every
-  `supported` form points to one of the three checked ELF64/COFF fixtures under
+  `supported` form points to one of the four checked ELF64/COFF fixtures under
   `tests/fixtures/baa_coverage/`. `partial` and `unsupported` rows remain open
   work, not successful coverage.**
 
@@ -184,6 +186,10 @@ that is unrelated to the Arabic-first goal.
   PC32 relocations for local or external Arabic symbols and the ELF64/COFF
   writers preserve them; Baa must consume this form explicitly before its
   global-value corpus rows can be admitted.
+- The Arabic-only scalar-decimal boundary is implemented as
+  `سجل_عشري_٠` through `سجل_عشري_١٥` plus the eight canonical instructions
+  listed above. Unsupported register classes or operand combinations fail
+  explicitly; there is no Latin source alias or GAS fallback.
 
 ### Stage D: Atomic Nazm Cutover
 

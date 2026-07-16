@@ -19,7 +19,7 @@ SRC="src/alloc/arena.c src/unicode/arabic.c src/error/error.c \
      src/parser/parser.c \
      src/symtable/symtable.c \
      src/passes/pass1.c src/passes/pass2.c \
-     src/encoder/encoder.c src/encoder/table.c \
+     src/encoder/encoder.c src/encoder/table.c src/encoder/sse2.c \
      src/encoder/modrm.c src/encoder/rex.c src/encoder/immediate.c \
      src/output/output.c src/output/elf64.c src/output/coff.c src/output/symbols.c \
      src/cli/args.c src/cli/listing.c"

@@ -651,8 +651,38 @@ void test_parse_arabic_integer_width_registers(void) {
 }
 
 void test_parse_memory_base_requires_64_bits(void) {
-    ParseResult r = parse("انقل سجل_المركم، [سجل_العداد_٣٢]");
-    TEST_ASSERT_TRUE(error_has_any(&r.errors));
+    ParseResult narrow = parse("انقل سجل_المركم، [سجل_العداد_٣٢]");
+    TEST_ASSERT_TRUE(error_has_any(&narrow.errors));
+
+    ParseResult decimal = parse("انقل سجل_المركم، [سجل_عشري_٠]");
+    TEST_ASSERT_TRUE(error_has_any(&decimal.errors));
+}
+
+void test_parse_decimal_registers_and_scalar_sse2(void) {
+    ParseResult r = parse(
+        "انقل سجل_عشري_٠، سجل_المركم\n"
+        "انقل سجل_عام_٩، سجل_عشري_١٠\n"
+        "جمع_عشري سجل_عشري_٠، سجل_عشري_١\n"
+        "طرح_عشري سجل_عشري_٢، سجل_عشري_٣\n"
+        "ضرب_عشري سجل_عشري_٤، سجل_عشري_٥\n"
+        "قسمة_عشرية سجل_عشري_٦، سجل_عشري_٧\n"
+        "مقارنة_عشرية سجل_عشري_٨، سجل_عشري_٩\n"
+        "خلاف_عشري سجل_عشري_١٠، سجل_عشري_١١\n"
+        "تحويل_صحيح_إلى_عشري سجل_عشري_١٢، سجل_عام_١٣\n"
+        "تحويل_عشري_إلى_صحيح سجل_عام_١٤، سجل_عشري_١٥\n"
+    );
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+    TEST_ASSERT_EQUAL_INT(10, (int)r.instructions.count);
+    TEST_ASSERT_EQUAL_INT(REG_XMM0, instr(&r, 0).ops[0].reg);
+    TEST_ASSERT_EQUAL_INT(REG_XMM10, instr(&r, 1).ops[1].reg);
+    TEST_ASSERT_EQUAL_INT(OPCODE_ADDSD, instr(&r, 2).opcode);
+    TEST_ASSERT_EQUAL_INT(OPCODE_SUBSD, instr(&r, 3).opcode);
+    TEST_ASSERT_EQUAL_INT(OPCODE_MULSD, instr(&r, 4).opcode);
+    TEST_ASSERT_EQUAL_INT(OPCODE_DIVSD, instr(&r, 5).opcode);
+    TEST_ASSERT_EQUAL_INT(OPCODE_UCOMISD, instr(&r, 6).opcode);
+    TEST_ASSERT_EQUAL_INT(OPCODE_XORPD, instr(&r, 7).opcode);
+    TEST_ASSERT_EQUAL_INT(OPCODE_CVTSI2SD, instr(&r, 8).opcode);
+    TEST_ASSERT_EQUAL_INT(OPCODE_CVTTSD2SI, instr(&r, 9).opcode);
 }
 
 /* ── Main ──────────────────────────────────────────────────────────────────*/
@@ -747,6 +777,7 @@ int main(void) {
     RUN_TEST(test_parse_extended_registers);
     RUN_TEST(test_parse_arabic_integer_width_registers);
     RUN_TEST(test_parse_memory_base_requires_64_bits);
+    RUN_TEST(test_parse_decimal_registers_and_scalar_sse2);
 
     return UNITY_END();
 }

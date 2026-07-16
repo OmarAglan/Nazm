@@ -27,6 +27,16 @@ const Keyword KEYWORD_TABLE[] = {
     { "انقص",           OPCODE_DEC      },  /* dec  */
     { "اعكس_الإشارة",   OPCODE_NEG      },  /* neg  */
 
+    /* ── Scalar SSE2 ───────────────────────────────── */
+    { "جمع_عشري",       OPCODE_ADDSD     },  /* addsd */
+    { "طرح_عشري",       OPCODE_SUBSD     },  /* subsd */
+    { "ضرب_عشري",       OPCODE_MULSD     },  /* mulsd */
+    { "قسمة_عشرية",     OPCODE_DIVSD     },  /* divsd */
+    { "مقارنة_عشرية",   OPCODE_UCOMISD   },  /* ucomisd */
+    { "خلاف_عشري",      OPCODE_XORPD     },  /* xorpd */
+    { "تحويل_صحيح_إلى_عشري", OPCODE_CVTSI2SD  }, /* cvtsi2sd */
+    { "تحويل_عشري_إلى_صحيح", OPCODE_CVTTSD2SI }, /* cvttsd2si */
+
     /* ── Logic ─────────────────────────────────────── */
     { "و_بتيا",         OPCODE_AND      },  /* and  */
     { "أو_بتيا",        OPCODE_OR       },  /* or   */
