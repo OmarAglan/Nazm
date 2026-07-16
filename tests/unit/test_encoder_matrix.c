@@ -204,6 +204,7 @@ void test_imul_size_matrix(void) {
     };
 
     check_register_pair_forms(OPCODE_IMUL);
+    check_register_memory_forms(OPCODE_IMUL);
     for (int dst = REG_RAX; dst <= REG_R15; dst++) {
         for (int src = REG_RAX; src <= REG_R15; src++) {
             for (size_t i = 0;
@@ -219,7 +220,7 @@ void test_imul_size_matrix(void) {
         }
     }
 
-    TEST_ASSERT_EQUAL_size_t(2304, g_case_count);
+    TEST_ASSERT_EQUAL_size_t(4864, g_case_count);
 }
 
 void test_single_register_size_matrix(void) {
@@ -277,6 +278,29 @@ void test_test_and_shift_size_matrix(void) {
     TEST_ASSERT_EQUAL_size_t(624, g_case_count);
 }
 
+void test_setcc_size_matrix(void) {
+    static const OpcodeEnum opcodes[] = {
+        OPCODE_SETE, OPCODE_SETNE, OPCODE_SETG, OPCODE_SETL,
+        OPCODE_SETGE, OPCODE_SETLE, OPCODE_SETA, OPCODE_SETB,
+        OPCODE_SETAE, OPCODE_SETBE, OPCODE_SETP, OPCODE_SETNP,
+    };
+
+    for (size_t op = 0; op < sizeof(opcodes) / sizeof(opcodes[0]); op++) {
+        for (int reg = REG_AL; reg <= REG_R15B; reg++) {
+            Operand operand = reg_operand((RegId)reg);
+            CHECK_CASE(opcodes[op], &operand, 1, 0);
+        }
+        for (int base = REG_RAX; base <= REG_R15; base++) {
+            for (int variant = 0; variant < 10; variant++) {
+                Operand operand = memory_operand((RegId)base, variant);
+                CHECK_CASE(opcodes[op], &operand, 1, 0);
+            }
+        }
+    }
+
+    TEST_ASSERT_EQUAL_size_t(2112, g_case_count);
+}
+
 void test_control_flow_and_fixed_size_matrix(void) {
     static const OpcodeEnum direct_control[] = {
         OPCODE_JMP, OPCODE_CALL,
@@ -328,6 +352,7 @@ int main(void) {
     RUN_TEST(test_imul_size_matrix);
     RUN_TEST(test_single_register_size_matrix);
     RUN_TEST(test_test_and_shift_size_matrix);
+    RUN_TEST(test_setcc_size_matrix);
     RUN_TEST(test_control_flow_and_fixed_size_matrix);
     return UNITY_END();
 }

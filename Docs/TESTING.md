@@ -71,7 +71,7 @@ CTest registers the unit tests listed in `tests/CMakeLists.txt` using the `unit_
 
 ## Encoder Size Matrix
 
-`tests/unit/test_encoder_matrix.c` generates 28,866 valid encoding cases. It
+`tests/unit/test_encoder_matrix.c` generates 33,538 valid encoding cases. It
 crosses every supported operand form with all 16 registers, memory bases that
 exercise REX/SIB and displacement widths, immediate-width boundaries, and
 direct/register control flow. Every case requires
@@ -88,6 +88,16 @@ load/store and LEA bytes across 8/32/64-bit register cases, unresolved-symbol
 diagnostics, the PC32 displacement-field offset, ELF64 `R_X86_64_PC32` with
 addend `-4`, and COFF `IMAGE_REL_AMD64_REL32`. The Baa movement fixture
 assembles the same forms through the public CLI into both object formats.
+
+Focused IMUL tests pin 16/32/64-bit register-from-memory bytes, including
+extended destination/base registers, SIB, forced zero displacement, and disp8.
+The size matrix crosses all 16 destinations, all 16 memory bases, and ten
+displacement shapes; the GNU `as` differential stream independently checks a
+64-bit extended-register disp32 case.
+
+The SETcc matrix crosses all 12 conditions with every 8-bit register and every
+base/displacement memory shape. Focused tests pin forced RBP displacement and
+extended R12 SIB/disp32 bytes, and the GNU `as` stream checks the memory form.
 
 Pass tests also pin data-directive semantics: directives must appear in
 `.بيانات`, operand kinds must match, 8/16/32-bit signed/unsigned boundaries are

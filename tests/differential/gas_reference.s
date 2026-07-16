@@ -19,8 +19,10 @@ and r15, -129
 or rax, QWORD PTR [rbp]
 xor rbx, r12
 cmp r9, 127
+sete BYTE PTR [r12 + 128]
 
 imul r8, r9
+imul r14, QWORD PTR [r13 + 128]
 imul r10, r11, -129
 idiv r12
 inc r13

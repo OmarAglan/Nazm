@@ -153,19 +153,30 @@ static void emit_rr(Buf *b, uint8_t opcode,
  * Handles: [base], [base+disp8], [base+disp32].
  * Special cases: RSP/R12 need SIB; RBP/R13 need disp8=0.
  */
+static void emit_mem_address(Buf *b, int modrm_reg,
+                             RegId base, int32_t disp);
+
 static void emit_mem(Buf *b, uint8_t opcode,
                      RegId reg_field,
                      RegId base, int32_t disp, int width) {
-    bool need_sib = (rf(base) == 4);  /* RSP/R12 always need SIB */
-    int rm_field = need_sib ? 4 : rf(base);
-
     emit_width_prefix(b, width);
     emit_rex_for_width(b, width, reg_field, base);
     emit(b, opcode);
+    emit_mem_address(b, rf(reg_field), base, disp);
+}
+
+/*
+ * Emit ModRM + optional SIB/displacement after a caller-owned opcode sequence.
+ * This is used by two-byte instructions such as IMUL (0F AF /r).
+ */
+static void emit_mem_address(Buf *b, int modrm_reg,
+                             RegId base, int32_t disp) {
+    bool need_sib = (rf(base) == 4);
+    int rm_field = need_sib ? 4 : rf(base);
 
     if (disp == 0 && rf(base) != 5) {
         /* mod=00, no disp (except RBP/R13 which must use mod=01, disp=0) */
-        emit(b, modrm_byte(0, rf(reg_field), rm_field));
+        emit(b, modrm_byte(0, modrm_reg, rm_field));
         if (need_sib) {
             emit(b, sib_byte(0, 4, rf(base)));
         }
@@ -174,7 +185,7 @@ static void emit_mem(Buf *b, uint8_t opcode,
 
     if (disp >= -128 && disp <= 127) {
         /* mod=01, disp8 */
-        emit(b, modrm_byte(1, rf(reg_field), rm_field));
+        emit(b, modrm_byte(1, modrm_reg, rm_field));
         if (need_sib) {
             emit(b, sib_byte(0, 4, rf(base)));
         }
@@ -183,7 +194,7 @@ static void emit_mem(Buf *b, uint8_t opcode,
     }
 
     /* mod=10, disp32 */
-    emit(b, modrm_byte(2, rf(reg_field), rm_field));
+    emit(b, modrm_byte(2, modrm_reg, rm_field));
     if (need_sib) {
         emit(b, sib_byte(0, 4, rf(base)));
     }
@@ -463,14 +474,30 @@ static EncodedInstruction enc_unary(const Operand *ops, int n,
 static EncodedInstruction enc_imul(const Operand *ops, int n) {
     if (n < 2) return make_error();
     Buf b = {0};
-    if (n == 2 && ops[0].kind == OP_REG && ops[1].kind == OP_REG) {
-        if (!same_register_width(ops[0].reg, ops[1].reg)) return make_error();
+    if (n == 2 && ops[0].kind == OP_REG &&
+        (ops[1].kind == OP_REG || operand_is_mem(&ops[1]))) {
         int width = reg_width_bits(ops[0].reg);
         if (width == 8) return make_error();
+        if (!valid_integer_width(width)) return make_error();
+
+        if (ops[1].kind == OP_REG) {
+            if (!same_register_width(ops[0].reg, ops[1].reg))
+                return make_error();
+            emit_width_prefix(&b, width);
+            emit_rex_for_width(&b, width, ops[0].reg, ops[1].reg);
+            emit(&b, 0x0F);
+            emit(&b, 0xAF);
+            emit(&b, modrm_byte(3, rf(ops[0].reg), rf(ops[1].reg)));
+            return from_buf(&b);
+        }
+
+        if (reg_width_bits(ops[1].mem.base) != 64) return make_error();
         emit_width_prefix(&b, width);
-        emit_rex_for_width(&b, width, ops[0].reg, ops[1].reg);
-        emit(&b, 0x0F); emit(&b, 0xAF);
-        emit(&b, modrm_byte(3, rf(ops[0].reg), rf(ops[1].reg)));
+        emit_rex_for_width(&b, width, ops[0].reg, ops[1].mem.base);
+        emit(&b, 0x0F);
+        emit(&b, 0xAF);
+        emit_mem_address(
+            &b, rf(ops[0].reg), ops[1].mem.base, operand_disp(&ops[1]));
         return from_buf(&b);
     }
     if (n == 3 && ops[0].kind == OP_REG && ops[1].kind == OP_REG
@@ -616,14 +643,27 @@ static EncodedInstruction enc_test(const Operand *ops, int n) {
 
 static EncodedInstruction enc_setcc(const Operand *ops, int n,
                                     uint8_t opcode2) {
-    if (n != 1 || ops[0].kind != OP_REG
-        || reg_width_bits(ops[0].reg) != 8) return make_error();
+    if (n != 1) return make_error();
     Buf b = {0};
-    emit_rex_for_width(&b, 8, REG_INVALID, ops[0].reg);
-    emit(&b, 0x0F);
-    emit(&b, opcode2);
-    emit(&b, modrm_byte(3, 0, rf(ops[0].reg)));
-    return from_buf(&b);
+    if (ops[0].kind == OP_REG) {
+        if (reg_width_bits(ops[0].reg) != 8) return make_error();
+        emit_rex_for_width(&b, 8, REG_INVALID, ops[0].reg);
+        emit(&b, 0x0F);
+        emit(&b, opcode2);
+        emit(&b, modrm_byte(3, 0, rf(ops[0].reg)));
+        return from_buf(&b);
+    }
+    if (operand_is_mem(&ops[0])) {
+        RegId base = ops[0].mem.base;
+        if (reg_width_bits(base) != 64) return make_error();
+        emit_rex_for_width(&b, 8, REG_INVALID, base);
+        emit(&b, 0x0F);
+        emit(&b, opcode2);
+        /* SETcc uses the fixed /0 ModRM extension. */
+        emit_mem_address(&b, 0, base, operand_disp(&ops[0]));
+        return from_buf(&b);
+    }
+    return make_error();
 }
 
 /* ── JMP (unconditional) ─────────────────────────────────────────────────── */

@@ -86,6 +86,13 @@
   differential corpus exposed the mismatch; Nazm now uses the architectural
   plus-two opcodes (`03/2B/23/0B/33/3B`), pinned by both a focused unit test
   and a 141-byte external comparison.
+- IMUL now accepts 16/32/64-bit base/displacement memory sources using
+  `0F AF /r`; focused byte tests cover REX, SIB, forced zero displacement, and
+  disp8, while the size matrix and GNU `as` differential stream cover the
+  broader form.
+- All SETcc conditions now accept base/displacement memory destinations through
+  the architectural `/0` form. Focused bytes and the size/differential matrices
+  cover forced displacement, SIB, extended bases, and every condition opcode.
 - `.عام` and `.محلي` now persist binding in the symbol table before or after
   label definition. Unannotated labels are local, conflicting or undefined
   declarations diagnose in Arabic, ELF64 emits local-first

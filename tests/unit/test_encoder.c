@@ -221,6 +221,17 @@ void test_enc_setcc_condition_bytes_and_rex(void) {
     }
 }
 
+void test_enc_setcc_memory_forms(void) {
+    {
+        uint8_t expected[]={0x0F,0x94,0x45,0x00};
+        ENC(OPCODE_SETE, mem_op(REG_RBP));
+    }
+    {
+        uint8_t expected[]={0x41,0x0F,0x95,0x84,0x24,0x80,0x00,0x00,0x00};
+        ENC(OPCODE_SETNE, memd_op(REG_R12, 128));
+    }
+}
+
 void test_enc_movzx_movsx_width_forms(void) {
     {
         uint8_t expected[]={0x48,0x0F,0xB6,0xC0};
@@ -605,6 +616,26 @@ void test_enc_imul_rax_rcx(void) {
     ENC(OPCODE_IMUL, reg_op(REG_RAX), reg_op(REG_RCX));
 }
 
+void test_enc_imul_rax_mem_rcx(void) {
+    uint8_t expected[]={0x48,0x0F,0xAF,0x01};
+    ENC(OPCODE_IMUL, reg_op(REG_RAX), mem_op(REG_RCX));
+}
+
+void test_enc_imul_r10_mem_r13_disp8(void) {
+    uint8_t expected[]={0x4D,0x0F,0xAF,0x55,0x10};
+    ENC(OPCODE_IMUL, reg_op(REG_R10), memd_op(REG_R13, 16));
+}
+
+void test_enc_imul_r9d_mem_rsp_disp8(void) {
+    uint8_t expected[]={0x44,0x0F,0xAF,0x4C,0x24,0x08};
+    ENC(OPCODE_IMUL, reg_op(REG_R9D), memd_op(REG_RSP, 8));
+}
+
+void test_enc_imul_ax_mem_rbp_zero_disp(void) {
+    uint8_t expected[]={0x66,0x0F,0xAF,0x45,0x00};
+    ENC(OPCODE_IMUL, reg_op(REG_AX), mem_op(REG_RBP));
+}
+
 void test_enc_imul_rax_rcx_imm8(void) {
     /* REX.W(48) 6B C1 03 */
     uint8_t expected[]={0x48,0x6B,0xC1,0x03};
@@ -745,6 +776,7 @@ int main(void) {
     RUN_TEST(test_enc_width_mismatches_and_narrow_memory_bases_fail);
     RUN_TEST(test_enc_rip_relative_mov_and_lea_bytes);
     RUN_TEST(test_enc_setcc_condition_bytes_and_rex);
+    RUN_TEST(test_enc_setcc_memory_forms);
     RUN_TEST(test_enc_movzx_movsx_width_forms);
     RUN_TEST(test_enc_cqo_and_unsigned_div);
 
@@ -800,6 +832,10 @@ int main(void) {
     RUN_TEST(test_enc_jnz);
 
     RUN_TEST(test_enc_imul_rax_rcx);
+    RUN_TEST(test_enc_imul_rax_mem_rcx);
+    RUN_TEST(test_enc_imul_r10_mem_r13_disp8);
+    RUN_TEST(test_enc_imul_r9d_mem_rsp_disp8);
+    RUN_TEST(test_enc_imul_ax_mem_rbp_zero_disp);
     RUN_TEST(test_enc_imul_rax_rcx_imm8);
     RUN_TEST(test_enc_imul_imm32_boundary);
     RUN_TEST(test_enc_imul_rejects_out_of_range_imm32);

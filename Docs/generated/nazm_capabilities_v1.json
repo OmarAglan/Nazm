@@ -200,6 +200,7 @@
       "width_bits": [16, 32, 64],
       "forms": [
         { "gas": ["register", "register"], "nazm": ["register", "register"] },
+        { "gas": ["memory-base-displacement", "register"], "nazm": ["register", "memory-base-displacement"] },
         {
           "gas": ["immediate-integer", "register"],
           "nazm": ["register", "register", "immediate"],
@@ -319,73 +320,109 @@
       "arabic": "عين_مساو",
       "gas_mnemonics": ["sete"],
       "width_bits": 8,
-      "forms": [{ "gas": ["register"], "nazm": ["register"] }]
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] },
+        { "gas": ["memory-base-displacement"], "nazm": ["memory-base-displacement"] }
+      ]
     },
     {
       "arabic": "عين_غير_مساو",
       "gas_mnemonics": ["setne"],
       "width_bits": 8,
-      "forms": [{ "gas": ["register"], "nazm": ["register"] }]
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] },
+        { "gas": ["memory-base-displacement"], "nazm": ["memory-base-displacement"] }
+      ]
     },
     {
       "arabic": "عين_أكبر",
       "gas_mnemonics": ["setg"],
       "width_bits": 8,
-      "forms": [{ "gas": ["register"], "nazm": ["register"] }]
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] },
+        { "gas": ["memory-base-displacement"], "nazm": ["memory-base-displacement"] }
+      ]
     },
     {
       "arabic": "عين_أصغر",
       "gas_mnemonics": ["setl"],
       "width_bits": 8,
-      "forms": [{ "gas": ["register"], "nazm": ["register"] }]
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] },
+        { "gas": ["memory-base-displacement"], "nazm": ["memory-base-displacement"] }
+      ]
     },
     {
       "arabic": "عين_أكبر_أو_مساو",
       "gas_mnemonics": ["setge"],
       "width_bits": 8,
-      "forms": [{ "gas": ["register"], "nazm": ["register"] }]
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] },
+        { "gas": ["memory-base-displacement"], "nazm": ["memory-base-displacement"] }
+      ]
     },
     {
       "arabic": "عين_أصغر_أو_مساو",
       "gas_mnemonics": ["setle"],
       "width_bits": 8,
-      "forms": [{ "gas": ["register"], "nazm": ["register"] }]
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] },
+        { "gas": ["memory-base-displacement"], "nazm": ["memory-base-displacement"] }
+      ]
     },
     {
       "arabic": "عين_فوق",
       "gas_mnemonics": ["seta"],
       "width_bits": 8,
-      "forms": [{ "gas": ["register"], "nazm": ["register"] }]
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] },
+        { "gas": ["memory-base-displacement"], "nazm": ["memory-base-displacement"] }
+      ]
     },
     {
       "arabic": "عين_تحت",
       "gas_mnemonics": ["setb"],
       "width_bits": 8,
-      "forms": [{ "gas": ["register"], "nazm": ["register"] }]
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] },
+        { "gas": ["memory-base-displacement"], "nazm": ["memory-base-displacement"] }
+      ]
     },
     {
       "arabic": "عين_فوق_أو_مساو",
       "gas_mnemonics": ["setae"],
       "width_bits": 8,
-      "forms": [{ "gas": ["register"], "nazm": ["register"] }]
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] },
+        { "gas": ["memory-base-displacement"], "nazm": ["memory-base-displacement"] }
+      ]
     },
     {
       "arabic": "عين_تحت_أو_مساو",
       "gas_mnemonics": ["setbe"],
       "width_bits": 8,
-      "forms": [{ "gas": ["register"], "nazm": ["register"] }]
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] },
+        { "gas": ["memory-base-displacement"], "nazm": ["memory-base-displacement"] }
+      ]
     },
     {
       "arabic": "عين_تكافؤ",
       "gas_mnemonics": ["setp"],
       "width_bits": 8,
-      "forms": [{ "gas": ["register"], "nazm": ["register"] }]
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] },
+        { "gas": ["memory-base-displacement"], "nazm": ["memory-base-displacement"] }
+      ]
     },
     {
       "arabic": "عين_عدم_تكافؤ",
       "gas_mnemonics": ["setnp"],
       "width_bits": 8,
-      "forms": [{ "gas": ["register"], "nazm": ["register"] }]
+      "forms": [
+        { "gas": ["register"], "nazm": ["register"] },
+        { "gas": ["memory-base-displacement"], "nazm": ["memory-base-displacement"] }
+      ]
     },
     {
       "arabic": "اقفز",
@@ -666,6 +703,7 @@
       "hlt|": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "idivq|register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "imulq|immediate-integer,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "imulq|memory-base-displacement,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "imulq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "jmp|local-symbol": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "jne|local-symbol": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
@@ -702,6 +740,7 @@
       "setae|register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "setb|register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "setbe|register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "sete|memory-base-displacement": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "sete|register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "setg|register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "setge|register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",

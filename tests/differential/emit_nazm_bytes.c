@@ -138,11 +138,19 @@ int main(int argc, char **argv) {
         reg_operand(REG_R9), immediate_operand(127),
     };
     EMIT(OPCODE_CMP, cmp_r9_i8);
+    Operand sete_mem[] = {
+        memory_operand(REG_R12, 128),
+    };
+    EMIT(OPCODE_SETE, sete_mem);
 
     Operand imul_r8_r9[] = {
         reg_operand(REG_R8), reg_operand(REG_R9),
     };
     EMIT(OPCODE_IMUL, imul_r8_r9);
+    Operand imul_r14_mem[] = {
+        reg_operand(REG_R14), memory_operand(REG_R13, 128),
+    };
+    EMIT(OPCODE_IMUL, imul_r14_mem);
     Operand imul_r10_r11_i32[] = {
         reg_operand(REG_R10), reg_operand(REG_R11), immediate_operand(-129),
     };
