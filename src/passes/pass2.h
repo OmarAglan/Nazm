@@ -10,6 +10,7 @@
 #include "../encoder/encoder.h"
 #include "../error/error.h"
 #include "../alloc/arena.h"
+#include "../debug/debug.h"
 
 typedef enum {
     RELOC_SECTION_TEXT = 1,
@@ -52,6 +53,7 @@ typedef struct {
     size_t          bss_size;     /* .bss logical size; no file bytes */
     EmissionSpan   *emissions;    /* one arena-owned span per instruction */
     size_t          emission_count;
+    DebugLineList   debug_lines;
     RelocationList  relocations;
     ErrorList       errors;
 } Pass2Result;

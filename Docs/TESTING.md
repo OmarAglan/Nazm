@@ -7,7 +7,7 @@
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
 - `build.sh test` is the direct no-CMake path and currently runs the same 18 unit-test suites registered for CTest.
-- Current total: 411 portable Unity tests across the 18 suites, plus two
+- Current total: 426 portable Unity tests across the 18 suites, plus two
   Windows-only tests for case-insensitive path identity and UTF-16-to-UTF-8
   argv conversion.
 - CTest additionally registers `differential_encoder_gas` when GNU `as` and
@@ -104,6 +104,14 @@ Pass tests also pin data-directive semantics: directives must appear in
 accepted, adjacent overflow values are rejected, and unknown directives do not
 silently disappear. A label attached to `.مساحة_صفرية 0` remains defined at the
 current `.data` offset even though the directive emits no bytes.
+
+Debug-line tests pin `.ملف`, Arabic-only `.ملف_بايتات`, `.موضع`, and
+`.موضع ٠، ٠، ٠` parsing and validation. Pass 2 records exact instruction
+offsets; ELF64 tests require `.debug_line` plus `.rela.debug_line` and its
+local `.text` section-symbol relocation, while COFF tests require `.debug$S`
+plus `IMAGE_REL_AMD64_SECREL` and `IMAGE_REL_AMD64_SECTION`. The fifth Baa
+coverage fixture assembles the same source-location contract into both object
+formats.
 
 Focused scalar-decimal tests pin all 16 Arabic decimal-register names, reject
 them as memory bases, and verify exact bytes for 64-bit bit transport between
@@ -218,7 +226,9 @@ that boundary.
 
 ## Planned Test Areas
 
-- Link/run tests are planned for at least one ELF64 example on Linux and one COFF example on Windows once CI is available.
+- Keep standalone Nazm CLI acceptance small; Baa's Windows/Linux ecosystem
+  jobs own full object/link/runtime comparison for the complete compiler
+  corpus.
 - Shared helper factories are planned only when repeated test setup justifies them.
 
 ## Baa Parity Gate
@@ -230,10 +240,14 @@ hand-written examples:
 instruction-width, directive, section, symbol, and relocation boundary.
 `integration_capabilities_contract` checks that its 62 instruction names, 80
 registers, directives, and fixture paths still match the owning C tables.
-`integration_baa_coverage_fixtures` assembles the four focused Baa-form
+`integration_baa_coverage_fixtures` assembles the five focused Baa-form
 fixtures to both ELF64 and COFF. Baa's generated `baa-nazm-coverage-v1`
 attaches every currently `supported` inventory row to one of those fixtures;
 partial and unsupported rows are intentionally not parity success.
+
+The checked source-level matrix currently emits all 100 corpus sources for
+both targets. GAS remains Baa's production default until the wider
+quick/full/stress/determinism/release admission set is green through Nazm.
 
 - Generate Baa assembly from its quick, full, and stress suites for both
   `x86_64-linux` and `x86_64-windows`.

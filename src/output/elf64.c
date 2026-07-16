@@ -1,4 +1,5 @@
 #include "elf64.h"
+#include "debug_line.h"
 #include "symbols.h"
 
 #include <stdio.h>
@@ -34,6 +35,7 @@
 #define STB_LOCAL       0
 #define STB_GLOBAL      1
 #define STT_NOTYPE      0
+#define STT_SECTION     3
 #define STV_DEFAULT     0
 
 #define R_X86_64_64     1
@@ -290,6 +292,20 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
         in->relocations, RELOC_SECTION_DATA);
     bool has_rela_read_only_data = has_relocations_in_section(
         in->relocations, RELOC_SECTION_READ_ONLY_DATA);
+    bool has_debug = in->debug_files != NULL &&
+                     in->debug_lines != NULL &&
+                     in->debug_lines->count > 0;
+    DwarfLineSection debug_line = {0};
+    if (has_debug) {
+        debug_line = output_build_dwarf_line(
+            in->debug_files, in->debug_lines, in->text_size, arena);
+        if (!debug_line.ok) {
+            return (OutputResult){
+                .ok = false,
+                .error_message = debug_line.error_message,
+            };
+        }
+    }
 
     OutputSymbolList symbols;
     if (!output_symbols_collect(in->symtable, arena, &symbols)) {
@@ -321,9 +337,12 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     int sh_rela_data = has_rela_data ? next_section++ : 0;
     int sh_rela_read_only_data = has_rela_read_only_data
                                ? next_section++ : 0;
+    int sh_debug_line = has_debug ? next_section++ : 0;
+    int sh_rela_debug_line = has_debug ? next_section++ : 0;
     (void)sh_rela_text;
     (void)sh_rela_data;
     (void)sh_rela_read_only_data;
+    (void)sh_rela_debug_line;
     int sh_symtab = next_section++;
     int sh_strtab = next_section++;
     int sh_shstrtab = next_section++;
@@ -333,7 +352,8 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     OutBuf ob;
     outbuf_init(&ob, arena,
                 64 + in->text_size + in->data_size +
-                in->read_only_data_size + 1024 + (size_t)sh_count * 64);
+                in->read_only_data_size + debug_line.size +
+                1024 + (size_t)sh_count * 64);
 
     uint8_t ehdr[64] = {0};
     ehdr[0] = 0x7F;
@@ -374,6 +394,12 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
             &ob, in->read_only_data_bytes, in->read_only_data_size);
     }
 
+    size_t debug_line_off = 0;
+    if (has_debug) {
+        debug_line_off = ob.size;
+        outbuf_write(&ob, debug_line.data, debug_line.size);
+    }
+
     StrTab strtab;
     strtab_init(&strtab, arena);
 
@@ -385,6 +411,15 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     align_outbuf(&ob, 8);
     size_t symtab_off = ob.size;
     write_sym(&ob, 0, 0, 0, 0, 0, 0);
+    if (has_debug) {
+        write_sym(&ob,
+                  0,
+                  (uint8_t)((STB_LOCAL << 4) | STT_SECTION),
+                  STV_DEFAULT,
+                  (uint16_t)sh_text,
+                  0,
+                  0);
+    }
 
     for (size_t i = 0; i < symbols.count; i++) {
         uint8_t binding = symbols.data[i].binding == SYMBOL_BINDING_GLOBAL
@@ -405,6 +440,7 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                   0);
     }
     size_t symtab_size = ob.size - symtab_off;
+    uint32_t symbol_index_bias = has_debug ? 1u : 0u;
 
     size_t rela_text_off = 0;
     size_t rela_text_size = 0;
@@ -429,7 +465,7 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
 
             write_rela(&ob,
                        (uint64_t)reloc->offset,
-                       symbol_index,
+                       symbol_index + symbol_index_bias,
                        elf_relocation_type(reloc->kind),
                        reloc->addend);
         }
@@ -461,7 +497,7 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
 
             write_rela(&ob,
                        (uint64_t)reloc->offset,
-                       symbol_index,
+                       symbol_index + symbol_index_bias,
                        elf_relocation_type(reloc->kind),
                        reloc->addend);
         }
@@ -493,13 +529,26 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
 
             write_rela(&ob,
                        (uint64_t)reloc->offset,
-                       symbol_index,
+                       symbol_index + symbol_index_bias,
                        elf_relocation_type(reloc->kind),
                        reloc->addend);
         }
 
         rela_read_only_data_size = ob.size - rela_read_only_data_off;
         has_rela_read_only_data = rela_read_only_data_size > 0;
+    }
+
+    size_t rela_debug_line_off = 0;
+    size_t rela_debug_line_size = 0;
+    if (has_debug) {
+        align_outbuf(&ob, 8);
+        rela_debug_line_off = ob.size;
+        write_rela(&ob,
+                   (uint64_t)debug_line.address_relocation_offset,
+                   1,
+                   R_X86_64_64,
+                   0);
+        rela_debug_line_size = ob.size - rela_debug_line_off;
     }
 
     size_t strtab_off = ob.size;
@@ -517,6 +566,10 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     uint32_t sh_rela_read_only_data_name = has_rela_read_only_data
                                          ? strtab_add(
                                                &shstrtab, ".rela.rodata") : 0;
+    uint32_t sh_debug_line_name =
+        has_debug ? strtab_add(&shstrtab, ".debug_line") : 0;
+    uint32_t sh_rela_debug_line_name =
+        has_debug ? strtab_add(&shstrtab, ".rela.debug_line") : 0;
     uint32_t sh_symtab_name = strtab_add(&shstrtab, ".symtab");
     uint32_t sh_strtab_name = strtab_add(&shstrtab, ".strtab");
     uint32_t sh_shstrtab_name = strtab_add(&shstrtab, ".shstrtab");
@@ -625,6 +678,31 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                    24);
     }
 
+    if (has_debug) {
+        write_shdr(&ob,
+                   sh_debug_line_name,
+                   SHT_PROGBITS,
+                   0,
+                   0,
+                   (uint64_t)debug_line_off,
+                   (uint64_t)debug_line.size,
+                   0,
+                   0,
+                   1,
+                   0);
+        write_shdr(&ob,
+                   sh_rela_debug_line_name,
+                   SHT_RELA,
+                   0,
+                   0,
+                   (uint64_t)rela_debug_line_off,
+                   (uint64_t)rela_debug_line_size,
+                   (uint32_t)sh_symtab,
+                   (uint32_t)sh_debug_line,
+                   8,
+                   24);
+    }
+
     write_shdr(&ob,
                sh_symtab_name,
                SHT_SYMTAB,
@@ -633,7 +711,8 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                (uint64_t)symtab_off,
                (uint64_t)symtab_size,
                (uint32_t)sh_strtab,
-               (uint32_t)(symbols.local_count + 1),
+               (uint32_t)(symbols.local_count + 1 +
+                          (has_debug ? 1 : 0)),
                8,
                24);
 

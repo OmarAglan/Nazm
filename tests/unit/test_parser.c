@@ -418,6 +418,27 @@ void test_parse_all_canonical_directive_kinds(void) {
     }
 }
 
+void test_parse_debug_file_and_location_directives(void) {
+    ParseResult result = parse(
+        ".ملف ١، \"مصدر.باء\"\n"
+        ".ملف_بايتات ٢، \"١٢٧،١٢٨\"\n"
+        ".موضع ١، ٤٢، ٧\n");
+    TEST_ASSERT_FALSE(error_has_any(&result.errors));
+    TEST_ASSERT_EQUAL_INT(3, (int)result.instructions.count);
+    TEST_ASSERT_EQUAL_INT(
+        DIRECTIVE_DEBUG_FILE,
+        instr(&result, 0).directive_kind);
+    TEST_ASSERT_EQUAL_INT(
+        DIRECTIVE_DEBUG_FILE_BYTES,
+        instr(&result, 1).directive_kind);
+    TEST_ASSERT_EQUAL_INT(
+        DIRECTIVE_DEBUG_LOCATION,
+        instr(&result, 2).directive_kind);
+    TEST_ASSERT_EQUAL_INT(2, instr(&result, 0).op_count);
+    TEST_ASSERT_EQUAL_INT(2, instr(&result, 1).op_count);
+    TEST_ASSERT_EQUAL_INT(3, instr(&result, 2).op_count);
+}
+
 /* ── Named registers ───────────────────────────────────────────────────────*/
 
 void test_parse_named_register_stack(void) {
@@ -770,6 +791,7 @@ int main(void) {
     RUN_TEST(test_parse_directive_global);
     RUN_TEST(test_parse_directive_data);
     RUN_TEST(test_parse_all_canonical_directive_kinds);
+    RUN_TEST(test_parse_debug_file_and_location_directives);
 
     /* Named registers */
     RUN_TEST(test_parse_named_register_stack);

@@ -10,6 +10,7 @@
 #include "../symtable/symtable.h"
 #include "../error/error.h"
 #include "../alloc/arena.h"
+#include "../debug/debug.h"
 
 typedef struct {
     SymbolTable symtable;
@@ -17,6 +18,7 @@ typedef struct {
     size_t      data_size;   /* total bytes in .data section */
     size_t      read_only_data_size; /* total bytes in .rodata/.rdata */
     size_t      bss_size;    /* zero-initialized bytes in .bss */
+    DebugFileList debug_files;
     ErrorList   errors;
 } Pass1Result;
 

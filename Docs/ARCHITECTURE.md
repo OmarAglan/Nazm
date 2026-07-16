@@ -106,15 +106,19 @@ contract.
 3. `src/main.c` reads the source file and creates pipeline state.
 4. The lexer returns a `TokenArray`.
 5. The parser returns an `InstructionList`.
-6. Pass 1 walks the instruction list, estimates sizes, and records labels in a
-   `SymbolTable`.
+6. Pass 1 walks the instruction list, estimates sizes, records labels in a
+   `SymbolTable`, validates `.ملف`/`.ملف_بايتات` declarations, and resolves
+   their stable file identifiers.
 7. Pass 2 walks the instruction list again, requests final instruction bytes
    from `src/encoder/`, emits `.data` bytes, records one section/offset/size
-   span per parsed statement, and records relocation entries.
+   span per parsed statement, records relocation entries, and binds active
+   `.موضع` locations to exact `.text` byte offsets.
    Pass-one section totals are hard capacities: pass 2 verifies every encoded
    instruction length and the final `.text`/`.data` totals, and reports an
    Arabic internal diagnostic instead of truncating output on disagreement.
-8. The output layer writes ELF64 or COFF bytes, including sections, symbols, string tables, and current relocation records.
+8. The output layer writes ELF64 or COFF bytes, including sections, symbols,
+   string tables, relocation records, and target-specific debug line data:
+   DWARF v4 `.debug_line` for ELF64 or CodeView C13 `.debug$S` for COFF.
 9. The CLI writes the object file, optionally writes a UTF-8 listing from the
    exact pass-two spans, and reports success or Arabic diagnostics.
 
@@ -162,6 +166,14 @@ contract.
   section-relative offset and emitted byte count.
 - The CLI listing renderer uses these entries as its byte/offset authority;
   zero-byte labels and directives remain visible without inventing bytes.
+
+**DebugFileList and DebugLineList**
+- Defined in `src/debug/debug.h`.
+- Pass 1 stores the exact decoded UTF-8 path for each positive file ID.
+- Pass 2 stores file, line, column, and exact `.text` offset rows.
+- `src/output/debug_line.c` serializes the target-neutral rows into DWARF v4
+  or CodeView C13; ELF64 and COFF writers own the corresponding `.text`
+  relocation records.
 
 **OutputBuffer**
 - Defined in `src/output/output.h`.

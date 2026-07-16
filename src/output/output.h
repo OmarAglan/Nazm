@@ -27,6 +27,8 @@ typedef struct {
     size_t          bss_size;
     const SymbolTable *symtable;
     const RelocationList *relocations;
+    const DebugFileList *debug_files;
+    const DebugLineList *debug_lines;
     const char      *source_name; /* for debug info */
 } OutputInput;
 

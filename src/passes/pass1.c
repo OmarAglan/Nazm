@@ -1,5 +1,6 @@
 #include "pass1.h"
 #include "../encoder/encoder.h"
+#include "../unicode/arabic.h"
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
@@ -118,6 +119,261 @@ static void add_directive_error(ErrorList *errors,
                    col,
                    end_col,
                    message);
+}
+
+static const DebugFile *debug_file_find(const DebugFileList *files,
+                                        uint32_t id) {
+    for (size_t i = 0; i < files->count; i++) {
+        if (files->data[i].id == id) {
+            return &files->data[i];
+        }
+    }
+    return NULL;
+}
+
+static void debug_file_push(DebugFileList *files,
+                            Arena *arena,
+                            uint32_t id,
+                            const char *path) {
+    if (files->count >= files->capacity) {
+        size_t new_capacity =
+            files->capacity == 0 ? 8 : files->capacity * 2;
+        DebugFile *new_data =
+            ARENA_ALLOC_N(arena, DebugFile, new_capacity);
+        if (files->data != NULL) {
+            memcpy(
+                new_data, files->data, files->count * sizeof(DebugFile));
+        }
+        files->data = new_data;
+        files->capacity = new_capacity;
+    }
+    files->data[files->count++] = (DebugFile){
+        .id = id,
+        .path = path,
+    };
+}
+
+static const char *decode_debug_path_bytes(
+    const InstructionList *instructions,
+    const Instruction *instr,
+    ErrorList *errors,
+    Arena *arena) {
+    const uint8_t *encoded =
+        (const uint8_t *)instr->ops[1].string.data;
+    size_t encoded_length = instr->ops[1].string.len;
+    char *decoded =
+        ARENA_ALLOC_N(arena, char, encoded_length + 1);
+    size_t decoded_length = 0;
+    size_t offset = 0;
+    bool ended_with_separator = false;
+
+    while (offset < encoded_length) {
+        int value = 0;
+        int digits = 0;
+        while (offset < encoded_length) {
+            uint32_t cp =
+                utf8_next_codepoint(encoded, encoded_length, &offset);
+            if (cp == 0x060C) {
+                ended_with_separator = offset == encoded_length;
+                break;
+            }
+            ended_with_separator = false;
+            if (!is_arabic_digit(cp) || digits >= 3) {
+                add_directive_error(
+                    errors,
+                    arena,
+                    instructions,
+                    instr,
+                    1,
+                    "'.ملف_بايتات' يقبل أرقاما عربية مفصولة بفاصلة عربية");
+                return NULL;
+            }
+            value = value * 10 + arabic_digit_value(cp);
+            digits++;
+        }
+        if (digits == 0 || value > 255 || value == 0) {
+            add_directive_error(
+                errors,
+                arena,
+                instructions,
+                instr,
+                1,
+                "كل عنصر في '.ملف_بايتات' يجب أن يمثل بايت UTF-8 بين 1 و255");
+            return NULL;
+        }
+        decoded[decoded_length++] = (char)(uint8_t)value;
+    }
+
+    if (decoded_length == 0 || ended_with_separator) {
+        add_directive_error(
+            errors,
+            arena,
+            instructions,
+            instr,
+            1,
+            "مسار '.ملف_بايتات' لا يجوز أن يكون فارغا");
+        return NULL;
+    }
+    decoded[decoded_length] = '\0';
+
+    size_t utf8_offset = 0;
+    while (utf8_offset < decoded_length) {
+        size_t codepoint_start = utf8_offset;
+        uint32_t codepoint = utf8_next_codepoint(
+            (const uint8_t *)decoded,
+            decoded_length,
+            &utf8_offset);
+        bool valid_replacement_character =
+            codepoint == 0xFFFD &&
+            utf8_offset - codepoint_start == 3 &&
+            (uint8_t)decoded[codepoint_start] == 0xEF &&
+            (uint8_t)decoded[codepoint_start + 1] == 0xBF &&
+            (uint8_t)decoded[codepoint_start + 2] == 0xBD;
+        if (codepoint == 0xFFFD && !valid_replacement_character) {
+            add_directive_error(
+                errors,
+                arena,
+                instructions,
+                instr,
+                1,
+                "بايتات '.ملف_بايتات' لا تكون مسار UTF-8 صالحا");
+            return NULL;
+        }
+    }
+    return decoded;
+}
+
+static bool validate_debug_file_directive(
+    Pass1Result *result,
+    const InstructionList *instructions,
+    const Instruction *instr,
+    Arena *arena) {
+    if (instr->op_count != 2 ||
+        instr->ops[0].kind != OP_IMM ||
+        instr->ops[1].kind != OP_STRING) {
+        add_directive_error(
+            &result->errors,
+            arena,
+            instructions,
+            instr,
+            -1,
+            "التوجيه '.ملف' يتطلب معرفا موجبا ومسار UTF-8 نصيا");
+        return false;
+    }
+    if (instr->ops[0].imm <= 0 ||
+        (uint64_t)instr->ops[0].imm > UINT32_MAX) {
+        add_directive_error(
+            &result->errors,
+            arena,
+            instructions,
+            instr,
+            0,
+            "معرف '.ملف' يجب أن يكون بين 1 و4294967295");
+        return false;
+    }
+    if (instr->ops[1].string.data == NULL ||
+        instr->ops[1].string.len == 0 ||
+        strlen(instr->ops[1].string.data) !=
+            instr->ops[1].string.len) {
+        add_directive_error(
+            &result->errors,
+            arena,
+            instructions,
+            instr,
+            1,
+            "مسار '.ملف' لا يجوز أن يكون فارغا أو يحتوي صفرا داخليا");
+        return false;
+    }
+
+    const char *path = instr->ops[1].string.data;
+    if (instr->directive_kind == DIRECTIVE_DEBUG_FILE_BYTES) {
+        path = decode_debug_path_bytes(
+            instructions, instr, &result->errors, arena);
+        if (path == NULL) {
+            return false;
+        }
+    }
+
+    uint32_t id = (uint32_t)instr->ops[0].imm;
+    if (debug_file_find(&result->debug_files, id) != NULL) {
+        add_directive_error(
+            &result->errors,
+            arena,
+            instructions,
+            instr,
+            0,
+            "معرف '.ملف' مكرر");
+        return false;
+    }
+    debug_file_push(
+        &result->debug_files, arena, id, path);
+    return true;
+}
+
+static bool validate_debug_location_directive(
+    const InstructionList *instructions,
+    const Instruction *instr,
+    ErrorList *errors,
+    Arena *arena) {
+    if (instr->op_count != 3 ||
+        instr->ops[0].kind != OP_IMM ||
+        instr->ops[1].kind != OP_IMM ||
+        instr->ops[2].kind != OP_IMM) {
+        add_directive_error(
+            errors,
+            arena,
+            instructions,
+            instr,
+            -1,
+            "التوجيه '.موضع' يتطلب معرف ملف ورقم سطر ورقم عمود");
+        return false;
+    }
+
+    int64_t file = instr->ops[0].imm;
+    int64_t line = instr->ops[1].imm;
+    int64_t column = instr->ops[2].imm;
+    if (file == 0 && line == 0 && column == 0) {
+        return true;
+    }
+    if (file <= 0 || (uint64_t)file > UINT32_MAX ||
+        line <= 0 || line > 0x00ffffff ||
+        column <= 0 || column > UINT16_MAX) {
+        add_directive_error(
+            errors,
+            arena,
+            instructions,
+            instr,
+            -1,
+            "قيم '.موضع' يجب أن تكون موجبة وقابلة للتمثيل في دورف وكودفيو");
+        return false;
+    }
+    return true;
+}
+
+static void validate_debug_location_files(
+    const InstructionList *instructions,
+    const DebugFileList *files,
+    ErrorList *errors,
+    Arena *arena) {
+    for (size_t i = 0; i < instructions->count; i++) {
+        const Instruction *instr = &instructions->data[i];
+        if (instr->directive_kind != DIRECTIVE_DEBUG_LOCATION ||
+            instr->op_count != 3 ||
+            instr->ops[0].kind != OP_IMM ||
+            instr->ops[0].imm <= 0 ||
+            (uint64_t)instr->ops[0].imm > UINT32_MAX) {
+            continue;
+        }
+        if (debug_file_find(files, (uint32_t)instr->ops[0].imm) == NULL) {
+            add_directive_error(
+                errors,
+                arena,
+                instructions,
+                instr,
+                0,
+                "معرف الملف في '.موضع' غير معلن بتوجيه '.ملف'");
+        }
+    }
 }
 
 static bool is_data_directive(DirectiveKind directive) {
@@ -353,6 +609,19 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
                 continue;
             }
 
+            if (instr->directive_kind == DIRECTIVE_DEBUG_FILE ||
+                instr->directive_kind == DIRECTIVE_DEBUG_FILE_BYTES) {
+                validate_debug_file_directive(
+                    &result, instructions, instr, arena);
+                continue;
+            }
+
+            if (instr->directive_kind == DIRECTIVE_DEBUG_LOCATION) {
+                validate_debug_location_directive(
+                    instructions, instr, &result.errors, arena);
+                continue;
+            }
+
             SymbolBinding binding;
             if (visibility_directive_binding(instr, &binding)) {
                 if (instr->op_count != 1 ||
@@ -489,6 +758,11 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
 
     report_undefined_visibility_symbols(
         instructions, &result.symtable, &result.errors, arena);
+    validate_debug_location_files(
+        instructions,
+        &result.debug_files,
+        &result.errors,
+        arena);
 
     result.text_size = text_offset;
     result.data_size = data_offset;

@@ -1,4 +1,5 @@
 #include "coff.h"
+#include "debug_line.h"
 #include "symbols.h"
 
 #include <stdio.h>
@@ -16,6 +17,7 @@
 #define COFF_SCN_CNT_CODE        0x00000020u
 #define COFF_SCN_CNT_INIT_DATA   0x00000040u
 #define COFF_SCN_CNT_UNINIT_DATA 0x00000080u
+#define COFF_SCN_MEM_DISCARDABLE 0x02000000u
 #define COFF_SCN_MEM_EXECUTE     0x20000000u
 #define COFF_SCN_MEM_READ        0x40000000u
 #define COFF_SCN_MEM_WRITE       0x80000000u
@@ -26,6 +28,8 @@
 #define COFF_SYM_TYPE_NULL       0u
 #define COFF_REL_AMD64_ADDR64    0x0001u
 #define COFF_REL_AMD64_REL32     0x0004u
+#define COFF_REL_AMD64_SECTION   0x000Au
+#define COFF_REL_AMD64_SECREL    0x000Bu
 
 static void w16(uint8_t *p, uint16_t v) {
     p[0] = (uint8_t)v;
@@ -260,12 +264,29 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
     bool has_read_only_data = in->read_only_data_bytes != NULL &&
                               in->read_only_data_size > 0;
     bool has_bss = in->bss_size > 0;
+    bool has_debug = in->debug_files != NULL &&
+                     in->debug_lines != NULL &&
+                     in->debug_lines->count > 0;
+    CodeViewLineSection debug_line = {0};
+    if (has_debug) {
+        debug_line = output_build_codeview_line(
+            in->debug_files, in->debug_lines, in->text_size, arena);
+        if (!debug_line.ok) {
+            return (OutputResult){
+                .ok = false,
+                .error_message = debug_line.error_message,
+            };
+        }
+    }
     int nsections = 1 + (has_data ? 1 : 0) +
-                    (has_read_only_data ? 1 : 0) + (has_bss ? 1 : 0);
+                    (has_read_only_data ? 1 : 0) + (has_bss ? 1 : 0) +
+                    (has_debug ? 1 : 0);
     int next_section = 2;
     int data_section = has_data ? next_section++ : 0;
     int read_only_data_section = has_read_only_data ? next_section++ : 0;
     int bss_section = has_bss ? next_section++ : 0;
+    int debug_section = has_debug ? next_section++ : 0;
+    (void)debug_section;
 
     OutputSymbolList symbols;
     if (!output_symbols_collect(in->symtable, arena, &symbols)) {
@@ -332,7 +353,14 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
     }
     strtab_finalise(&strtab);
 
-    uint32_t total_symbols = (uint32_t)(1 + symbols.count);
+    if (has_debug && symbols.count > (size_t)UINT32_MAX - 2) {
+        return (OutputResult){
+            .ok = false,
+            .error_message = "عدد رموز كوف مع معلومات التنقيح يتجاوز حد الصيغة",
+        };
+    }
+    uint32_t total_symbols =
+        (uint32_t)(1 + symbols.count + (has_debug ? 1 : 0));
 
     uint32_t hdr_size = 20;
     uint32_t shdrs_size = (uint32_t)(nsections * 40);
@@ -343,6 +371,9 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
     uint32_t read_only_data_raw_ptr = has_read_only_data ? raw_cursor : 0;
     if (has_read_only_data)
         raw_cursor += (uint32_t)in->read_only_data_size;
+    uint32_t debug_raw_ptr = has_debug ? raw_cursor : 0;
+    if (has_debug)
+        raw_cursor += (uint32_t)debug_line.size;
     uint32_t after_raw = raw_cursor;
     uint32_t text_reloc_ptr = text_reloc_count > 0 ? after_raw : 0;
     uint32_t data_reloc_ptr = data_reloc_count > 0
@@ -353,17 +384,25 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
                                             (text_reloc_count +
                                              data_reloc_count) * 10
                                       : 0;
+    uint32_t debug_reloc_ptr = has_debug
+                             ? after_raw +
+                                   (text_reloc_count +
+                                    data_reloc_count +
+                                    read_only_data_reloc_count) * 10
+                             : 0;
     uint32_t after_relocs = after_raw
                           + (text_reloc_count + data_reloc_count +
-                             read_only_data_reloc_count) * 10;
+                             read_only_data_reloc_count +
+                             (has_debug ? 2u : 0u)) * 10;
     uint32_t symtab_ptr = after_relocs;
 
     Buf out;
     buf_init(&out, arena,
              hdr_size + shdrs_size + in->text_size + in->data_size +
-             in->read_only_data_size
+             in->read_only_data_size + debug_line.size
              + ((size_t)text_reloc_count + (size_t)data_reloc_count +
-                (size_t)read_only_data_reloc_count) * 10
+                (size_t)read_only_data_reloc_count +
+                (has_debug ? 2u : 0u)) * 10
              + (size_t)total_symbols * 18
              + strtab.buf.size + 16);
 
@@ -419,6 +458,19 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
                        COFF_SCN_MEM_WRITE | COFF_SCN_ALIGN_1);
     }
 
+    if (has_debug) {
+        write_shdr(&out,
+                   ".debug$S",
+                   (uint32_t)debug_line.size,
+                   debug_raw_ptr,
+                   debug_reloc_ptr,
+                   2,
+                   COFF_SCN_CNT_INIT_DATA |
+                       COFF_SCN_MEM_DISCARDABLE |
+                       COFF_SCN_MEM_READ |
+                       COFF_SCN_ALIGN_1);
+    }
+
     if (in->text_size > 0) {
         buf_write(&out, in->text_bytes, in->text_size);
     }
@@ -430,6 +482,10 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
     if (has_read_only_data) {
         buf_write(
             &out, in->read_only_data_bytes, in->read_only_data_size);
+    }
+
+    if (has_debug) {
+        buf_write(&out, debug_line.data, debug_line.size);
     }
 
     if (text_reloc_count > 0) {
@@ -501,6 +557,21 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
         }
     }
 
+    if (has_debug) {
+        uint32_t text_section_symbol_index =
+            (uint32_t)(1 + symbols.count);
+        write_reloc(
+            &out,
+            (uint32_t)debug_line.section_offset_relocation,
+            text_section_symbol_index,
+            COFF_REL_AMD64_SECREL);
+        write_reloc(
+            &out,
+            (uint32_t)debug_line.section_index_relocation,
+            text_section_symbol_index,
+            COFF_REL_AMD64_SECTION);
+    }
+
     write_sym(&out,
               fname,
               fname_len,
@@ -528,6 +599,17 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
                                       bss_section),
                   COFF_SYM_TYPE_NULL,
                   storage);
+    }
+
+    if (has_debug) {
+        write_sym(&out,
+                  ".text",
+                  5,
+                  0,
+                  0,
+                  1,
+                  COFF_SYM_TYPE_NULL,
+                  COFF_SYM_CLASS_STATIC);
     }
 
     buf_write(&out, strtab.buf.data, strtab.buf.size);

@@ -683,6 +683,20 @@
     { "gas": ".zero", "gas_operands": ["integer"], "arabic": ".مساحة_صفرية", "nazm_operands": ["immediate"] },
     { "gas": ".asciz", "gas_operands": ["string"], "arabic": ".سلسلة_منتهية_بصفر", "nazm_operands": ["string"] },
     {
+      "gas": ".file",
+      "gas_operands": ["expression"],
+      "arabic": ".ملف_بايتات",
+      "nazm_operands": ["positive-file-id", "arabic-decimal-utf8-bytes"],
+      "lowering": "Encode the exact UTF-8 source path as Arabic decimal byte values so generated Nazm remains Arabic-only."
+    },
+    {
+      "gas": ".loc",
+      "gas_operands": ["expression"],
+      "arabic": ".موضع",
+      "nazm_operands": ["file-id", "line", "column"],
+      "lowering": "Use .موضع ٠، ٠، ٠ to clear the active source mapping."
+    },
+    {
       "gas": ".globl",
       "gas_operands": ["symbol"],
       "arabic": ".عام",
@@ -770,6 +784,14 @@
         "target_section": ".text-or-data-or-undefined",
         "elf64": "R_X86_64_64 in .rela.data",
         "coff": "IMAGE_REL_AMD64_ADDR64 in .data relocations"
+      },
+      {
+        "source_form": "debug-line-program-text-address",
+        "nazm_kind": "DEBUG_TEXT_ADDRESS",
+        "source_section": ".debug_line/.debug$S",
+        "target_section": ".text",
+        "elf64": "R_X86_64_64 in .rela.debug_line",
+        "coff": "IMAGE_REL_AMD64_SECREL and IMAGE_REL_AMD64_SECTION in .debug$S"
       }
     ],
     "writer_only_not_source_reachable": [],
@@ -777,11 +799,33 @@
     "data_relocations": true,
     "rip_relative": true
   },
+  "debug_info": {
+    "source_directives": {
+      "human_path": ".ملف",
+      "arabic_only_utf8_transport": ".ملف_بايتات",
+      "location": ".موضع",
+      "clear_location": ".موضع ٠، ٠، ٠"
+    },
+    "elf64": {
+      "format": "DWARF v4 line table",
+      "sections": [".debug_line", ".rela.debug_line"],
+      "text_relocation": "R_X86_64_64"
+    },
+    "coff": {
+      "format": "CodeView C13 line table",
+      "sections": [".debug$S"],
+      "text_relocations": [
+        "IMAGE_REL_AMD64_SECREL",
+        "IMAGE_REL_AMD64_SECTION"
+      ]
+    }
+  },
   "acceptance_fixtures": [
     "tests/fixtures/baa_coverage/حركة-باء.نظم",
     "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
     "tests/fixtures/baa_coverage/بيانات-باء.نظم",
-    "tests/fixtures/baa_coverage/عشري-باء.نظم"
+    "tests/fixtures/baa_coverage/عشري-باء.نظم",
+    "tests/fixtures/baa_coverage/تنقيح-باء.نظم"
   ],
   "baa_acceptance_fixtures": {
     "instructions": {
@@ -860,9 +904,11 @@
     "directives": {
       ".asciz|string": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".data|": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".file|expression": "tests/fixtures/baa_coverage/تنقيح-باء.نظم",
       ".globl|expression": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".globl|symbol": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".local|expression": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".loc|expression": "tests/fixtures/baa_coverage/تنقيح-باء.نظم",
       ".long|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".p2align|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".quad|integer": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
@@ -884,6 +930,6 @@
     "No leave support is implemented.",
     "Latin source and object identifiers are not accepted; the entry symbol remains الرئيسية end to end.",
     "External symbols must retain Arabic names; linking to a Latin platform ABI requires a separately reviewed Arabic bridge.",
-    "RIP-relative symbolic memory is limited to MOV loads/stores and 64-bit LEA; base-index-scale memory and debug directives are not implemented."
+    "RIP-relative symbolic memory is limited to MOV loads/stores and 64-bit LEA; base-index-scale memory is not implemented."
   ]
 }

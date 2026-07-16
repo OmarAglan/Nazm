@@ -114,8 +114,8 @@ if(RIP_PARSER_FOUND EQUAL -1)
 endif()
 
 string(JSON FIXTURE_COUNT LENGTH "${DOCUMENT}" acceptance_fixtures)
-if(NOT FIXTURE_COUNT EQUAL 4)
-    message(FATAL_ERROR "Expected four focused Baa coverage fixtures")
+if(NOT FIXTURE_COUNT EQUAL 5)
+    message(FATAL_ERROR "Expected five focused Baa coverage fixtures")
 endif()
 
 math(EXPR FIXTURE_LAST "${FIXTURE_COUNT} - 1")
@@ -125,6 +125,23 @@ foreach(INDEX RANGE ${FIXTURE_LAST})
         message(FATAL_ERROR "Missing Baa coverage fixture: ${FIXTURE}")
     endif()
 endforeach()
+
+string(JSON ELF_DEBUG_FORMAT GET "${DOCUMENT}" debug_info elf64 format)
+string(JSON COFF_DEBUG_FORMAT GET "${DOCUMENT}" debug_info coff format)
+if(NOT ELF_DEBUG_FORMAT STREQUAL "DWARF v4 line table")
+    message(FATAL_ERROR "ELF64 debug capability must expose a DWARF v4 line table")
+endif()
+if(NOT COFF_DEBUG_FORMAT STREQUAL "CodeView C13 line table")
+    message(FATAL_ERROR "COFF debug capability must expose a CodeView C13 line table")
+endif()
+
+string(JSON FILE_FIXTURE GET
+    "${DOCUMENT}" baa_acceptance_fixtures directives ".file|expression")
+string(JSON LOCATION_FIXTURE GET
+    "${DOCUMENT}" baa_acceptance_fixtures directives ".loc|expression")
+if(NOT FILE_FIXTURE STREQUAL LOCATION_FIXTURE)
+    message(FATAL_ERROR "Baa debug directives must share one focused fixture")
+endif()
 
 message(STATUS
     "Verified nazm-capabilities-v1: ${INSTRUCTION_COUNT} instructions, "

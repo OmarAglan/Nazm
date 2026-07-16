@@ -31,7 +31,9 @@ static Pipeline run(const char *src) {
         .read_only_data_bytes=p2.read_only_data_bytes,
         .read_only_data_size=p2.read_only_data_size,
         .bss_size=p2.bss_size,
-        .symtable=&p1.symtable, .relocations=&p2.relocations, .source_name="test.نظم"
+        .symtable=&p1.symtable, .relocations=&p2.relocations,
+        .debug_files=&p1.debug_files, .debug_lines=&p2.debug_lines,
+        .source_name="test.نظم"
     };
     OutputResult coff = output_write_coff(&oi, &g_arena);
     return (Pipeline){p1, p2, coff};
@@ -39,6 +41,20 @@ static Pipeline run(const char *src) {
 
 static uint16_t r16(const uint8_t *p){ return (uint16_t)((uint16_t)p[0]|(uint16_t)p[1]<<8); }
 static uint32_t r32(const uint8_t *p){ return (uint32_t)p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24; }
+
+static const uint8_t *find_coff_section(
+    const Pipeline *pipeline,
+    const char name[8]) {
+    uint16_t section_count = r16(pipeline->coff.data + 2);
+    for (uint16_t i = 0; i < section_count; i++) {
+        const uint8_t *section =
+            pipeline->coff.data + 20 + (size_t)i * 40;
+        if (memcmp(section, name, 8) == 0) {
+            return section;
+        }
+    }
+    return NULL;
+}
 
 static const char *coff_symbol_name(const Pipeline *pl, const uint8_t *symbol) {
     if (r32(symbol) != 0) {
@@ -301,6 +317,26 @@ void test_coff_symtab_has_entries(void) {
     TEST_ASSERT_EQUAL_INT(1, (int)sect);
 }
 
+void test_coff_codeview_line_section_and_text_relocations(void) {
+    Pipeline pl = run(
+        ".ملف ١، \"مصدر.باء\"\n"
+        ".موضع ١، ٧، ٣\n"
+        "ارجع\n");
+    TEST_ASSERT_TRUE(pl.coff.ok);
+
+    const uint8_t *section =
+        find_coff_section(&pl, ".debug$S");
+    TEST_ASSERT_NOT_NULL(section);
+    TEST_ASSERT_EQUAL_INT(2, (int)r16(section + 32));
+
+    const uint8_t *raw = pl.coff.data + r32(section + 20);
+    TEST_ASSERT_EQUAL_UINT32(4, r32(raw));
+
+    const uint8_t *reloc = pl.coff.data + r32(section + 24);
+    TEST_ASSERT_EQUAL_INT(0x000B, (int)r16(reloc + 8));
+    TEST_ASSERT_EQUAL_INT(0x000A, (int)r16(reloc + 18));
+}
+
 void test_coff_symbol_storage_classes_follow_visibility(void) {
     Pipeline pl = run(
         ".عام مدخل\n"
@@ -531,6 +567,7 @@ int main(void) {
     RUN_TEST(test_coff_symtab_ptr_nonzero);
     RUN_TEST(test_coff_optional_header_size_zero);
     RUN_TEST(test_coff_timestamp_zero_reproducible);
+    RUN_TEST(test_coff_codeview_line_section_and_text_relocations);
 
     /* Section headers */
     RUN_TEST(test_coff_text_section_name);

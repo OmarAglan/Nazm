@@ -121,6 +121,9 @@ static const DirectiveEntry DIRECTIVE_TABLE[] = {
     { ".عام", DIRECTIVE_GLOBAL },
     { ".محلي", DIRECTIVE_LOCAL },
     { ".خارجي", DIRECTIVE_EXTERNAL },
+    { ".ملف", DIRECTIVE_DEBUG_FILE },
+    { ".ملف_بايتات", DIRECTIVE_DEBUG_FILE_BYTES },
+    { ".موضع", DIRECTIVE_DEBUG_LOCATION },
     { NULL, DIRECTIVE_INVALID },
 };
 

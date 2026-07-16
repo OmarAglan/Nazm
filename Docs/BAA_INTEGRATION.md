@@ -1,6 +1,6 @@
 # Baa Integration and Bootstrap Contract
 
-**Analysis Date:** 2026-07-15
+**Analysis Date:** 2026-07-16
 
 ## Strategic Intent
 
@@ -90,12 +90,14 @@ A later structured API may avoid reparsing in normal builds, but it must not
 replace or diverge from the Arabic textual contract. Text and structured paths
 must have parity tests if both are retained.
 
-## Required Coverage Before Integration
+## Coverage Contract and Remaining Admission
 
-The current Nazm instruction subset is smaller than Baa's Machine IR. The first
-coverage inventory must be generated from Baa's complete test corpus for both
-`x86_64-linux` and `x86_64-windows`, then checked into a machine-readable
-matrix.
+The checked source-level shadow matrix now emits all 100 inventoried Baa
+sources for both `x86_64-linux` and `x86_64-windows`, with zero unsupported
+rows and zero gate errors. The generated form inventory remains deliberately
+broader than the source-level result: producer lowerings can avoid individual
+GAS-only forms, while every partial or unsupported inventory row stays visible
+until it has an explicit Nazm contract.
 
 At minimum, the current Baa backend requires:
 
@@ -126,25 +128,19 @@ At minimum, the current Baa backend requires:
 ### Tooling Surface
 
 - Precise UTF-8 source spans for compiler-generated assembly diagnostics.
-- Debug-information directives or a documented object-level debug path.
+- Arabic-only `.ملف_بايتات`/`.موضع` source mapping, lowered to DWARF v4 line
+  data in ELF64 and CodeView C13 line data in COFF. **Implemented.**
 - Listing output useful for reducing Baa backend mismatches.
 - A defined policy for Baa's raw inline-assembly feature.
 
 ## Inline Assembly Migration
 
-Baa currently accepts raw GAS lines in `مجمع { ... }` blocks. The target Baa
-language contract replaces that construct with:
-
-```text
-نظم {
-    ; canonical Nazm 0.4 source only
-}
-```
-
-The cutover is deliberately breaking. A documented Baa language release must
-remove raw GAS inline assembly and reject `مجمع { ... }` with guidance to use
-`نظم { ... }`. It must not preserve GAS under another block name, silently
-reinterpret GAS as Nazm, or accept both dialects as permanent aliases.
+Baa now rejects raw GAS `مجمع { ... }` blocks. Common architectural operations
+use typed Arabic builtins backed by IR and Machine IR, while larger assembly
+lives in standalone `.نظم` modules that Takween and Baa pass directly to Nazm.
+An inline `نظم { ... }` feature remains optional future work and, if added,
+must declare inputs, outputs, and clobbers without embedding or translating GAS
+text.
 
 Implementing a complete GAS parser inside Nazm solely for compatibility is not
 the preferred design. It would permanently duplicate a large syntax surface
@@ -170,7 +166,7 @@ that is unrelated to the Arabic-first goal.
 - Convert the inventory into Nazm acceptance fixtures and a coverage matrix.
   **Complete for the current capability boundary in
   `baa-nazm-coverage-v1`: every emitted form is classified, and every
-  `supported` form points to one of the four checked ELF64/COFF fixtures under
+  `supported` form points to one of the five checked ELF64/COFF fixtures under
   `tests/fixtures/baa_coverage/`. `partial` and `unsupported` rows remain open
   work, not successful coverage.**
 - The raw-inline migration slice is complete: `اقرأ_عداد_الزمن` encodes
@@ -194,6 +190,11 @@ that is unrelated to the Arabic-first goal.
   `سجل_عشري_٠` through `سجل_عشري_١٥` plus the eight canonical instructions
   listed above. Unsupported register classes or operand combinations fail
   explicitly; there is no Latin source alias or GAS fallback.
+- The debug-information boundary is implemented through `.ملف_بايتات` and
+  `.موضع`. Baa's exact UTF-8 paths remain Arabic-decimal byte transport in the
+  generated source; Nazm emits `.debug_line`/`.rela.debug_line` for ELF64 and
+  `.debug$S` for COFF. This completes the 100-source emitter matrix on both
+  targets.
 
 ### Stage D: Atomic Nazm Cutover
 

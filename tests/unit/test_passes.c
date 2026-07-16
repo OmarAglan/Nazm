@@ -255,6 +255,65 @@ void test_p2_rdtsc_bytes(void) {
     TEST_ASSERT_EQUAL_HEX8(0x31, pl.p2.text_bytes[1]);
 }
 
+void test_debug_directives_record_exact_text_offsets(void) {
+    Pipeline pl = run(
+        ".ملف_بايتات ١، \"٢١٧،١٣٣،٢١٦،١٨١،٢١٦،١٧٥،٢١٦،١٧٧،٤٦،٢١٦،١٦٨،٢١٦،١٦٧،٢١٦،١٦١\"\n"
+        ".موضع ١، ٤٢، ٧\n"
+        "لا_تفعل\n"
+        ".موضع ١، ٤٣، ٢\n"
+        "ارجع\n");
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p1.debug_files.count);
+    TEST_ASSERT_EQUAL_STRING(
+        "مصدر.باء", pl.p1.debug_files.data[0].path);
+    TEST_ASSERT_EQUAL_INT(2, (int)pl.p2.debug_lines.count);
+    TEST_ASSERT_EQUAL_INT64(0, (int64_t)pl.p2.debug_lines.data[0].offset);
+    TEST_ASSERT_EQUAL_UINT32(42, pl.p2.debug_lines.data[0].line);
+    TEST_ASSERT_EQUAL_UINT32(7, pl.p2.debug_lines.data[0].column);
+    TEST_ASSERT_EQUAL_INT64(1, (int64_t)pl.p2.debug_lines.data[1].offset);
+    TEST_ASSERT_EQUAL_UINT32(43, pl.p2.debug_lines.data[1].line);
+}
+
+void test_debug_location_reset_stops_line_rows(void) {
+    Pipeline pl = run(
+        ".ملف ١، \"مصدر.باء\"\n"
+        ".موضع ١، ٤٢، ٧\n"
+        "لا_تفعل\n"
+        ".موضع ٠، ٠، ٠\n"
+        "ارجع\n");
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.debug_lines.count);
+    TEST_ASSERT_EQUAL_INT64(0, (int64_t)pl.p2.debug_lines.data[0].offset);
+}
+
+void test_debug_directives_reject_invalid_contracts(void) {
+    Pipeline missing_file = run(
+        ".موضع ١، ٤٢، ٧\n"
+        "ارجع\n");
+    TEST_ASSERT_TRUE(error_has_any(&missing_file.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        missing_file.p1.errors.errors[0].message, "غير معلن"));
+
+    Pipeline malformed_bytes = run(
+        ".ملف_بايتات ١، \"١٩٢،١٢٨\"\n"
+        "ارجع\n");
+    TEST_ASSERT_TRUE(error_has_any(&malformed_bytes.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        malformed_bytes.p1.errors.errors[0].message, "UTF-8"));
+}
+
+void test_debug_file_bytes_accept_valid_replacement_character(void) {
+    Pipeline pl = run(
+        ".ملف_بايتات ١، \"٢٣٩،١٩١،١٨٩\"\n"
+        ".موضع ١، ١، ١\n"
+        "ارجع\n");
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_EQUAL_STRING(
+        "\xEF\xBF\xBD", pl.p1.debug_files.data[0].path);
+}
+
 void test_p2_syscall_bytes(void) {
     Pipeline pl = run("ناد_النظام");
     TEST_ASSERT_EQUAL_INT(2, (int)pl.p2.text_size);
@@ -805,6 +864,10 @@ int main(void) {
     RUN_TEST(test_p2_ret_bytes);
     RUN_TEST(test_p2_nop_bytes);
     RUN_TEST(test_p2_rdtsc_bytes);
+    RUN_TEST(test_debug_directives_record_exact_text_offsets);
+    RUN_TEST(test_debug_location_reset_stops_line_rows);
+    RUN_TEST(test_debug_directives_reject_invalid_contracts);
+    RUN_TEST(test_debug_file_bytes_accept_valid_replacement_character);
     RUN_TEST(test_p2_syscall_bytes);
     RUN_TEST(test_p2_external_call_creates_pc32_relocation);
     RUN_TEST(test_p2_rip_relative_memory_creates_pc32_relocation);

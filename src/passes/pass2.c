@@ -24,6 +24,25 @@ static void push_relocation(RelocationList *list,
     list->data[list->count++] = relocation;
 }
 
+static void push_debug_line(DebugLineList *list,
+                            Arena *arena,
+                            DebugLine line) {
+    if (list->count >= list->capacity) {
+        size_t new_capacity = list->capacity == 0
+                            ? 32
+                            : list->capacity * 2;
+        DebugLine *new_data =
+            ARENA_ALLOC_N(arena, DebugLine, new_capacity);
+        if (list->data != NULL) {
+            memcpy(
+                new_data, list->data, list->count * sizeof(DebugLine));
+        }
+        list->data = new_data;
+        list->capacity = new_capacity;
+    }
+    list->data[list->count++] = line;
+}
+
 static bool buffer_has_capacity(size_t written,
                                 size_t amount,
                                 size_t capacity) {
@@ -277,6 +296,9 @@ Pass2Result pass2_run(const InstructionList *instructions,
                      : NULL;
 
     SymbolSection current_section = SYMBOL_SECTION_TEXT;
+    uint32_t debug_file = 0;
+    uint32_t debug_line = 0;
+    uint32_t debug_column = 0;
 
     for (size_t i = 0; i < instructions->count; i++) {
         const Instruction *instr = &instructions->data[i];
@@ -313,6 +335,21 @@ Pass2Result pass2_run(const InstructionList *instructions,
             if (instr->directive_kind == DIRECTIVE_GLOBAL
                 || instr->directive_kind == DIRECTIVE_LOCAL
                 || instr->directive_kind == DIRECTIVE_EXTERNAL) {
+                continue;
+            }
+            if (instr->directive_kind == DIRECTIVE_DEBUG_FILE ||
+                instr->directive_kind == DIRECTIVE_DEBUG_FILE_BYTES) {
+                continue;
+            }
+            if (instr->directive_kind == DIRECTIVE_DEBUG_LOCATION) {
+                if (instr->op_count == 3 &&
+                    instr->ops[0].kind == OP_IMM &&
+                    instr->ops[1].kind == OP_IMM &&
+                    instr->ops[2].kind == OP_IMM) {
+                    debug_file = (uint32_t)instr->ops[0].imm;
+                    debug_line = (uint32_t)instr->ops[1].imm;
+                    debug_column = (uint32_t)instr->ops[2].imm;
+                }
                 continue;
             }
 
@@ -424,6 +461,18 @@ Pass2Result pass2_run(const InstructionList *instructions,
                                           instr->ops,
                                           instr->op_count);
         if (sz <= 0) sz = MAX_INSTRUCTION_BYTES;
+
+        if (debug_file != 0 && debug_line != 0) {
+            push_debug_line(
+                &result.debug_lines,
+                arena,
+                (DebugLine){
+                    .offset = result.text_size,
+                    .file_id = debug_file,
+                    .line = debug_line,
+                    .column = debug_column,
+                });
+        }
 
         /* ── Resolve label operand displacements ── */
         Operand  resolved_ops[MAX_OPERANDS];

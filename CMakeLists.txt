@@ -67,6 +67,7 @@ set(NAZM_LIBRARY_SOURCES
     src/encoder/immediate.c
 
     src/output/output.c
+    src/output/debug_line.c
     src/output/elf64.c
     src/output/coff.c
     src/output/symbols.c

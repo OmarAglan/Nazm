@@ -251,6 +251,8 @@ static int nazm_main_utf8(int argc, char **argv) {
         .bss_size = p2.bss_size,
         .symtable    = &p1.symtable,
         .relocations = &p2.relocations,
+        .debug_files = &p1.debug_files,
+        .debug_lines = &p2.debug_lines,
         .source_name = args.source_path,
     };
 

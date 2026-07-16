@@ -43,15 +43,17 @@
 - Fix approach: Add the API implementation and a small C unit test before promising external embedding support.
 
 **Baa backend coverage is still larger than Nazm's current subset:**
-- Symptoms: the Baa integration baseline still emits base-index-scale
-  addressing, additional PIC/PIE relocation forms, debug directives, and raw
-  inline GAS. Integer widths, integer extension/division, scalar-decimal SSE2,
-  core data sections, external calls, and symbolic instruction-pointer-relative
-  MOV/LEA now have explicit Nazm contracts.
+- Symptoms: the Baa inventory still contains base-index-scale addressing and
+  additional PIC/PIE forms that require an explicit producer lowering or a
+  future Nazm encoding contract. Integer widths, extension/division,
+  scalar-decimal SSE2, core data sections, external calls, symbolic
+  instruction-pointer-relative MOV/LEA, structured architecture operations,
+  and target-specific debug line tables now have explicit Nazm contracts.
 - Impact: Replacing `gcc -c` with Nazm today would reject valid Baa output or,
   where validation is weak, risk wrong objects.
-- Current mitigation: No integration claim is made; GAS remains the external
-  assembler.
+- Current mitigation: Baa's checked shadow matrix emits all 100 current corpus
+  sources on both targets, but GAS remains the production default until the
+  complete quick/full/stress/determinism/release admission gate passes.
 - Fix approach: Follow `Docs/BAA_INTEGRATION.md`: generate a corpus-derived
   coverage matrix, implement and verify each required form, then run a
   shadow-comparison parity gate followed by the Nazm-only cutover.

@@ -39,6 +39,8 @@ static OutputResult assemble_elf(const char *src) {
         .bss_size = p2.bss_size,
         .symtable    = &p1.symtable,
         .relocations = &p2.relocations,
+        .debug_files = &p1.debug_files,
+        .debug_lines = &p2.debug_lines,
         .source_name = "test",
     };
     return output_write_elf64(&oi, &g_arena);
@@ -67,6 +69,27 @@ static const uint8_t *find_elf_section(const OutputResult *result,
         }
     }
 
+    return NULL;
+}
+
+static const uint8_t *find_elf_section_named(
+    const OutputResult *result,
+    const char *name) {
+    uint64_t shoff = rd64(result->data + 40);
+    uint16_t count = rd16(result->data + 60);
+    uint16_t strings_index = rd16(result->data + 62);
+    const uint8_t *strings_section =
+        result->data + shoff + (size_t)strings_index * 64;
+    const char *strings =
+        (const char *)(result->data + rd64(strings_section + 24));
+
+    for (uint16_t i = 0; i < count; i++) {
+        const uint8_t *section =
+            result->data + shoff + (size_t)i * 64;
+        if (strcmp(strings + rd32(section), name) == 0) {
+            return section;
+        }
+    }
     return NULL;
 }
 
@@ -231,6 +254,27 @@ void test_elf_symtab_has_label_entry(void) {
     const uint8_t *sym1 = r.data + sym_off + 24;
     uint64_t value = rd64(sym1+8);
     TEST_ASSERT_EQUAL_INT(0, (int)value);
+}
+
+void test_elf_dwarf_line_sections_and_text_relocation(void) {
+    OutputResult r = assemble_elf(
+        ".ملف ١، \"مصدر.باء\"\n"
+        ".موضع ١، ٧، ٣\n"
+        "ارجع\n");
+    TEST_ASSERT_TRUE(r.ok);
+
+    const uint8_t *debug =
+        find_elf_section_named(&r, ".debug_line");
+    const uint8_t *relocations =
+        find_elf_section_named(&r, ".rela.debug_line");
+    TEST_ASSERT_NOT_NULL(debug);
+    TEST_ASSERT_NOT_NULL(relocations);
+    TEST_ASSERT_TRUE(rd64(debug + 32) > 0);
+    TEST_ASSERT_EQUAL_INT64(24, (int64_t)rd64(relocations + 32));
+
+    const uint8_t *rela = r.data + rd64(relocations + 24);
+    TEST_ASSERT_EQUAL_INT64(1, (int64_t)(rd64(rela + 8) >> 32));
+    TEST_ASSERT_EQUAL_UINT32(1, (uint32_t)rd64(rela + 8));
 }
 
 void test_elf_symbol_bindings_and_local_order(void) {
@@ -525,6 +569,7 @@ int main(void) {
     RUN_TEST(test_elf_class_64);
     RUN_TEST(test_elf_little_endian);
     RUN_TEST(test_elf_type_relocatable);
+    RUN_TEST(test_elf_dwarf_line_sections_and_text_relocation);
     RUN_TEST(test_elf_machine_x86_64);
     RUN_TEST(test_elf_section_count);
     RUN_TEST(test_elf_shstrndx);
