@@ -595,7 +595,7 @@
       "gas_mnemonics": ["addsd"],
       "width_bits": 64,
       "forms": [
-        { "gas": ["xmm-register", "xmm-register"], "nazm": ["decimal-register", "decimal-register"] }
+        { "gas": ["register", "register"], "nazm": ["decimal-register", "decimal-register"], "constraint": "both-registers-are-scalar-decimal" }
       ]
     },
     {
@@ -603,7 +603,7 @@
       "gas_mnemonics": ["subsd"],
       "width_bits": 64,
       "forms": [
-        { "gas": ["xmm-register", "xmm-register"], "nazm": ["decimal-register", "decimal-register"] }
+        { "gas": ["register", "register"], "nazm": ["decimal-register", "decimal-register"], "constraint": "both-registers-are-scalar-decimal" }
       ]
     },
     {
@@ -611,7 +611,7 @@
       "gas_mnemonics": ["mulsd"],
       "width_bits": 64,
       "forms": [
-        { "gas": ["xmm-register", "xmm-register"], "nazm": ["decimal-register", "decimal-register"] }
+        { "gas": ["register", "register"], "nazm": ["decimal-register", "decimal-register"], "constraint": "both-registers-are-scalar-decimal" }
       ]
     },
     {
@@ -619,7 +619,7 @@
       "gas_mnemonics": ["divsd"],
       "width_bits": 64,
       "forms": [
-        { "gas": ["xmm-register", "xmm-register"], "nazm": ["decimal-register", "decimal-register"] }
+        { "gas": ["register", "register"], "nazm": ["decimal-register", "decimal-register"], "constraint": "both-registers-are-scalar-decimal" }
       ]
     },
     {
@@ -627,7 +627,7 @@
       "gas_mnemonics": ["ucomisd"],
       "width_bits": 64,
       "forms": [
-        { "gas": ["xmm-register", "xmm-register"], "nazm": ["decimal-register", "decimal-register"] }
+        { "gas": ["register", "register"], "nazm": ["decimal-register", "decimal-register"], "constraint": "both-registers-are-scalar-decimal" }
       ]
     },
     {
@@ -635,7 +635,7 @@
       "gas_mnemonics": ["xorpd"],
       "width_bits": 128,
       "forms": [
-        { "gas": ["xmm-register", "xmm-register"], "nazm": ["decimal-register", "decimal-register"] }
+        { "gas": ["register", "register"], "nazm": ["decimal-register", "decimal-register"], "constraint": "both-registers-are-scalar-decimal" }
       ]
     },
     {
@@ -643,7 +643,7 @@
       "gas_mnemonics": ["cvtsi2sd"],
       "width_bits": { "source": [32, 64], "destination": 64 },
       "forms": [
-        { "gas": ["general-register", "xmm-register"], "nazm": ["decimal-register", "general-register"] }
+        { "gas": ["register", "register"], "nazm": ["decimal-register", "general-register"], "constraint": "source-is-general-32-or-64-and-destination-is-scalar-decimal" }
       ]
     },
     {
@@ -651,7 +651,7 @@
       "gas_mnemonics": ["cvttsd2si"],
       "width_bits": { "source": 64, "destination": [32, 64] },
       "forms": [
-        { "gas": ["xmm-register", "general-register"], "nazm": ["general-register", "decimal-register"] }
+        { "gas": ["register", "register"], "nazm": ["general-register", "decimal-register"], "constraint": "source-is-scalar-decimal-and-destination-is-general-32-or-64" }
       ]
     }
   ],

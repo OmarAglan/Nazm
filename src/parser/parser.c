@@ -230,7 +230,8 @@ static bool parse_mem_operand(Parser *p, const Token *open_tok, Operand *out) {
         }
         advance(p);
 
-        if (cur_type(p) != TOKEN_LABEL_REF) {
+        if (cur_type(p) != TOKEN_LABEL_REF
+            && cur_type(p) != TOKEN_MNEMONIC) {
             parse_error(
                 p,
                 "توقعت اسم رمز عربي بعد 'مؤشر_التعليمة+' داخل عنوان الذاكرة النسبي");
@@ -364,13 +365,16 @@ static bool parse_operand(Parser *p, Operand *out) {
         return parse_mem_operand(p, t, out);
 
     case TOKEN_LABEL_REF:
+    case TOKEN_MNEMONIC:
         {
-        const char *replacement = lexer_register_legacy_replacement(
-            t->value, t->len);
-        if (replacement != NULL) {
-            replacement_error(p, t, "اسم السجل", replacement);
-            advance(p);
-            return false;
+        if (t->type == TOKEN_LABEL_REF) {
+            const char *replacement = lexer_register_legacy_replacement(
+                t->value, t->len);
+            if (replacement != NULL) {
+                replacement_error(p, t, "اسم السجل", replacement);
+                advance(p);
+                return false;
+            }
         }
 
         advance(p);

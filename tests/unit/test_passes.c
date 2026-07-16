@@ -155,6 +155,28 @@ void test_p1_visibility_before_and_after_definition(void) {
     TEST_ASSERT_EQUAL_INT(SYMBOL_BINDING_LOCAL, helper_binding);
 }
 
+void test_p1_mnemonic_spelling_preserves_global_symbol(void) {
+    Pipeline pl = run(
+        ".عام جمع_عشري\n"
+        "جمع_عشري:\n"
+        "ناد جمع_عشري\n"
+        "ارجع\n");
+    SymbolBinding binding = SYMBOL_BINDING_LOCAL;
+    int64_t offset = -1;
+
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_TRUE(symtable_lookup_ex(
+        &pl.p1.symtable,
+        "جمع_عشري",
+        &offset,
+        NULL));
+    TEST_ASSERT_EQUAL_INT64(0, offset);
+    TEST_ASSERT_TRUE(symtable_lookup_binding(
+        &pl.p1.symtable, "جمع_عشري", &binding));
+    TEST_ASSERT_EQUAL_INT(SYMBOL_BINDING_GLOBAL, binding);
+}
+
 void test_p1_unannotated_label_is_local(void) {
     Pipeline pl = run("داخلي:\nارجع");
     SymbolBinding binding = SYMBOL_BINDING_GLOBAL;
@@ -760,6 +782,7 @@ int main(void) {
     RUN_TEST(test_p1_duplicate_label_error);
     RUN_TEST(test_p1_duplicate_label_error_span_points_to_duplicate);
     RUN_TEST(test_p1_visibility_before_and_after_definition);
+    RUN_TEST(test_p1_mnemonic_spelling_preserves_global_symbol);
     RUN_TEST(test_p1_unannotated_label_is_local);
     RUN_TEST(test_p1_conflicting_visibility_is_error);
     RUN_TEST(test_p1_visibility_requires_one_label);

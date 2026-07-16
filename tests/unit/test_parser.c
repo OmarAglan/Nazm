@@ -260,6 +260,30 @@ void test_parse_call_label(void) {
     TEST_ASSERT_EQUAL_STRING("الدالة", instr(&r,0).ops[0].label);
 }
 
+void test_parse_mnemonic_spelling_as_contextual_symbol(void) {
+    ParseResult r = parse(
+        ".نص\n"
+        ".عام جمع_عشري\n"
+        "جمع_عشري:\n"
+        "ناد جمع_عشري\n"
+        "انقل سجل_المركم، [مؤشر_التعليمة+جمع_عشري]\n"
+        "ارجع\n");
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+    TEST_ASSERT_EQUAL_INT(6, (int)r.instructions.count);
+
+    Instruction visibility = instr(&r, 1);
+    TEST_ASSERT_EQUAL_INT(DIRECTIVE_GLOBAL, visibility.directive_kind);
+    TEST_ASSERT_EQUAL_INT(OP_LABEL, visibility.ops[0].kind);
+    TEST_ASSERT_EQUAL_STRING("جمع_عشري", visibility.ops[0].label);
+
+    TEST_ASSERT_EQUAL_STRING("جمع_عشري", instr(&r, 2).label);
+    TEST_ASSERT_EQUAL_INT(OPCODE_CALL, instr(&r, 3).opcode);
+    TEST_ASSERT_EQUAL_INT(OP_LABEL, instr(&r, 3).ops[0].kind);
+    TEST_ASSERT_EQUAL_STRING("جمع_عشري", instr(&r, 3).ops[0].label);
+    TEST_ASSERT_EQUAL_INT(OP_MEM_RIP_LABEL, instr(&r, 4).ops[1].kind);
+    TEST_ASSERT_EQUAL_STRING("جمع_عشري", instr(&r, 4).ops[1].label);
+}
+
 void test_parse_push_pop(void) {
     ParseResult r = parse("ادفع سجل_المركم\nاسحب سجل_العداد");
     TEST_ASSERT_FALSE(error_has_any(&r.errors));
@@ -725,6 +749,7 @@ int main(void) {
     RUN_TEST(test_parse_jmp_label);
     RUN_TEST(test_parse_je_label);
     RUN_TEST(test_parse_call_label);
+    RUN_TEST(test_parse_mnemonic_spelling_as_contextual_symbol);
     RUN_TEST(test_parse_push_pop);
 
     /* Labels */

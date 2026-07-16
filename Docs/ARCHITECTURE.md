@@ -45,6 +45,10 @@ contract.
 - The parser owns `InstructionList` creation, operand classification, directive
   recognition into `DirectiveKind`, operand count checks, comma checks,
   signed-32-bit memory displacement validation, and basic error recovery.
+- A canonical mnemonic token is reinterpreted as an exact Arabic symbol only in
+  operand context, including directive operands and RIP-relative symbolic
+  memory. Label definitions remain unambiguous because the lexer recognizes the
+  trailing colon before keyword classification.
 - Removed 0.3 spellings live only in context-specific diagnostic lookup tables;
   they are never classified as valid mnemonics, registers, or directives. See
   [TERMINOLOGY.md](TERMINOLOGY.md).
