@@ -7,6 +7,7 @@
  *   -خ, --خرج <ملف>     output file path
  *   -ك, --كشف <ملف>     write a source/byte assembly listing
  *   -ص, --صيغة <صيغة>   إلف64 or كوف
+ *   --اسم-المصدر <اسم>  stable logical source identity
  *   -ت, --تفصيل         verbose output
  *   --إصدار             print version/build target and exit
  *   -م, --مساعدة        print usage and exit
@@ -17,6 +18,7 @@
 
 typedef struct {
     const char  *source_path;
+    const char  *logical_source_name;
     const char  *output_path;
     const char  *listing_path;
     OutputFormat format;

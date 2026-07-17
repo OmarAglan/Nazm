@@ -199,10 +199,13 @@ static int nazm_main_utf8(int argc, char **argv) {
         fprintf(stderr, "نَظْم: تجميع %s\n", args.source_path);
     }
 
+    const char *logical_source_name = args.logical_source_name
+        ? args.logical_source_name
+        : args.source_path;
     SourceBuffer source = {
         .data = source_file.data,
         .len  = source_file.size,
-        .name = args.source_path,
+        .name = logical_source_name,
     };
 
     LexResult lex = lexer_lex(&source, &arena);
@@ -253,7 +256,7 @@ static int nazm_main_utf8(int argc, char **argv) {
         .relocations = &p2.relocations,
         .debug_files = &p1.debug_files,
         .debug_lines = &p2.debug_lines,
-        .source_name = args.source_path,
+        .source_name = logical_source_name,
     };
 
     OutputResult out = output_write(args.format, &out_input, &arena);

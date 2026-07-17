@@ -16,9 +16,15 @@ set(ARABIC_SOURCE_DIR "${WORK_DIR}/مسار-عربي")
 set(ARABIC_SOURCE "${ARABIC_SOURCE_DIR}/مصدر-اختبار.نظم")
 set(ELF_OUTPUT "${ARABIC_SOURCE_DIR}/ناتج-اختبار.o")
 set(COFF_OUTPUT "${ARABIC_SOURCE_DIR}/ناتج-اختبار.obj")
+set(DETERMINISTIC_SOURCE_DIR "${WORK_DIR}/مسار-مؤقت-آخر")
+set(DETERMINISTIC_SOURCE "${DETERMINISTIC_SOURCE_DIR}/مصدر-مؤقت-٢.نظم")
+set(DETERMINISTIC_COFF_A "${ARABIC_SOURCE_DIR}/حتمي-أ.obj")
+set(DETERMINISTIC_COFF_B "${DETERMINISTIC_SOURCE_DIR}/حتمي-ب.obj")
 set(LISTING_OUTPUT "${ARABIC_SOURCE_DIR}/قائمة-اختبار.كشف")
 file(MAKE_DIRECTORY "${ARABIC_SOURCE_DIR}")
+file(MAKE_DIRECTORY "${DETERMINISTIC_SOURCE_DIR}")
 file(COPY_FILE "${GOOD_SOURCE}" "${ARABIC_SOURCE}" ONLY_IF_DIFFERENT)
+file(COPY_FILE "${GOOD_SOURCE}" "${DETERMINISTIC_SOURCE}" ONLY_IF_DIFFERENT)
 
 execute_process(
     COMMAND "${NAZM_EXE}" --مساعدة
@@ -129,6 +135,37 @@ endif()
 file(READ "${COFF_OUTPUT}" COFF_MAGIC LIMIT 2 HEX)
 if(NOT COFF_MAGIC STREQUAL "6486")
     message(FATAL_ERROR "Unexpected AMD64 COFF machine bytes: ${COFF_MAGIC}")
+endif()
+
+execute_process(
+    COMMAND "${NAZM_EXE}" -ص كوف
+        --اسم-المصدر "باء-مولد.نظم"
+        -خ "${DETERMINISTIC_COFF_A}"
+        "${ARABIC_SOURCE}"
+    RESULT_VARIABLE DETERMINISTIC_A_RESULT
+    ERROR_VARIABLE DETERMINISTIC_A_STDERR
+    ENCODING UTF-8
+)
+execute_process(
+    COMMAND "${NAZM_EXE}" -ص كوف
+        --اسم-المصدر "باء-مولد.نظم"
+        -خ "${DETERMINISTIC_COFF_B}"
+        "${DETERMINISTIC_SOURCE}"
+    RESULT_VARIABLE DETERMINISTIC_B_RESULT
+    ERROR_VARIABLE DETERMINISTIC_B_STDERR
+    ENCODING UTF-8
+)
+if(NOT DETERMINISTIC_A_RESULT STREQUAL "0"
+        OR NOT DETERMINISTIC_B_RESULT STREQUAL "0")
+    message(FATAL_ERROR
+        "Logical source identity assembly failed\n"
+        "${DETERMINISTIC_A_STDERR}\n${DETERMINISTIC_B_STDERR}")
+endif()
+file(SHA256 "${DETERMINISTIC_COFF_A}" DETERMINISTIC_COFF_A_SHA)
+file(SHA256 "${DETERMINISTIC_COFF_B}" DETERMINISTIC_COFF_B_SHA)
+if(NOT DETERMINISTIC_COFF_A_SHA STREQUAL DETERMINISTIC_COFF_B_SHA)
+    message(FATAL_ERROR
+        "Physical source paths leaked through the stable logical source identity")
 endif()
 
 execute_process(

@@ -1,6 +1,6 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-07-10
+**Analysis Date:** 2026-07-17
 
 ## Tech Debt
 
@@ -24,17 +24,16 @@
 
 ## Known Limitations
 
-**COFF writer still needs Windows linker validation:**
-- Symptoms: The writer now emits a real `.obj` with `.text`, optional `.data`, symbols, string table, and text relocations, but this environment cannot run `link.exe`.
-- File: `src/output/coff.c`.
-- Current behavior: Byte-level unit tests validate layout and relocation records; cross-toolchain acceptance must be validated on Windows CI or with `lld-link`.
-- Fix approach: Add a Windows CI job that assembles a small example, links it, and verifies the process exits correctly.
-
-**Relocation support is intentionally narrow:**
-- Symptoms: `انقل سجل_البيانات، وسم` emits an absolute-address relocation for local labels. External symbols and call/jump relocations are not implemented yet.
-- Files: `src/passes/pass2.c`, `src/output/elf64.c`, `src/output/coff.c`.
-- Current mitigation: Unsupported unresolved symbols still produce Arabic diagnostics instead of guessed bytes.
-- Fix approach: Add explicit external-symbol directives, define relocation kinds per instruction form, then add linker-level integration tests.
+**Future relocation forms remain intentionally gated:**
+- Current coverage: ELF64 and COFF support the current Baa corpus forms for
+  Arabic external call/jump symbols, absolute data references, and
+  instruction-pointer-relative MOV/LEA references. Real Baa link/runtime
+  parity covers all 100 inventoried sources on Windows and the last admitted
+  Linux receipt.
+- Remaining limit: GOT/PLT and additional base-index-scale PIC/PIE forms are
+  not claimed until Baa's producer inventory actually requires them.
+- Current mitigation: unsupported forms remain explicit Arabic errors; no
+  guessed relocation or GAS fallback is allowed.
 
 **Public embedding API is declared but not implemented:**
 - Symptoms: `include/nazm.h` declares `nazm_assemble_file()`, `nazm_assemble_buffer()`, `nazm_result_free()`, and `nazm_default_options()`, but the current working entry point remains the CLI and unit-level pipeline helpers.
@@ -42,21 +41,17 @@
 - Current mitigation: `libnazm` builds without `src/main.c`, so the API can be implemented without coupling to CLI file I/O.
 - Fix approach: Add the API implementation and a small C unit test before promising external embedding support.
 
-**Baa backend coverage is still larger than Nazm's current subset:**
-- Symptoms: the Baa inventory still contains base-index-scale addressing and
-  additional PIC/PIE forms that require an explicit producer lowering or a
-  future Nazm encoding contract. Integer widths, extension/division,
-  scalar-decimal SSE2, core data sections, external calls, symbolic
-  instruction-pointer-relative MOV/LEA, structured architecture operations,
-  and target-specific debug line tables now have explicit Nazm contracts.
-- Impact: Replacing `gcc -c` with Nazm today would reject valid Baa output or,
-  where validation is weak, risk wrong objects.
-- Current mitigation: Baa's checked shadow matrix emits all 100 current corpus
-  sources on both targets, but GAS remains the production default until the
-  complete quick/full/stress/determinism/release admission gate passes.
-- Fix approach: Follow `Docs/BAA_INTEGRATION.md`: generate a corpus-derived
-  coverage matrix, implement and verify each required form, then run a
-  shadow-comparison parity gate followed by the Nazm-only cutover.
+**Nazm is not Baa's default assembler yet:**
+- Current coverage: all 100 inventoried Baa sources emit for both targets.
+  Windows passes both the shadow route and normal `--assembler=nazm` route,
+  including the complete Baa release orchestrator and byte-stable generated
+  objects.
+- Remaining limit: the same exact Baa/Nazm commits still need a current hosted
+  Linux release receipt, followed by the documented parity/rollback approval.
+  Stack-protector lowering and producer-required future PIC forms stay
+  separately visible.
+- Current mitigation: GAS remains the measured default rollback, and every
+  Nazm failure is terminal rather than silently retried through GAS.
 
 **Subprocess acceptance does not link or run objects yet:**
 - Current coverage: `tests/integration/cli_acceptance.cmake` executes `nazm`,
@@ -185,41 +180,29 @@
 - Current workaround: Assemble one `.نظم` file per invocation and link multiple objects externally.
 - Implementation complexity: Medium; include handling needs path ownership, diagnostics, and cycle prevention.
 
-**Assembly listing output:**
-- Current behavior: `--كشف` writes an optional UTF-8 كشف التجميع from exact
-  pass-two emission spans; `.كشف` is the canonical suffix.
-- Remaining gap: No debug-information format yet connects those source spans
-  to an external debugger.
-
-**External symbol model:**
-- Problem: There is no directive equivalent to declaring a symbol external/global enough for linker-level references beyond local labels.
-- Current workaround: Use labels defined in the same source file.
-- Implementation complexity: Medium; this needs parser directives, symbol flags, relocation records, and output-writer support.
-
 **Baa assembly corpus and parity harness:**
 - Current evidence: Baa checks in a deterministic 100-source inventory of
   the instructions, operand forms, directives, sections, symbol categories,
   and relocation candidates on both targets. The versioned capability and
-  source-level matrices classify every source; nine sources pass real
-  GAS/Nazm object, link, and runtime parity in the Windows/Linux shadow jobs.
-- Remaining problem: expand parity through global/string data, external and
-  PC-relative relocations, read-only sections, and Baa admission of the
-  implemented scalar-decimal surface.
-- Implementation complexity: High; the next wave spans parser, relocation,
-  object-writer, emitter, and cross-platform linker contracts.
+  source-level matrices classify every source; all 100 pass real GAS/Nazm
+  object, link, and runtime parity on Windows, and also pass with Nazm in the
+  normal assembler slot.
+- Remaining problem: obtain the exact-commit Linux receipt and approve the
+  production parity/rollback report before changing Baa's default.
+- Implementation complexity: Medium; the remaining work is cross-platform
+  admission and release evidence, not another current-corpus encoding wave.
 
 ## Test Coverage Gaps
 
 **Real linker acceptance:**
 - What's covered: Arabic-entry ELF64 link/run in Nazm CI and real Windows/Linux
-  Baa shadow object/link/runtime comparison in Baa CI run `29407371480`.
-- What's not tested: external-symbol and data-relocation forms that are not yet source-reachable.
-- Priority: High for the relocation wave.
-
-**External and PC-relative relocations:**
-- What's covered: Absolute local label-address relocation for `انقل سجل_البيانات، وسم`.
-- What's not covered: External symbols, `call`, `jmp`, and conditional branch relocations.
-- Priority: High before claiming broader object-file compatibility.
+  Baa shadow object/link/runtime comparison, including the current external and
+  data relocation forms. The Windows normal selected-assembler path is green
+  for the complete 100-source corpus.
+- What's not tested: the current logical-source/determinism change on hosted
+  Linux until the exact commits can be pushed.
+- Priority: High for production admission, not for current relocation
+  correctness.
 
 **All 16 general-purpose registers in all operand positions:**
 - What's not tested: Coverage exists for several extended-register cases, but not every source/destination/memory position combination.

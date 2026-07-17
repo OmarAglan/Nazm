@@ -87,6 +87,10 @@ contract.
   process exit codes.
 - `src/cli/listing.c` renders optional UTF-8 source listings from pass-two
   emission spans. It never calls the encoder or recomputes instruction sizes.
+- Separates the physical path opened by the CLI from the optional stable
+  `--اسم-المصدر` logical identity used by diagnostics and object metadata.
+  Generated-source clients can therefore keep collision-safe temporary paths
+  without leaking process-specific names into deterministic objects.
 - Uses `src/io/` as the UTF-8 filesystem boundary. On Windows the executable
   receives UTF-16 arguments through `wmain`, converts them once to heap-owned
   UTF-8 strings, and releases them after the pipeline returns.
@@ -102,8 +106,10 @@ contract.
 ## Current Data Flow
 
 1. The user invokes `نظم` (or portable alias `nazm`) with a `.نظم` source path.
-2. `src/cli/args.c` parses Arabic flags, including output path and object format.
-3. `src/main.c` reads the source file and creates pipeline state.
+2. `src/cli/args.c` parses Arabic flags, including output path, object format,
+   and an optional stable logical source identity.
+3. `src/main.c` reads the physical source path and creates pipeline state with
+   the logical identity, or the physical path when no override was supplied.
 4. The lexer returns a `TokenArray`.
 5. The parser returns an `InstructionList`.
 6. Pass 1 walks the instruction list, estimates sizes, records labels in a

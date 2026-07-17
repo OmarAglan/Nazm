@@ -128,6 +128,9 @@ At minimum, the current Baa backend requires:
 ### Tooling Surface
 
 - Precise UTF-8 source spans for compiler-generated assembly diagnostics.
+- A stable Arabic `--اسم-المصدر` logical identity distinct from the physical
+  generated-source path, so Baa can use process-unique temporary files without
+  embedding their names in COFF objects.
 - Arabic-only `.ملف_بايتات`/`.موضع` source mapping, lowered to DWARF v4 line
   data in ELF64 and CodeView C13 line data in COFF. **Implemented.**
 - Listing output useful for reducing Baa backend mismatches.

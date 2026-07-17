@@ -182,7 +182,10 @@ successful source and both output files use Arabic path components. The test
 inspects the ELF magic and AMD64 COFF machine bytes, checks كشف التجميع bytes,
 verifies format-aware `.o`/`.obj` defaults, rejects `.مجمع` input, and
 rejects equivalent source/output path spellings, so a zero exit code without
-the expected artifacts is not accepted. `test_io.c` separately covers existing
+the expected artifacts is not accepted. It also assembles two different
+physical source paths with one Arabic `--اسم-المصدر` identity and requires
+byte-identical COFF objects, proving that temporary filenames do not leak into
+deterministic output. `test_io.c` separately covers existing
 file identity and normalized aliases for paths that have not been written yet.
 
 `tests/unit/test_listing.c` separately pins pass-two emission spans for `.text`

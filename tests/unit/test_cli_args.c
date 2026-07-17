@@ -80,6 +80,25 @@ void test_cli_parses_long_listing_path(void) {
     TEST_ASSERT_EQUAL_STRING("قائمة.txt", args.listing_path);
 }
 
+void test_cli_parses_stable_logical_source_name(void) {
+    char *argv[] = {
+        "نظم", "--اسم-المصدر", "باء-مولد.نظم", "مؤقت-١.نظم"
+    };
+    CliArgs args = parse_args(4, argv);
+
+    TEST_ASSERT_TRUE(args.valid);
+    TEST_ASSERT_EQUAL_STRING("مؤقت-١.نظم", args.source_path);
+    TEST_ASSERT_EQUAL_STRING("باء-مولد.نظم", args.logical_source_name);
+}
+
+void test_cli_rejects_missing_logical_source_name(void) {
+    char *argv[] = { "نظم", "--اسم-المصدر" };
+    CliArgs args = parse_args(2, argv);
+
+    TEST_ASSERT_FALSE(args.valid);
+    TEST_ASSERT_NOT_NULL(args.error_msg);
+}
+
 void test_cli_rejects_missing_listing_path(void) {
     char *argv[] = { "نظم", "--كشف" };
     CliArgs args = parse_args(2, argv);
@@ -184,6 +203,8 @@ int main(void) {
     RUN_TEST(test_cli_parses_coff_format);
     RUN_TEST(test_cli_parses_short_listing_path);
     RUN_TEST(test_cli_parses_long_listing_path);
+    RUN_TEST(test_cli_parses_stable_logical_source_name);
+    RUN_TEST(test_cli_rejects_missing_logical_source_name);
     RUN_TEST(test_cli_rejects_missing_listing_path);
     RUN_TEST(test_cli_rejects_unknown_format);
     RUN_TEST(test_cli_rejects_missing_output_path);

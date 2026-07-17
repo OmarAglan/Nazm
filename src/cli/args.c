@@ -115,6 +115,16 @@ CliArgs cli_parse(int argc, char **argv) {
             args.listing_path = argv[i];
             continue;
         }
+        if (strcmp(a, "--اسم-المصدر") == 0) {
+            if (++i >= argc || argv[i][0] == '\0') {
+                args.valid = false;
+                args.error_msg =
+                    "خطأ: خيار اسم المصدر يتطلب اسما منطقيا غير فارغ";
+                return args;
+            }
+            args.logical_source_name = argv[i];
+            continue;
+        }
         if (strcmp(a, "--صيغة") == 0 || strcmp(a, "-ص") == 0) {
             if (++i >= argc) {
                 args.valid     = false;
@@ -185,6 +195,7 @@ void cli_print_usage(const char *prog) {
         "  -خ، --خرج <ملف>       مسار الملف الكائني\n"
         "  -ك، --كشف <ملف>       كتابة كشف التجميع (الامتداد المعتاد .كشف)\n"
         "  -ص، --صيغة <صيغة>     إلف64 أو كوف (الافتراضي حسب النظام)\n"
+        "  --اسم-المصدر <اسم>    اسم منطقي ثابت للتشخيص والملف الكائني\n"
         "  -ت، --تفصيل           إخراج تفصيلي\n"
         "  --إصدار               عرض الإصدار وهدف البناء\n"
         "  -م، --مساعدة          عرض هذه الرسالة\n\n");
