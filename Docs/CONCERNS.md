@@ -41,17 +41,17 @@
 - Current mitigation: `libnazm` builds without `src/main.c`, so the API can be implemented without coupling to CLI file I/O.
 - Fix approach: Add the API implementation and a small C unit test before promising external embedding support.
 
-**Nazm is not Baa's default assembler yet:**
+**Nazm production default must not weaken visible coverage:**
 - Current coverage: all 100 inventoried Baa sources emit for both targets.
   The exact candidate set passes both the shadow route and normal
   `--assembler=nazm` route on hosted Windows and Linux, including the complete
   release orchestrator and byte-stable generated objects.
-- Remaining limit: the automated parity gate is green, but the documented
-  parity/rollback record still needs explicit Baa, Nazm, and Takween owner
-  approval. Stack-protector lowering and producer-required future PIC forms
-  stay separately visible.
-- Current mitigation: GAS remains the measured default rollback, and every
-  Nazm failure is terminal rather than silently retried through GAS.
+- Remaining limit: stack-protector lowering and producer-required future PIC
+  forms stay separately visible and require a new admission candidate when
+  they enter the checked corpus.
+- Current mitigation: exact Baa `5d3f00c...`, Nazm `7be5799...`, and Takween
+  `4fe634f...` are approved; GAS remains an explicit measured rollback, and
+  every Nazm failure is terminal rather than silently retried through GAS.
 
 **Subprocess acceptance does not link or run objects yet:**
 - Current coverage: `tests/integration/cli_acceptance.cmake` executes `nazm`,
@@ -186,12 +186,13 @@
   and relocation candidates on both targets. The versioned capability and
   source-level matrices classify every source; all 100 pass real GAS/Nazm
   object, link, and runtime parity on Windows, and also pass with Nazm in the
-  normal assembler slot on hosted Windows and Linux for exact Baa
-  `a669e7d...` and Nazm `a4013da...`.
-- Remaining problem: approve the production parity/rollback report before
-  changing Baa's default.
-- Implementation complexity: Low for the current corpus; the remaining step is
-  an owner decision, not another encoding or cross-platform evidence wave.
+  default assembler slot on hosted Windows and Linux for exact Baa
+  `5d3f00c...` and Nazm `7be5799...`.
+- Remaining problem: preserve the production parity/rollback report and rerun
+  admission whenever the producer surface, assembler, object writers, startup,
+  linker boundary, or default policy changes.
+- Implementation complexity: Low for the current corpus; new forms require
+  focused encoding/object tests and a new cross-platform evidence wave.
 
 ## Test Coverage Gaps
 

@@ -234,14 +234,10 @@ Implemented now:
 
 Planned or limited:
 - Stable in-process API behavior for `include/nazm.h`.
-- Verified end-to-end linker compatibility across ELF64 and COFF on CI.
-- Baa admission for the implemented scalar-decimal SSE2 surface, plus
-  base-index-scale, debug, and remaining relocation coverage. Integer widths,
-  `setcc`/extension, core data sections, symbolic instruction-pointer-relative
-  MOV/LEA, and the eight scalar-decimal operations are implemented.
-- Dual-assembler parity against Baa's current GAS output before default-on
-  integration.
-- Subprocess CLI integration tests and link/run fixtures.
+- Additional base-index-scale, stack-protector, or future PIC forms when Baa's
+  checked producer corpus first requires them.
+- Continuous dual-assembler rollback parity after Nazm's approved production
+  default cutover.
 - Listing output and richer CLI exit-code coverage.
 
 ## Error Handling

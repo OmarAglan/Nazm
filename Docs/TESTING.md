@@ -236,8 +236,8 @@ that boundary.
 
 ## Baa Parity Gate
 
-Before Nazm can replace GAS in Baa, testing must expand beyond the current
-hand-written examples:
+Nazm replaced GAS as Baa's production default only after testing expanded
+beyond the hand-written examples:
 
 `Docs/generated/nazm_capabilities_v1.json` now records the implemented source,
 instruction-width, directive, section, symbol, and relocation boundary.
@@ -248,15 +248,17 @@ fixtures to both ELF64 and COFF. Baa's generated `baa-nazm-coverage-v1`
 attaches every currently `supported` inventory row to one of those fixtures;
 partial and unsupported rows are intentionally not parity success.
 
-The checked source-level matrix currently emits all 100 corpus sources for
-both targets. GAS remains Baa's production default until the wider
-quick/full/stress/determinism/release admission set is green through Nazm.
+The checked source-level matrix emits all 100 corpus sources for both targets.
+Exact Baa `5d3f00c...` and Nazm `7be5799...` pass the wider
+quick/full/stress/determinism/release admission set on both hosts in run
+`29648276376`; Nazm is the default and GAS remains explicit rollback coverage.
 
 - Generate Baa assembly from its quick, full, and stress suites for both
   `x86_64-linux` and `x86_64-windows`.
 - Maintain the generated coverage manifest for every emitted instruction,
   operand width, directive, section, symbol form, and relocation.
-- Assemble equivalent programs through GAS and Nazm during migration.
+- Assemble equivalent programs through GAS and Nazm for continuing rollback
+  and parity coverage.
 - Compare linked runtime behavior and object semantics, including public
   symbols and relocations; byte-for-byte object identity is not required when
   both encodings are valid.

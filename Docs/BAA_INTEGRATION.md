@@ -1,11 +1,11 @@
 # Baa Integration and Bootstrap Contract
 
-**Analysis Date:** 2026-07-16
+**Analysis Date:** 2026-07-18
 
 ## Strategic Intent
 
-Nazm is intended to become the production x86-64 assembler used by the Baa
-compiler. The integration replaces Baa's English AT&T/GAS assembly boundary
+Nazm is the production x86-64 assembler used by the Baa compiler. The
+integration replaces Baa's English AT&T/GAS assembly boundary
 with Arabic Nazm source and removes the external assembler dependency. The
 system linker and platform runtime remain external until a separate linker
 project is ready.
@@ -26,15 +26,15 @@ Baa source
   -> instruction selection
   -> Machine IR
   -> register allocation
-  -> AT&T/GAS text emitter
-  -> gcc -c
+  -> canonical Arabic Nazm emitter
+  -> Nazm
   -> ELF or COFF object
   -> gcc/system linker
 ```
 
-The pipeline boundary is confirmed, but this version pin is not a coverage
-claim. Stage B must regenerate the emitted-form inventory from the complete Baa
-`0.6.0` quick/full/stress corpus before any shadow integration result is valid.
+The boundary and full two-target coverage are confirmed by the checked
+100-source inventory and exact-SHA admission receipts. New emitted forms still
+return the candidate to HOLD until focused coverage and both host gates exist.
 
 The integration boundary is therefore after Baa register allocation and before
 object generation. Baa continues to own its language semantics, IR,
@@ -198,20 +198,22 @@ that is unrelated to the Arabic-first goal.
   generated source; Nazm emits `.debug_line`/`.rela.debug_line` for ELF64 and
   `.debug$S` for COFF. This completes the 100-source emitter matrix on both
   targets.
-- Exact Baa `a669e7d...` and Nazm `a4013da...` pass the complete shadow and
-  selected-assembler corpus on hosted Windows and Linux. Admission run
-  `29590118064` records quick 27/27, full 44/44, stress 74/74, and release
+- Exact Baa `5d3f00c...` and Nazm `7be5799...` pass the complete shadow and
+  default-assembler corpus on hosted Windows and Linux. Admission run
+  `29648276376` records quick 27/27, full 44/44, stress 74/74, and release
   75/75 on each host.
 
 ### Stage D: Atomic Nazm Cutover
 
 - Baa's quick, full, stress, determinism, release, and cross-target gates now
   pass through Nazm on both hosts for one exact candidate set.
-- Require parity sign-off for runtime results, public symbols, relocations, and
-  debug behavior.
-- Make Nazm the sole assembler for the supported Baa language subset.
-- In the same documented Baa language release, replace inline `مجمع { ... }`
-  with `نظم { ... }` and remove raw GAS parsing.
+- Runtime, public-symbol, relocation, debug, rollback, Baa, Nazm, and Takween
+  sign-offs are recorded in `baa-nazm-production-admission-v1`.
+- Nazm is the production default for the supported Baa language subset;
+  `--assembler=gas` remains the explicit measured rollback.
+- Baa rejects raw inline `مجمع { ... }`; typed Arabic builtins own small
+  operations and standalone `.نظم` modules own larger assembly. Inline
+  `نظم { ... }` remains optional future syntax.
 
 ### Stage E: In-Process Integration
 
@@ -232,7 +234,7 @@ that is unrelated to the Arabic-first goal.
 
 ## Release Gates
 
-Nazm must not be called Baa-ready until all of the following are true:
+Nazm is Baa-ready because all of the following are continuously enforced:
 
 - No supported instruction form can silently truncate an immediate,
   displacement, output buffer, symbol table, or relocation.

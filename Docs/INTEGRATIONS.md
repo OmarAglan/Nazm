@@ -101,21 +101,21 @@ Not applicable. No network communication, no user accounts, no authentication of
 - Validation status: Unit tests verify bytes and table fields; Baa's Windows
   shadow job links and runs Nazm COFF output with the Arabic entry symbol.
 
-**Baa Compiler (active non-default integration):**
-- Relationship: Baa lowers post-register-allocation Machine IR either to its
-  default AT&T/GAS path or to canonical Arabic `.نظم`; the selected Nazm path
-  writes ELF64/COFF objects for the ordinary host linker.
+**Baa Compiler (active production integration):**
+- Relationship: Baa lowers post-register-allocation Machine IR to canonical
+  Arabic `.نظم` by default; Nazm writes ELF64/COFF objects for the ordinary
+  host linker. Explicit `--assembler=gas` retains the measured rollback path.
 - Current integration mode: `--emit-nazm`, explicit shadow comparison, and the
-  normal `--assembler=nazm` subprocess path. GAS remains the production
-  default, and a failed Nazm invocation never falls back silently.
+  normal default/`--assembler=nazm` subprocess path. A failed Nazm invocation
+  never falls back silently.
 - Later integration mode: `nazm_assemble_buffer()` after the public API and
   ownership contracts are implemented.
 - Canonical output: Arabic textual assembly remains a first-class Baa
   assembly-only output even if an in-process structured path is added later.
 - Required gate: the full current instruction/directive/relocation corpus and
-  Windows/Linux release ladder are green for one exact revision set. The
-  atomic default cutover remains blocked on the documented three-owner
-  parity/rollback approval.
+  Windows/Linux release ladder are green and approved for Baa `5d3f00c...`,
+  Nazm `7be5799...`, and Takween `4fe634f...`. Future surface or boundary
+  changes require a new exact-revision admission run.
 - Contract: see [BAA_INTEGRATION.md](BAA_INTEGRATION.md).
 
 ## Local Developer Tools
