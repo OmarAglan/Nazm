@@ -43,13 +43,13 @@
 
 **Nazm is not Baa's default assembler yet:**
 - Current coverage: all 100 inventoried Baa sources emit for both targets.
-  Windows passes both the shadow route and normal `--assembler=nazm` route,
-  including the complete Baa release orchestrator and byte-stable generated
-  objects.
-- Remaining limit: the same exact Baa/Nazm commits still need a current hosted
-  Linux release receipt, followed by the documented parity/rollback approval.
-  Stack-protector lowering and producer-required future PIC forms stay
-  separately visible.
+  The exact candidate set passes both the shadow route and normal
+  `--assembler=nazm` route on hosted Windows and Linux, including the complete
+  release orchestrator and byte-stable generated objects.
+- Remaining limit: the automated parity gate is green, but the documented
+  parity/rollback record still needs explicit Baa, Nazm, and Takween owner
+  approval. Stack-protector lowering and producer-required future PIC forms
+  stay separately visible.
 - Current mitigation: GAS remains the measured default rollback, and every
   Nazm failure is terminal rather than silently retried through GAS.
 
@@ -186,11 +186,12 @@
   and relocation candidates on both targets. The versioned capability and
   source-level matrices classify every source; all 100 pass real GAS/Nazm
   object, link, and runtime parity on Windows, and also pass with Nazm in the
-  normal assembler slot.
-- Remaining problem: obtain the exact-commit Linux receipt and approve the
-  production parity/rollback report before changing Baa's default.
-- Implementation complexity: Medium; the remaining work is cross-platform
-  admission and release evidence, not another current-corpus encoding wave.
+  normal assembler slot on hosted Windows and Linux for exact Baa
+  `a669e7d...` and Nazm `a4013da...`.
+- Remaining problem: approve the production parity/rollback report before
+  changing Baa's default.
+- Implementation complexity: Low for the current corpus; the remaining step is
+  an owner decision, not another encoding or cross-platform evidence wave.
 
 ## Test Coverage Gaps
 
@@ -198,11 +199,12 @@
 - What's covered: Arabic-entry ELF64 link/run in Nazm CI and real Windows/Linux
   Baa shadow object/link/runtime comparison, including the current external and
   data relocation forms. The Windows normal selected-assembler path is green
-  for the complete 100-source corpus.
-- What's not tested: the current logical-source/determinism change on hosted
-  Linux until the exact commits can be pushed.
-- Priority: High for production admission, not for current relocation
-  correctness.
+  for the complete 100-source corpus. The logical-source/determinism change is
+  included in the exact hosted Windows/Linux admission receipt.
+- What's not tested: no current-corpus linker gap remains; future
+  producer-required GOT/PLT or base-index-scale forms remain separately gated.
+- Priority: Future producer-surface expansion, not current production
+  admission.
 
 **All 16 general-purpose registers in all operand positions:**
 - What's not tested: Coverage exists for several extended-register cases, but not every source/destination/memory position combination.

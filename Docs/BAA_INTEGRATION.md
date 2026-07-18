@@ -198,11 +198,15 @@ that is unrelated to the Arabic-first goal.
   generated source; Nazm emits `.debug_line`/`.rela.debug_line` for ELF64 and
   `.debug$S` for COFF. This completes the 100-source emitter matrix on both
   targets.
+- Exact Baa `a669e7d...` and Nazm `a4013da...` pass the complete shadow and
+  selected-assembler corpus on hosted Windows and Linux. Admission run
+  `29590118064` records quick 27/27, full 44/44, stress 74/74, and release
+  75/75 on each host.
 
 ### Stage D: Atomic Nazm Cutover
 
-- Run Baa's quick, full, stress, determinism, and cross-target gates through
-  Nazm.
+- Baa's quick, full, stress, determinism, release, and cross-target gates now
+  pass through Nazm on both hosts for one exact candidate set.
 - Require parity sign-off for runtime results, public symbols, relocations, and
   debug behavior.
 - Make Nazm the sole assembler for the supported Baa language subset.

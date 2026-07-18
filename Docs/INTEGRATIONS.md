@@ -80,9 +80,10 @@ Not applicable. No network communication, no user accounts, no authentication of
 - Its acceptance step assembles Arabic source to Arabic ELF/listing paths,
   checks listing bytes, links with GNU `ld` using the Arabic entry symbol,
   executes the result under a timeout, and inspects the object with `readelf`.
-- Linux CI has accepted the Arabic-entry ELF64 link/run path. Baa CI run
-  `29407371480` additionally proves opt-in Nazm shadow link/run parity on both
-  Windows and Linux. Release packaging remains a separate gate.
+- Nazm CI run `29589635435` accepts the Arabic-entry ELF64 link/run path,
+  CTest, and the direct build path. Baa admission run `29590118064` proves
+  shadow and selected-Nazm object/link/runtime parity plus complete
+  quick/full/stress/release gates on both Windows and Linux.
 
 ## External Tooling Contracts
 
@@ -101,18 +102,20 @@ Not applicable. No network communication, no user accounts, no authentication of
   shadow job links and runs Nazm COFF output with the Arabic entry symbol.
 
 **Baa Compiler (active non-default integration):**
-- Relationship: Baa currently lowers its Machine IR to English AT&T/GAS text
-  after register allocation and invokes `gcc -c`; Nazm is intended to replace
-  that assembly boundary with Arabic `.نظم` source and direct ELF64/COFF
-  object output.
-- Current integration mode: `--emit-nazm` plus explicit shadow subprocess
-  comparison without changing GAS as the production default or allowing fallback.
+- Relationship: Baa lowers post-register-allocation Machine IR either to its
+  default AT&T/GAS path or to canonical Arabic `.نظم`; the selected Nazm path
+  writes ELF64/COFF objects for the ordinary host linker.
+- Current integration mode: `--emit-nazm`, explicit shadow comparison, and the
+  normal `--assembler=nazm` subprocess path. GAS remains the production
+  default, and a failed Nazm invocation never falls back silently.
 - Later integration mode: `nazm_assemble_buffer()` after the public API and
   ownership contracts are implemented.
 - Canonical output: Arabic textual assembly remains a first-class Baa
   assembly-only output even if an in-process structured path is added later.
-- Required gate: Baa's full instruction/directive/relocation corpus must pass
-  on both targets before the atomic Nazm-only cutover and `نظم { ... }` syntax.
+- Required gate: the full current instruction/directive/relocation corpus and
+  Windows/Linux release ladder are green for one exact revision set. The
+  atomic default cutover remains blocked on the documented three-owner
+  parity/rollback approval.
 - Contract: see [BAA_INTEGRATION.md](BAA_INTEGRATION.md).
 
 ## Local Developer Tools
