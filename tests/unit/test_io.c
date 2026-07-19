@@ -146,12 +146,17 @@ void test_windows_long_utf8_path_round_trips_bytes(void) {
             "اختبار-مسار-عربي-طويل") > 0);
     TEST_ASSERT_TRUE(test_create_directory(directories[0]));
     for (int i = 1; i < DIRECTORY_COUNT; i++) {
-        int written = snprintf(
-            directories[i],
-            PATH_CAPACITY,
-            "%s\\طبقة-عربية-طويلة-عععععععععععععععع",
-            directories[i - 1]);
-        TEST_ASSERT_TRUE(written > 0 && written < PATH_CAPACITY);
+        static const char suffix[] =
+            "\\طبقة-عربية-طويلة-عععععععععععععععع";
+        size_t base_length = strlen(directories[i - 1]);
+        size_t suffix_length = strlen(suffix);
+        TEST_ASSERT_TRUE(
+            base_length + suffix_length + 1 < PATH_CAPACITY);
+        memcpy(directories[i], directories[i - 1], base_length);
+        memcpy(
+            directories[i] + base_length,
+            suffix,
+            suffix_length + 1);
         TEST_ASSERT_TRUE(test_create_directory(directories[i]));
     }
 
