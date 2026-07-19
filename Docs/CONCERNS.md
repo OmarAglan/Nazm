@@ -30,8 +30,9 @@
   instruction-pointer-relative MOV/LEA references. Real Baa link/runtime
   parity covers all 100 inventoried sources on Windows and the last admitted
   Linux receipt.
-- Remaining limit: GOT/PLT and additional base-index-scale PIC/PIE forms are
-  not claimed until Baa's producer inventory actually requires them.
+- Producer-required direct-symbol references pass Baa's focused `-fPIC` and
+  `-fPIE` object/link/runtime gate; GOT/PLT and additional base-index-scale
+  forms are not claimed until Baa's producer inventory actually requires them.
 - Current mitigation: unsupported forms remain explicit Arabic errors; no
   guessed relocation or GAS fallback is allowed.
 
@@ -49,7 +50,7 @@
 - Remaining limit: stack-protector lowering and producer-required future PIC
   forms stay separately visible and require a new admission candidate when
   they enter the checked corpus.
-- Current mitigation: exact Baa `5d3f00c...`, Nazm `7be5799...`, and Takween
+- Current mitigation: exact Baa `9efbcc4...`, Nazm `7be5799...`, and Takween
   `4fe634f...` are approved; GAS remains an explicit measured rollback, and
   every Nazm failure is terminal rather than silently retried through GAS.
 
@@ -187,7 +188,7 @@
   source-level matrices classify every source; all 100 pass real GAS/Nazm
   object, link, and runtime parity on Windows, and also pass with Nazm in the
   default assembler slot on hosted Windows and Linux for exact Baa
-  `5d3f00c...` and Nazm `7be5799...`.
+  `9efbcc4...` and Nazm `7be5799...`.
 - Remaining problem: preserve the production parity/rollback report and rerun
   admission whenever the producer surface, assembler, object writers, startup,
   linker boundary, or default policy changes.

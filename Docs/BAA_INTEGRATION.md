@@ -1,6 +1,6 @@
 # Baa Integration and Bootstrap Contract
 
-**Analysis Date:** 2026-07-18
+**Analysis Date:** 2026-07-19
 
 ## Strategic Intent
 
@@ -122,7 +122,9 @@ At minimum, the current Baa backend requires:
 - Local, global, and external symbols with real visibility semantics.
 - External function calls and external data references.
 - Absolute and PC-relative relocations required by ELF x86-64 and AMD64 COFF.
-- PIC/PIE-compatible references used by Baa's Linux target.
+- PIC/PIE-compatible direct-symbol references used by Baa's Linux target,
+  admitted under both `-fPIC` and `-fPIE`; GOT/PLT and additional
+  base-index-scale forms remain conditional on producer evidence.
 - Deterministic symbol and section ordering without fixed silent symbol limits.
 
 ### Tooling Surface
@@ -198,10 +200,11 @@ that is unrelated to the Arabic-first goal.
   generated source; Nazm emits `.debug_line`/`.rela.debug_line` for ELF64 and
   `.debug$S` for COFF. This completes the 100-source emitter matrix on both
   targets.
-- Exact Baa `5d3f00c...` and Nazm `7be5799...` pass the complete shadow and
+- Exact Baa `9efbcc4...` and Nazm `7be5799...` pass the complete shadow and
   default-assembler corpus on hosted Windows and Linux. Admission run
-  `29648276376` records quick 27/27, full 44/44, stress 74/74, and release
-  75/75 on each host.
+  `29680127124` records quick 27/27, full 44/44, stress 74/74, and release
+  75/75 on each host; Baa CI `29679921655` additionally proves default-Nazm
+  `-fPIC`/`-fPIE` object and `ET_DYN` runtime parity.
 
 ### Stage D: Atomic Nazm Cutover
 

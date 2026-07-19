@@ -249,9 +249,11 @@ attaches every currently `supported` inventory row to one of those fixtures;
 partial and unsupported rows are intentionally not parity success.
 
 The checked source-level matrix emits all 100 corpus sources for both targets.
-Exact Baa `5d3f00c...` and Nazm `7be5799...` pass the wider
+Exact Baa `9efbcc4...` and Nazm `7be5799...` pass the wider
 quick/full/stress/determinism/release admission set on both hosts in run
-`29648276376`; Nazm is the default and GAS remains explicit rollback coverage.
+`29680127124`; Nazm is the default and GAS remains explicit rollback coverage.
+The same candidate's Baa CI `29679921655` proves the producer-required Linux
+`-fPIC`/`-fPIE` object and `ET_DYN` runtime path.
 
 - Generate Baa assembly from its quick, full, and stress suites for both
   `x86_64-linux` and `x86_64-windows`.

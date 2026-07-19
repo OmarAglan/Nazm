@@ -81,7 +81,7 @@ Not applicable. No network communication, no user accounts, no authentication of
   checks listing bytes, links with GNU `ld` using the Arabic entry symbol,
   executes the result under a timeout, and inspects the object with `readelf`.
 - Nazm CI run `29589635435` accepts the Arabic-entry ELF64 link/run path,
-  CTest, and the direct build path. Baa admission run `29590118064` proves
+  CTest, and the direct build path. Baa admission run `29680127124` proves
   shadow and selected-Nazm object/link/runtime parity plus complete
   quick/full/stress/release gates on both Windows and Linux.
 
@@ -113,7 +113,7 @@ Not applicable. No network communication, no user accounts, no authentication of
 - Canonical output: Arabic textual assembly remains a first-class Baa
   assembly-only output even if an in-process structured path is added later.
 - Required gate: the full current instruction/directive/relocation corpus and
-  Windows/Linux release ladder are green and approved for Baa `5d3f00c...`,
+  Windows/Linux release ladder are green and approved for Baa `9efbcc4...`,
   Nazm `7be5799...`, and Takween `4fe634f...`. Future surface or boundary
   changes require a new exact-revision admission run.
 - Contract: see [BAA_INTEGRATION.md](BAA_INTEGRATION.md).
