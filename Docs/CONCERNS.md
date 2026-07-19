@@ -50,8 +50,8 @@
 - Remaining limit: stack-protector lowering and producer-required future PIC
   forms stay separately visible and require a new admission candidate when
   they enter the checked corpus.
-- Current mitigation: exact Baa `9efbcc4...`, Nazm `7be5799...`, and Takween
-  `4fe634f...` are approved; GAS remains an explicit measured rollback, and
+- Current mitigation: exact Baa `661edd9...`, Nazm `7236491...`, and Takween
+  `da8378e...` are approved; GAS remains an explicit measured rollback, and
   every Nazm failure is terminal rather than silently retried through GAS.
 
 **Subprocess acceptance does not link or run objects yet:**
@@ -188,7 +188,7 @@
   source-level matrices classify every source; all 100 pass real GAS/Nazm
   object, link, and runtime parity on Windows, and also pass with Nazm in the
   default assembler slot on hosted Windows and Linux for exact Baa
-  `9efbcc4...` and Nazm `7be5799...`.
+  `661edd9...` and Nazm `7236491...`.
 - Remaining problem: preserve the production parity/rollback report and rerun
   admission whenever the producer surface, assembler, object writers, startup,
   linker boundary, or default policy changes.

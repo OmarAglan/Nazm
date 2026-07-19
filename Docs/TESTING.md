@@ -131,6 +131,12 @@ rejects numeric/old aliases, verifies malformed UTF-8 diagnostics, and preserves
 equivalent but byte-distinct label spellings as separate identifiers. The
 language contract is documented in `Docs/UNICODE.md`.
 
+On Windows, `test_io.c` also creates nested Arabic directories beyond the
+legacy 260-character path limit, then writes, reads, compares, and removes a
+`.نظم` file through Nazm's extended absolute-path adapter. Baa CI exercises the
+same capability through both the default Nazm pipeline and explicit GAS
+rollback from a spaced Arabic long path.
+
 ## GNU Assembler Differential Test
 
 When GNU `as` and `objcopy` are discoverable at configure time, CTest builds
@@ -249,10 +255,10 @@ attaches every currently `supported` inventory row to one of those fixtures;
 partial and unsupported rows are intentionally not parity success.
 
 The checked source-level matrix emits all 100 corpus sources for both targets.
-Exact Baa `9efbcc4...` and Nazm `7be5799...` pass the wider
+Exact Baa `661edd9...` and Nazm `7236491...` pass the wider
 quick/full/stress/determinism/release admission set on both hosts in run
-`29680127124`; Nazm is the default and GAS remains explicit rollback coverage.
-The same candidate's Baa CI `29679921655` proves the producer-required Linux
+`29687846586`; Nazm is the default and GAS remains explicit rollback coverage.
+The same candidate's Baa CI `29685512987` proves the producer-required Linux
 `-fPIC`/`-fPIE` object and `ET_DYN` runtime path.
 
 - Generate Baa assembly from its quick, full, and stress suites for both

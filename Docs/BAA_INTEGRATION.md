@@ -200,11 +200,14 @@ that is unrelated to the Arabic-first goal.
   generated source; Nazm emits `.debug_line`/`.rela.debug_line` for ELF64 and
   `.debug$S` for COFF. This completes the 100-source emitter matrix on both
   targets.
-- Exact Baa `9efbcc4...` and Nazm `7be5799...` pass the complete shadow and
+- Exact Baa `661edd9...` and Nazm `7236491...` pass the complete shadow and
   default-assembler corpus on hosted Windows and Linux. Admission run
-  `29680127124` records quick 27/27, full 44/44, stress 74/74, and release
-  75/75 on each host; Baa CI `29679921655` additionally proves default-Nazm
+  `29687846586` records quick 27/27, full 44/44, stress 74/74, and release
+  75/75 on each host; Baa CI `29685512987` additionally proves default-Nazm
   `-fPIC`/`-fPIE` object and `ET_DYN` runtime parity.
+- Nazm opens and writes real Arabic artifact paths directly through wide,
+  extended Windows paths, including paths beyond the legacy 260-character
+  limit. Baa's default Nazm path therefore needs no ASCII staging or copy.
 
 ### Stage D: Atomic Nazm Cutover
 
