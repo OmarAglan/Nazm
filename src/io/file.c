@@ -131,8 +131,56 @@ static wchar_t *normalized_wide_path(const wchar_t *path) {
     return full;
 }
 
+static wchar_t *extended_wide_path(const wchar_t *path) {
+    wchar_t *full = normalized_wide_path(path);
+    if (full == NULL) {
+        return NULL;
+    }
+    if (wcsncmp(full, L"\\\\?\\", 4) == 0
+        || wcsncmp(full, L"\\\\.\\", 4) == 0) {
+        return full;
+    }
+
+    bool unc = full[0] == L'\\' && full[1] == L'\\';
+    const wchar_t *prefix = unc ? L"\\\\?\\UNC\\" : L"\\\\?\\";
+    const wchar_t *suffix = unc ? full + 2 : full;
+    size_t prefix_length = wcslen(prefix);
+    size_t suffix_length = wcslen(suffix);
+    if (prefix_length > SIZE_MAX - suffix_length - 1
+        || prefix_length + suffix_length + 1
+               > SIZE_MAX / sizeof(wchar_t)) {
+        free(full);
+        errno = ENAMETOOLONG;
+        return NULL;
+    }
+
+    wchar_t *extended = malloc(
+        (prefix_length + suffix_length + 1) * sizeof(*extended));
+    if (extended == NULL) {
+        free(full);
+        errno = ENOMEM;
+        return NULL;
+    }
+    memcpy(extended, prefix, prefix_length * sizeof(*extended));
+    memcpy(extended + prefix_length,
+           suffix,
+           (suffix_length + 1) * sizeof(*extended));
+    free(full);
+    return extended;
+}
+
+static wchar_t *extended_wide_path_utf8(const char *path) {
+    wchar_t *wide = utf8_to_wide(path);
+    if (wide == NULL) {
+        return NULL;
+    }
+    wchar_t *extended = extended_wide_path(wide);
+    free(wide);
+    return extended;
+}
+
 FILE *io_fopen_utf8(const char *path, const char *mode) {
-    wchar_t *wide_path = utf8_to_wide(path);
+    wchar_t *wide_path = extended_wide_path_utf8(path);
     if (wide_path == NULL) {
         return NULL;
     }
@@ -150,7 +198,7 @@ FILE *io_fopen_utf8(const char *path, const char *mode) {
 }
 
 bool io_remove_utf8(const char *path) {
-    wchar_t *wide_path = utf8_to_wide(path);
+    wchar_t *wide_path = extended_wide_path_utf8(path);
     if (wide_path == NULL) {
         return false;
     }
@@ -177,11 +225,18 @@ bool io_paths_refer_to_same_file(const char *left, const char *right) {
         return false;
     }
 
-    if (existing_wide_paths_match(wide_left, wide_right)) {
+    wchar_t *extended_left = extended_wide_path(wide_left);
+    wchar_t *extended_right = extended_wide_path(wide_right);
+    if (extended_left != NULL && extended_right != NULL
+        && existing_wide_paths_match(extended_left, extended_right)) {
+        free(extended_left);
+        free(extended_right);
         free(wide_left);
         free(wide_right);
         return true;
     }
+    free(extended_left);
+    free(extended_right);
 
     wchar_t *full_left = normalized_wide_path(wide_left);
     wchar_t *full_right = normalized_wide_path(wide_right);
