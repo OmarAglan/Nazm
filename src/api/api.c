@@ -19,6 +19,10 @@ enum { NAZM_API_MAX_SOURCE_SIZE = 100 * 1024 * 1024 };
 typedef struct {
     Arena arena;
     jmp_buf oom_jump;
+    const uint8_t *source;
+    size_t source_len;
+    const char *source_name;
+    NazmOptions options;
 } NazmApiContext;
 
 static NazmResult nazm_empty_result(NazmStatus status)
@@ -168,22 +172,11 @@ NazmOptions nazm_default_options(void)
     return options;
 }
 
-NazmResult nazm_assemble_buffer(const uint8_t *source,
-                                size_t source_len,
-                                const char *source_name,
-                                NazmOptions options)
+/* نعزل حد القفزة عن معاملات الواجهة العامة حتى تبقى حية في سياق مملوك. */
+static NazmResult nazm_assemble_caught(
+    NazmApiContext *volatile context)
 {
-    const char *logical_name = source_name ? source_name : "<ذاكرة>";
-    if ((!source && source_len != 0u) || !nazm_options_valid(&options))
-        return nazm_diagnostic_result(
-            NAZM_STATUS_INVALID_ARGUMENT,
-            logical_name,
-            "خيارات واجهة نظم أو مخزن المصدر غير صالح.");
-
     static const uint8_t empty_source[] = "";
-    NazmApiContext *context = (NazmApiContext *)calloc(1u, sizeof(*context));
-    if (!context) return nazm_empty_result(NAZM_STATUS_OUT_OF_MEMORY);
-
     if (setjmp(context->oom_jump) != 0)
     {
         arena_free(&context->arena);
@@ -192,10 +185,11 @@ NazmResult nazm_assemble_buffer(const uint8_t *source,
     }
     context->arena = arena_create_with_oom_handler(
         0u, nazm_api_oom, &context->oom_jump);
+    const char *logical_name = context->source_name;
 
     SourceBuffer source_buffer = {
-        .data = source ? source : empty_source,
-        .len = source_len,
+        .data = context->source ? context->source : empty_source,
+        .len = context->source_len,
         .name = logical_name,
     };
     LexResult lex = lexer_lex(&source_buffer, &context->arena);
@@ -249,7 +243,7 @@ NazmResult nazm_assemble_buffer(const uint8_t *source,
         .debug_lines = &pass2.debug_lines,
         .source_name = logical_name,
     };
-    OutputFormat format = options.format == NAZM_FORMAT_COFF
+    OutputFormat format = context->options.format == NAZM_FORMAT_COFF
         ? OUTPUT_FORMAT_COFF
         : OUTPUT_FORMAT_ELF64;
     OutputResult output = output_write(format, &output_input, &context->arena);
@@ -279,6 +273,27 @@ NazmResult nazm_assemble_buffer(const uint8_t *source,
     arena_free(&context->arena);
     free(context);
     return result;
+}
+
+NazmResult nazm_assemble_buffer(const uint8_t *source,
+                                size_t source_len,
+                                const char *source_name,
+                                NazmOptions options)
+{
+    const char *logical_name = source_name ? source_name : "<ذاكرة>";
+    if ((!source && source_len != 0u) || !nazm_options_valid(&options))
+        return nazm_diagnostic_result(
+            NAZM_STATUS_INVALID_ARGUMENT,
+            logical_name,
+            "خيارات واجهة نظم أو مخزن المصدر غير صالح.");
+
+    NazmApiContext *context = (NazmApiContext *)calloc(1u, sizeof(*context));
+    if (!context) return nazm_empty_result(NAZM_STATUS_OUT_OF_MEMORY);
+    context->source = source;
+    context->source_len = source_len;
+    context->source_name = logical_name;
+    context->options = options;
+    return nazm_assemble_caught(context);
 }
 
 NazmResult nazm_assemble_file(const char *source_path, NazmOptions options)
