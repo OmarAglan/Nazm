@@ -178,7 +178,7 @@ static const char *decode_debug_path_bytes(
                 break;
             }
             ended_with_separator = false;
-            if (!is_arabic_digit(cp) || digits >= 3) {
+            if (!nazm_is_arabic_digit(cp) || digits >= 3) {
                 add_directive_error(
                     errors,
                     arena,

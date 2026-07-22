@@ -181,6 +181,11 @@ static int nazm_main_utf8(int argc, char **argv) {
         return 0;
     }
 
+    if (args.api_info) {
+        cli_print_api_info();
+        return 0;
+    }
+
     if (!args.valid) {
         fprintf(stderr, "%s\n", args.error_msg);
         cli_print_usage(argv[0]);

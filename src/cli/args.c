@@ -93,6 +93,10 @@ CliArgs cli_parse(int argc, char **argv) {
             args.version = true;
             return args;
         }
+        if (strcmp(a, "--معلومات-الواجهة=json") == 0) {
+            args.api_info = true;
+            return args;
+        }
         if (strcmp(a, "--تفصيل") == 0 || strcmp(a, "-ت") == 0) {
             args.verbose = true;
             continue;
@@ -173,7 +177,7 @@ CliArgs cli_parse(int argc, char **argv) {
         args.source_path = a;
     }
 
-    if (!args.source_path && !args.help && !args.version) {
+    if (!args.source_path && !args.help && !args.version && !args.api_info) {
         args.valid     = false;
         args.error_msg = "خطأ: لم يُحدَّد ملف المصدر";
     } else if (args.source_path != NULL
@@ -198,6 +202,7 @@ void cli_print_usage(const char *prog) {
         "  --اسم-المصدر <اسم>    اسم منطقي ثابت للتشخيص والملف الكائني\n"
         "  -ت، --تفصيل           إخراج تفصيلي\n"
         "  --إصدار               عرض الإصدار وهدف البناء\n"
+        "  --معلومات-الواجهة=json  عرض عقد الواجهة والبصمة بصيغة JSON\n"
         "  -م، --مساعدة          عرض هذه الرسالة\n\n");
 }
 
@@ -206,6 +211,20 @@ void cli_print_version(void) {
             NAZM_VERSION_STRING,
             cli_build_target_arabic(),
             cli_build_target());
+}
+
+void cli_print_api_info(void) {
+    NazmApiInfo info = nazm_api_info();
+    fprintf(stdout,
+            "{\"schema\":\"%s\",\"api_version\":%u,"
+            "\"version\":\"%s\",\"capabilities_schema\":\"%s\","
+            "\"capabilities_sha256\":\"%s\",\"fingerprint\":\"%s\"}\n",
+            info.api_schema,
+            info.api_version,
+            info.version,
+            info.capabilities_schema,
+            info.capabilities_sha256,
+            info.fingerprint);
 }
 
 const char *cli_build_target(void) {

@@ -10,13 +10,35 @@ struct ArenaBlock {
     uint8_t     data[];  /* flexible array member */
 };
 
-Arena arena_create(size_t initial_size) {
+static void arena_out_of_memory(Arena *arena) {
+    if (arena && arena->oom_handler) {
+        arena->oom_handler(arena->oom_context);
+    }
+    exit(2);
+}
+
+Arena arena_create_with_oom_handler(size_t initial_size,
+                                    ArenaOomHandler handler,
+                                    void *context) {
     if (initial_size == 0) initial_size = ARENA_DEFAULT_BLOCK_SIZE;
+    Arena arena = {
+        .head = NULL,
+        .used = 0,
+        .total = 0,
+        .oom_handler = handler,
+        .oom_context = context,
+    };
     ArenaBlock *block = malloc(sizeof(ArenaBlock) + initial_size);
-    if (!block) { exit(2); } /* fatal: OOM */
+    if (!block) arena_out_of_memory(&arena);
     block->prev     = NULL;
     block->capacity = initial_size;
-    return (Arena){ .head = block, .used = 0, .total = initial_size };
+    arena.head = block;
+    arena.total = initial_size;
+    return arena;
+}
+
+Arena arena_create(size_t initial_size) {
+    return arena_create_with_oom_handler(initial_size, NULL, NULL);
 }
 
 void *arena_alloc(Arena *arena, size_t size, size_t align) {
@@ -32,7 +54,7 @@ void *arena_alloc(Arena *arena, size_t size, size_t align) {
     size_t cap       = arena->head->capacity * 2;
     if (cap < size) cap = size;
     ArenaBlock *block = malloc(sizeof(ArenaBlock) + cap);
-    if (!block) { exit(2); }
+    if (!block) arena_out_of_memory(arena);
     block->prev      = arena->head;
     block->capacity  = cap;
     arena->head      = block;

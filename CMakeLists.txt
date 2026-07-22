@@ -24,6 +24,9 @@ endif()
 # Debug / Coverage
 add_compile_definitions($<$<CONFIG:Debug>:NAZM_DEBUG=1>)
 
+option(NAZM_BUILD_CLI "Build the standalone Nazm command" ON)
+option(NAZM_BUILD_TESTS "Build Nazm tests" ON)
+
 if(CMAKE_C_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
     add_compile_options(
         $<$<CONFIG:Debug>:-fsanitize=address,undefined>
@@ -44,6 +47,7 @@ endif()
 
 # ── Source files ─────────────────────────────────────────────────────────────
 set(NAZM_LIBRARY_SOURCES
+    src/api/api.c
     src/alloc/arena.c
     src/unicode/arabic.c
     src/error/error.c
@@ -82,6 +86,7 @@ set(NAZM_SOURCES
 )
 
 # ── Assembler binary ─────────────────────────────────────────────────────────
+if(NAZM_BUILD_CLI)
 add_executable(nazm ${NAZM_SOURCES})
 
 # The Arabic launcher is an exact copy of the portable ASCII executable.
@@ -109,24 +114,34 @@ if(MINGW)
 endif()
 
 target_include_directories(nazm PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/include
 )
+endif()
 
 # ── Library (for future in-process use by Baa) ───────────────────────────────
 add_library(libnazm STATIC ${NAZM_LIBRARY_SOURCES})
+set_target_properties(libnazm PROPERTIES OUTPUT_NAME nazm)
 target_include_directories(libnazm PUBLIC
-    ${CMAKE_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/include
 )
 target_include_directories(libnazm PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/src
 )
 
 # ── Tests ────────────────────────────────────────────────────────────────────
-enable_testing()
-add_subdirectory(tests)
+if(NAZM_BUILD_TESTS)
+    if(NOT NAZM_BUILD_CLI)
+        message(FATAL_ERROR "NAZM_BUILD_TESTS requires NAZM_BUILD_CLI")
+    endif()
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 # ── Install ──────────────────────────────────────────────────────────────────
-install(TARGETS nazm DESTINATION bin)
-install(PROGRAMS "${NAZM_ARABIC_EXECUTABLE}" DESTINATION bin)
+if(NAZM_BUILD_CLI)
+    install(TARGETS nazm DESTINATION bin)
+    install(PROGRAMS "${NAZM_ARABIC_EXECUTABLE}" DESTINATION bin)
+endif()
+install(TARGETS libnazm ARCHIVE DESTINATION lib)
 install(FILES include/nazm.h DESTINATION include)

@@ -69,7 +69,7 @@ bool is_arabic_letter(uint32_t cp) {
      *   U+061B  ؛  Arabic Semicolon
      *   U+061F  ؟  Arabic Question Mark
      *   U+0640     Arabic Tatweel (kashida filler, not a letter)
-     *   U+0660-U+0669  Arabic-Indic digits (handled by is_arabic_digit)
+     *   U+0660-U+0669  Arabic-Indic digits (handled by nazm_is_arabic_digit)
      *   U+066A-U+066F  Arabic percent / decimal / thousand separators
      */
     if (cp == 0x060C || cp == 0x061B || cp == 0x061F || cp == 0x0640)
@@ -83,12 +83,12 @@ bool is_arabic_letter(uint32_t cp) {
         || (cp >= 0xFE70 && cp <= 0xFEFF);
 }
 
-bool is_arabic_digit(uint32_t cp) {
+bool nazm_is_arabic_digit(uint32_t cp) {
     return cp >= 0x0660 && cp <= 0x0669;
 }
 
 int arabic_digit_value(uint32_t cp) {
-    if (is_arabic_digit(cp)) return (int)(cp - 0x0660);
+    if (nazm_is_arabic_digit(cp)) return (int)(cp - 0x0660);
     if (cp >= '0' && cp <= '9') return (int)(cp - '0');
     return -1;
 }
@@ -102,7 +102,7 @@ bool is_ident_start(uint32_t cp) {
 }
 
 bool is_ident_continue(uint32_t cp) {
-    return is_arabic_letter(cp) || is_arabic_digit(cp)
+    return is_arabic_letter(cp) || nazm_is_arabic_digit(cp)
         || (cp >= '0' && cp <= '9')
         || cp == '_';
 }

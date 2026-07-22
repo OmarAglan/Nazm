@@ -15,10 +15,10 @@ void test_arabic_letter_detection(void) {
 }
 
 void test_arabic_digit_detection(void) {
-    TEST_ASSERT_TRUE(is_arabic_digit(0x0660));  /* ٠ */
-    TEST_ASSERT_TRUE(is_arabic_digit(0x0669));  /* ٩ */
-    TEST_ASSERT_FALSE(is_arabic_digit('5'));
-    TEST_ASSERT_FALSE(is_arabic_digit(0x0627)); /* ا */
+    TEST_ASSERT_TRUE(nazm_is_arabic_digit(0x0660));  /* ٠ */
+    TEST_ASSERT_TRUE(nazm_is_arabic_digit(0x0669));  /* ٩ */
+    TEST_ASSERT_FALSE(nazm_is_arabic_digit('5'));
+    TEST_ASSERT_FALSE(nazm_is_arabic_digit(0x0627)); /* ا */
 }
 
 void test_arabic_digit_value(void) {

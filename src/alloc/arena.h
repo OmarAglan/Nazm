@@ -10,15 +10,23 @@
 #include <stdint.h>
 
 typedef struct ArenaBlock ArenaBlock;
+typedef void (*ArenaOomHandler)(void *context);
 
 typedef struct {
     ArenaBlock *head;    /* current (newest) block    */
     size_t      used;    /* bytes used in head block  */
     size_t      total;   /* total bytes allocated     */
+    ArenaOomHandler oom_handler;
+    void       *oom_context;
 } Arena;
 
 /* Create a new arena. initial_size is the first block capacity. */
 Arena  arena_create(size_t initial_size);
+
+/* Create an arena whose allocation failures are delegated to the caller. */
+Arena  arena_create_with_oom_handler(size_t initial_size,
+                                     ArenaOomHandler handler,
+                                     void *context);
 
 /* Allocate `size` bytes, aligned to `align`. Returns zeroed memory. */
 void  *arena_alloc(Arena *arena, size_t size, size_t align);

@@ -276,6 +276,16 @@ The same candidate's Baa CI `29685512987` proves the producer-required Linux
 The complete migration and bootstrap requirements live in
 [BAA_INTEGRATION.md](BAA_INTEGRATION.md).
 
+## Public API Contract
+
+`unit_test_api` checks `nazm-api-v1` metadata, platform defaults, structured
+source errors, invalid-option rejection, idempotent cleanup, and in-memory
+ELF64/COFF output. `integration_api_cli_equivalence` assembles the same good
+and bad sources through the standalone command and public API, requires exact
+object bytes in both formats, and requires the API primary diagnostic to be
+present in CLI output. `integration_api_fingerprint_contract` hashes
+`nazm_capabilities_v1.json` and rejects a stale public capability digest.
+
 ## Unit Test Style
 
 - Keep `setUp()` and `tearDown()` in every Unity file, even when empty.

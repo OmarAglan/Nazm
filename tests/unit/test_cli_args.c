@@ -60,6 +60,15 @@ void test_cli_parses_coff_format(void) {
     TEST_ASSERT_EQUAL_INT(OUTPUT_FORMAT_COFF, args.format);
 }
 
+void test_cli_accepts_api_info_without_source(void) {
+    char *argv[] = { "نظم", "--معلومات-الواجهة=json" };
+    CliArgs args = parse_args(2, argv);
+
+    TEST_ASSERT_TRUE(args.valid);
+    TEST_ASSERT_TRUE(args.api_info);
+    TEST_ASSERT_NULL(args.source_path);
+}
+
 void test_cli_parses_short_listing_path(void) {
     char *argv[] = {
         "نظم", "-ك", "برنامج.كشف", "main.نظم"
@@ -199,6 +208,7 @@ int main(void) {
     RUN_TEST(test_cli_requires_source_file);
     RUN_TEST(test_cli_accepts_help_without_source);
     RUN_TEST(test_cli_accepts_version_without_source);
+    RUN_TEST(test_cli_accepts_api_info_without_source);
     RUN_TEST(test_cli_parses_source_output_format_and_verbose);
     RUN_TEST(test_cli_parses_coff_format);
     RUN_TEST(test_cli_parses_short_listing_path);

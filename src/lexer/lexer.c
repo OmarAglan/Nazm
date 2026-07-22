@@ -255,7 +255,7 @@ static void lex_error(Lexer *lx, const char *msg) {
 
 /* ── Character helpers ───────────────────────────────────────────────────── */
 static bool is_number_start(uint32_t cp) {
-    return (cp >= '0' && cp <= '9') || is_arabic_digit(cp);
+    return (cp >= '0' && cp <= '9') || nazm_is_arabic_digit(cp);
 }
 
 static bool last_token_is_newline(const Lexer *lx) {
@@ -334,7 +334,7 @@ static int decimal_digit_value(uint32_t cp) {
         return (int)(cp - '0');
     }
 
-    if (is_arabic_digit(cp)) {
+    if (nazm_is_arabic_digit(cp)) {
         return arabic_digit_value(cp);
     }
 

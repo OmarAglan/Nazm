@@ -36,12 +36,6 @@
 - Current mitigation: unsupported forms remain explicit Arabic errors; no
   guessed relocation or GAS fallback is allowed.
 
-**Public embedding API is declared but not implemented:**
-- Symptoms: `include/nazm.h` declares `nazm_assemble_file()`, `nazm_assemble_buffer()`, `nazm_result_free()`, and `nazm_default_options()`, but the current working entry point remains the CLI and unit-level pipeline helpers.
-- Files: `include/nazm.h`, future API implementation file.
-- Current mitigation: `libnazm` builds without `src/main.c`, so the API can be implemented without coupling to CLI file I/O.
-- Fix approach: Add the API implementation and a small C unit test before promising external embedding support.
-
 **Nazm production default must not weaken visible coverage:**
 - Current coverage: all 100 inventoried Baa sources emit for both targets.
   The exact candidate set passes both the shadow route and normal
@@ -64,6 +58,12 @@
   link/run cases when those linkers are available in CI.
 
 ## Recently Resolved From Earlier Audits
+
+- `nazm-api-v1` now implements buffer/file assembly, owned object bytes,
+  structured Arabic diagnostics, idempotent result cleanup, and recoverable
+  arena OOM. Its version/capability fingerprint is checked against the
+  generated capability document, and CLI/API object plus diagnostic
+  equivalence is covered for ELF64 and COFF.
 
 - Arabic-only `[مؤشر_التعليمة+الرمز]` operands now reach MOV loads/stores and
   64-bit LEA. Pass 2 validates local or external symbols and emits a visible

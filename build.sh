@@ -13,7 +13,7 @@ case "$($CC -dumpmachine 2>/dev/null || true)" in
   *mingw*) LDFLAGS="-municode" ;;
 esac
 
-SRC="src/alloc/arena.c src/unicode/arabic.c src/error/error.c \
+SRC="src/api/api.c src/alloc/arena.c src/unicode/arabic.c src/error/error.c \
      src/io/file.c \
      src/lexer/lexer.c src/lexer/keywords.c \
      src/parser/parser.c \
@@ -24,7 +24,8 @@ SRC="src/alloc/arena.c src/unicode/arabic.c src/error/error.c \
      src/output/output.c src/output/elf64.c src/output/coff.c src/output/symbols.c src/output/debug_line.c \
      src/cli/args.c src/cli/listing.c"
 
-TESTS="test_arena test_unicode test_symtable test_keywords test_immediate test_rex test_lexer test_parser test_encoder test_encoder_matrix test_passes test_elf64 test_cli_args test_diagnostics test_coff test_io test_examples test_listing"
+TESTS="test_api test_arena test_unicode test_symtable test_keywords test_immediate test_rex test_lexer test_parser test_encoder test_encoder_matrix test_passes test_elf64 test_cli_args test_diagnostics test_coff test_io test_examples test_listing"
+TEST_DIR="${TMPDIR:-/tmp}/nazm_tests"
 
 case "${1:-build}" in
   build)
@@ -35,12 +36,12 @@ case "${1:-build}" in
     ;;
   test)
     echo "اختبار..."
-    mkdir -p /tmp/nazm_tests
+    mkdir -p "$TEST_DIR"
     PASS=0; FAIL=0
     for t in $TESTS; do
       $CC $CFLAGS -DNAZM_LIBRARY_BUILD=1 $SRC tests/unit/$t.c \
-          -o /tmp/nazm_tests/$t 2>/dev/null
-      result=$(/tmp/nazm_tests/$t)
+          -o "$TEST_DIR/$t" 2>/dev/null
+      result=$("$TEST_DIR/$t")
       if echo "$result" | grep -q "^OK"; then
         echo "  ✓ $t: $result"
         PASS=$((PASS+1))
@@ -58,7 +59,7 @@ case "${1:-build}" in
     fi
     ;;
   clean)
-    rm -f nazm نظم /tmp/nazm_tests/*
+    rm -f nazm نظم "$TEST_DIR"/*
     echo "✓ تم التنظيف"
     ;;
   *)

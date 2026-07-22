@@ -25,6 +25,7 @@ typedef struct {
     bool         verbose;
     bool         help;
     bool         version;
+    bool         api_info;
     bool         valid;       /* false = parse error */
     const char  *error_msg;
 } CliArgs;
@@ -32,5 +33,6 @@ typedef struct {
 CliArgs cli_parse(int argc, char **argv);
 void    cli_print_usage(const char *program_name);
 void    cli_print_version(void);
+void    cli_print_api_info(void);
 const char *cli_build_target(void);
 const char *cli_build_target_arabic(void);

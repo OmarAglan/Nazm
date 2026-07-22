@@ -223,9 +223,14 @@ that is unrelated to the Arabic-first goal.
 
 ### Stage E: In-Process Integration
 
-- Implement `nazm_assemble_buffer()` and explicit result ownership.
+- `nazm-api-v1` now implements `nazm_assemble_buffer()` and explicit result
+  ownership, including structured diagnostics and recoverable OOM.
+- Its exact version/capability fingerprint must enter Baa and Takween cache
+  identity before either enables Nazm object reuse.
 - Keep the subprocess mode as an isolation/debugging option.
-- Verify that CLI and API paths produce equivalent object semantics.
+- CLI and API paths now produce byte-identical ELF64/COFF objects and matching
+  primary diagnostics in Nazm acceptance. Baa integration remains opt-in until
+  its own ecosystem gates pass.
 
 ### Stage F: Rewrite and Bootstrap
 

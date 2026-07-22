@@ -13,13 +13,14 @@ function(add_nazm_test)
     add_executable(${ARG_NAME} ${ARG_SOURCES})
     target_link_libraries(${ARG_NAME} PRIVATE unity libnazm)
     target_include_directories(${ARG_NAME} PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/src
+        ${PROJECT_SOURCE_DIR}/include
     )
     add_test(NAME unit_${ARG_NAME} COMMAND ${ARG_NAME})
 endfunction()
 
 # ── Unit tests ───────────────────────────────────────────────────────────────
+add_nazm_test(NAME test_api       SOURCES unit/test_api.c)
 add_nazm_test(NAME test_arena     SOURCES unit/test_arena.c)
 add_nazm_test(NAME test_unicode   SOURCES unit/test_unicode.c)
 add_nazm_test(NAME test_symtable  SOURCES unit/test_symtable.c)
@@ -38,15 +39,37 @@ add_nazm_test(NAME test_coff     SOURCES unit/test_coff.c)
 add_nazm_test(NAME test_io       SOURCES unit/test_io.c)
 add_nazm_test(NAME test_examples SOURCES unit/test_examples.c)
 add_nazm_test(NAME test_listing  SOURCES unit/test_listing.c)
-set_tests_properties(unit_test_examples PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+set_tests_properties(unit_test_examples PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+set_tests_properties(unit_test_api PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
+add_executable(nazm_api_probe integration/api_probe.c)
+target_link_libraries(nazm_api_probe PRIVATE libnazm)
+target_include_directories(nazm_api_probe PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/src
+)
+if(MINGW)
+    target_link_options(nazm_api_probe PRIVATE -municode)
+endif()
+
+add_test(
+    NAME integration_api_cli_equivalence
+    COMMAND ${CMAKE_COMMAND}
+        -DNAZM_EXE=$<TARGET_FILE:nazm>
+        -DAPI_PROBE=$<TARGET_FILE:nazm_api_probe>
+        -DGOOD_SOURCE=${PROJECT_SOURCE_DIR}/examples/خروج.نظم
+        -DBAD_SOURCE=${PROJECT_SOURCE_DIR}/examples/diagnostics/فاصلة-مفقودة.نظم
+        -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/api-equivalence-work
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/api_cli_equivalence.cmake
+)
 
 # ── CLI acceptance test ──────────────────────────────────────────────────────
 add_test(
     NAME integration_cli
     COMMAND ${CMAKE_COMMAND}
         -DNAZM_EXE=$<TARGET_FILE:nazm>
-        -DGOOD_SOURCE=${CMAKE_SOURCE_DIR}/examples/خروج.نظم
-        -DBAD_SOURCE=${CMAKE_SOURCE_DIR}/examples/diagnostics/فاصلة-مفقودة.نظم
+        -DGOOD_SOURCE=${PROJECT_SOURCE_DIR}/examples/خروج.نظم
+        -DBAD_SOURCE=${PROJECT_SOURCE_DIR}/examples/diagnostics/فاصلة-مفقودة.نظم
         -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/cli-work
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/cli_acceptance.cmake
 )
@@ -55,7 +78,7 @@ add_test(
     NAME integration_examples
     COMMAND ${CMAKE_COMMAND}
         -DNAZM_EXE=$<TARGET_FILE:nazm>
-        -DEXAMPLE_DIR=${CMAKE_SOURCE_DIR}/examples
+        -DEXAMPLE_DIR=${PROJECT_SOURCE_DIR}/examples
         -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/examples-work
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/examples_acceptance.cmake
 )
@@ -72,12 +95,20 @@ add_test(
 add_test(
     NAME integration_capabilities_contract
     COMMAND ${CMAKE_COMMAND}
-        -DCAPABILITIES=${CMAKE_SOURCE_DIR}/Docs/generated/nazm_capabilities_v1.json
-        -DKEYWORDS_SOURCE=${CMAKE_SOURCE_DIR}/src/lexer/keywords.c
-        -DLEXER_SOURCE=${CMAKE_SOURCE_DIR}/src/lexer/lexer.c
-        -DPARSER_SOURCE=${CMAKE_SOURCE_DIR}/src/parser/parser.c
-        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -DCAPABILITIES=${PROJECT_SOURCE_DIR}/Docs/generated/nazm_capabilities_v1.json
+        -DKEYWORDS_SOURCE=${PROJECT_SOURCE_DIR}/src/lexer/keywords.c
+        -DLEXER_SOURCE=${PROJECT_SOURCE_DIR}/src/lexer/lexer.c
+        -DPARSER_SOURCE=${PROJECT_SOURCE_DIR}/src/parser/parser.c
+        -DSOURCE_ROOT=${PROJECT_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/capabilities_contract.cmake
+)
+
+add_test(
+    NAME integration_api_fingerprint_contract
+    COMMAND ${CMAKE_COMMAND}
+        -DCAPABILITIES=${PROJECT_SOURCE_DIR}/Docs/generated/nazm_capabilities_v1.json
+        -DPUBLIC_HEADER=${PROJECT_SOURCE_DIR}/include/nazm.h
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/api_fingerprint_contract.cmake
 )
 
 # ── Differential encoder test ────────────────────────────────────────────────
@@ -90,7 +121,7 @@ if(NAZM_GNU_AS AND NAZM_OBJCOPY)
     )
     target_link_libraries(nazm_differential_emitter PRIVATE libnazm)
     target_include_directories(nazm_differential_emitter PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
+        ${PROJECT_SOURCE_DIR}/src
     )
 
     add_test(

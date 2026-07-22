@@ -25,7 +25,7 @@ int utf8_codepoint_len(const uint8_t *src, size_t src_len, size_t offset);
 bool is_arabic_letter(uint32_t cp);
 
 /* Is this codepoint an Arabic-Indic digit (٠١٢٣٤٥٦٧٨٩)? */
-bool is_arabic_digit(uint32_t cp);
+bool nazm_is_arabic_digit(uint32_t cp);
 
 /* Convert Arabic-Indic digit codepoint to its integer value (0–9). */
 int arabic_digit_value(uint32_t cp);
