@@ -9,6 +9,32 @@ permissions:
   contents: read
 
 jobs:
+  windows-installer:
+    name: Windows installer contract
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build, test, and package
+        shell: pwsh
+        run: .\scripts\build_installer.ps1
+
+      - name: Test silent install and uninstall
+        shell: powershell
+        run: .\scripts\test_installer.ps1
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: nazm-setup-0.4.0-x64
+          path: dist/installer/nazm-setup-0.4.0-x64.exe
+
   linux:
     name: Linux build, test, and link
     runs-on: ubuntu-latest

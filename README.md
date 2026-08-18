@@ -106,6 +106,23 @@ cmake -B build-api -DNAZM_BUILD_CLI=OFF -DNAZM_BUILD_TESTS=OFF
 cmake --build build-api
 ```
 
+### مثبت Windows
+
+ينتج المثبت المستقل الأمرين `نظم.exe` و`nazm.exe`، ويضيف مجلد الأوامر فقط
+إلى `PATH`. لا يحتاج نظم إلى GCC أو أي وقت تشغيل خارجي:
+
+```powershell
+.\scripts\build_installer.ps1
+```
+
+يكون الناتج `dist\installer\nazm-setup-0.4.0-x64.exe`. التثبيت الافتراضي
+لكل المستخدمين، ويدعم المثبت `/CURRENTUSER` عند غياب صلاحية الإدارة.
+يمكن التحقق من التثبيت الصامت و`PATH` وفحص الإصدار والإزالة النظيفة بالأمر:
+
+```powershell
+.\scripts\test_installer.ps1
+```
+
 ## الاختبار
 
 ```bash
