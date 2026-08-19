@@ -74,4 +74,11 @@ $installer = Join-Path $root "dist\installer\nazm-setup-$Version-x64.exe"
 if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
     throw "Nazm installer was not produced at $installer"
 }
+$installerHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash
+$checksum = $installer + ".sha256"
+[IO.File]::WriteAllText(
+    $checksum,
+    "$installerHash *$([IO.Path]::GetFileName($installer))`n",
+    [Text.Encoding]::ASCII)
 Write-Output $installer
+Write-Output $checksum

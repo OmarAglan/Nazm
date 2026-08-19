@@ -12,6 +12,23 @@ if ([string]::IsNullOrWhiteSpace($InstallDirectory)) {
     $InstallDirectory = Join-Path $env:LOCALAPPDATA "Temp\NazmInstallerContract"
 }
 $Installer = (Resolve-Path -LiteralPath $Installer).Path
+$checksumPath = $Installer + ".sha256"
+if (-not (Test-Path -LiteralPath $checksumPath -PathType Leaf)) {
+    throw "Installer checksum file was not found: $checksumPath"
+}
+$checksumLine = [IO.File]::ReadAllText(
+    $checksumPath, [Text.Encoding]::ASCII).Trim()
+if ($checksumLine -notmatch '^([0-9A-Fa-f]{64}) \*(.+)$') {
+    throw "Installer checksum file has an invalid format."
+}
+if ($Matches[2] -cne [IO.Path]::GetFileName($Installer)) {
+    throw "Installer checksum names the wrong file."
+}
+$actualInstallerHash =
+    (Get-FileHash -Algorithm SHA256 -LiteralPath $Installer).Hash
+if ($Matches[1] -ine $actualInstallerHash) {
+    throw "Installer SHA-256 verification failed."
+}
 $arabicCommand = -join [char[]](0x0646, 0x0638, 0x0645)
 $versionArgument = "--" + (-join [char[]](0x0625, 0x0635, 0x062F, 0x0627, 0x0631))
 
