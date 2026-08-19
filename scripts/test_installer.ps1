@@ -56,7 +56,7 @@ function Wait-InstallerState {
     throw "Timed out waiting for $Description."
 }
 
-try {
+function Invoke-NazmInstaller {
     $setupProcess = Start-Process -FilePath $Installer -ArgumentList @(
         "/VERYSILENT",
         "/SUPPRESSMSGBOXES",
@@ -68,6 +68,10 @@ try {
     if ($setupProcess.ExitCode -ne 0) {
         throw "Nazm installer failed with exit code $($setupProcess.ExitCode)."
     }
+}
+
+try {
+    Invoke-NazmInstaller
     $installed = $true
 
     Wait-InstallerState "Nazm installation" {
@@ -76,6 +80,7 @@ try {
         (Test-Path -LiteralPath $uninstaller -PathType Leaf) -and
         (Test-Path -LiteralPath $markerKey)
     }
+    Invoke-NazmInstaller
 
     if (-not (Test-Path -LiteralPath $arabicExecutable -PathType Leaf) -or
         -not (Test-Path -LiteralPath $portableExecutable -PathType Leaf) -or
