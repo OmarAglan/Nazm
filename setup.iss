@@ -44,6 +44,8 @@ SetupLogging=yes
 UsePreviousAppDir=yes
 UsePreviousLanguage=yes
 UsePreviousTasks=yes
+CloseApplications=yes
+RestartApplications=no
 UninstallDisplayIcon={app}\bin\{#MyAppExeName}
 UninstallDisplayName={#MyAppName} {#MyAppVersion}
 
@@ -71,6 +73,11 @@ Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "ROADMAP.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\bin"
+Type: filesandordirs; Name: "{app}\lib"
+Type: filesandordirs; Name: "{app}\include"
 
 [Icons]
 Name: "{autoprograms}\نظم\دليل نظم"; Filename: "{app}\README.md"
@@ -118,6 +125,7 @@ end;
 
 procedure ApplyNazmEnvironment;
 var
+  Root: Integer;
   BinDirectory: string;
 begin
   BinDirectory := ExpandConstant('{app}\bin');
@@ -129,6 +137,11 @@ begin
   end
   else
     Log('Nazm installer: PATH entry already present.');
+  NazmRegistryRoot(Root);
+  RegWriteStringValue(Root, NAZM_INSTALLER_KEY, 'InstallLocation',
+    ExpandConstant('{app}'));
+  RegWriteStringValue(Root, NAZM_INSTALLER_KEY, 'Version',
+    '{#MyAppVersion}');
 end;
 
 function RunNazmVersionProbe: Boolean;

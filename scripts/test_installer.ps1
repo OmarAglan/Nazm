@@ -80,7 +80,17 @@ try {
         (Test-Path -LiteralPath $uninstaller -PathType Leaf) -and
         (Test-Path -LiteralPath $markerKey)
     }
+    $staleUpgradeFile = Join-Path $binDirectory "removed-by-upgrade.tmp"
+    [IO.File]::WriteAllText($staleUpgradeFile, "stale")
     Invoke-NazmInstaller
+    if (Test-Path -LiteralPath $staleUpgradeFile) {
+        throw "Nazm repair did not remove an obsolete owned payload file."
+    }
+    $marker = Get-ItemProperty -LiteralPath $markerKey
+    if ($marker.Version -ne '0.4.0' -or
+        $marker.InstallLocation -ine $InstallDirectory) {
+        throw 'Nazm installer did not record its installed version and location.'
+    }
 
     if (-not (Test-Path -LiteralPath $arabicExecutable -PathType Leaf) -or
         -not (Test-Path -LiteralPath $portableExecutable -PathType Leaf) -or
