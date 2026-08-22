@@ -117,6 +117,14 @@ cmake --build build-api
 
 يكون الناتج `dist\installer\nazm-setup-0.4.0-x64.exe`. التثبيت الافتراضي
 لكل المستخدمين، ويدعم المثبت `/CURRENTUSER` عند غياب صلاحية الإدارة.
+لبناء إصدار Authenticode، مرر أداة Inno المسماة وأمر توقيعها؛ يوقع البناء
+المثبت وبرنامج الإزالة ثم يحسب SHA-256 من البايتات الموقعة:
+
+```powershell
+.\scripts\build_installer.ps1 `
+  -SignToolName releasesign `
+  -SignToolCommand '<signtool command using $f>'
+```
 يمكن التحقق من التثبيت الصامت و`PATH` وفحص الإصدار والإزالة النظيفة بالأمر:
 
 ```powershell

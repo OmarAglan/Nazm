@@ -27,6 +27,10 @@ DisableProgramGroupPage=yes
 AllowNoIcons=yes
 OutputDir=dist\installer
 OutputBaseFilename=nazm-setup-{#MyAppVersion}-x64
+#ifdef InstallerSignTool
+SignTool={#InstallerSignTool}
+SignedUninstaller=yes
+#endif
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern

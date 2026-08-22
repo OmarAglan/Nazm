@@ -2,12 +2,22 @@ param(
     [string]$Version = "0.4.0",
     [string]$BuildDirectory = "",
     [string]$IsccPath = "",
+    [string]$SignToolName = "",
+    [string]$SignToolCommand = "",
     [switch]$SkipBuild,
     [switch]$SkipTests
 )
 
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+if ([string]::IsNullOrWhiteSpace($SignToolName) -ne
+    [string]::IsNullOrWhiteSpace($SignToolCommand)) {
+    throw "Pass both -SignToolName and -SignToolCommand, or neither."
+}
+if (-not [string]::IsNullOrWhiteSpace($SignToolName) -and
+    $SignToolName -notmatch "^[A-Za-z0-9_-]+$") {
+    throw "SignToolName may contain only letters, digits, underscore, and hyphen."
+}
 $setupScript = Join-Path $root "setup.iss"
 if ([string]::IsNullOrWhiteSpace($BuildDirectory)) {
     $BuildDirectory = Join-Path $root "build\windows-release"
@@ -60,10 +70,17 @@ if ([string]::IsNullOrWhiteSpace($IsccPath) -or
 }
 
 $resolvedBuildDirectory = (Resolve-Path -LiteralPath $BuildDirectory).Path
+$isccArguments = @(
+    "/DMyAppVersion=$Version",
+    "/DNazmBinaryDir=$resolvedBuildDirectory"
+)
+if (-not [string]::IsNullOrWhiteSpace($SignToolName)) {
+    $isccArguments += "/DInstallerSignTool=$SignToolName"
+    $isccArguments += "/S$SignToolName=$SignToolCommand"
+}
 Push-Location $root
 try {
-    & $IsccPath "/DMyAppVersion=$Version" `
-        "/DNazmBinaryDir=$resolvedBuildDirectory" $setupScript
+    & $IsccPath @isccArguments $setupScript
     if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE." }
 }
 finally {
