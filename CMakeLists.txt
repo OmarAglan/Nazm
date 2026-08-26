@@ -85,6 +85,10 @@ set(NAZM_SOURCES
     ${NAZM_LIBRARY_SOURCES}
 )
 
+if(WIN32)
+    list(APPEND NAZM_SOURCES resources/nazm.rc)
+endif()
+
 # ── Assembler binary ─────────────────────────────────────────────────────────
 if(NAZM_BUILD_CLI)
 add_executable(nazm ${NAZM_SOURCES})

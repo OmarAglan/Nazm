@@ -41,6 +41,7 @@ PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog commandline
 ChangesEnvironment=yes
 SetupLogging=yes
+SetupIconFile=resources\branding\nazm.ico
 UsePreviousAppDir=yes
 UsePreviousLanguage=yes
 UsePreviousTasks=yes
@@ -89,10 +90,17 @@ Filename: "{app}\bin\{#MyAppExeName}"; Parameters: "--إصدار"; Description: 
 
 [Code]
 #include "installer\windows_environment.iss"
+#include "installer\windows_scope_migration.iss"
 
 const
   NAZM_INSTALLER_KEY = 'Software\BaaEcosystem\Nazm';
   NAZM_PATH_OWNED_VALUE = 'PathOwned';
+
+function PrepareToInstall(var NeedsRestart: Boolean): string;
+begin
+  Result := EcoMigrateOppositeInstall('{#MyAppName}',
+    'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8D3D57AE-41CF-4B8A-95E9-270E4564E2A1}_is1');
+end;
 
 procedure NazmRegistryRoot(var Root: Integer);
 begin

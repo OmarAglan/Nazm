@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="resources/branding/nazm-master-v1.png" width="144" alt="شعار نظم">
+</p>
+
 # نَظْم
 
 **نَظْم** هو مجمع عربي لبنية **إكس86-64** (`x86-64`) مكتوب بلغة C11.
