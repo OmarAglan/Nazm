@@ -1,4 +1,4 @@
-; مثبت نظم المستقل لويندوز.
+﻿; مثبت نظم المستقل لويندوز.
 
 #define MyAppId "{{8D3D57AE-41CF-4B8A-95E9-270E4564E2A1}"
 #define MyAppName "نظم"
@@ -34,6 +34,13 @@ SignedUninstaller=yes
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
+WizardSizePercent=110,110
+DisableWelcomePage=no
+WizardImageFile=installer\wizard-sidebar.png
+WizardSmallImageFile=installer\wizard-mark.png
+WizardImageStretch=yes
+LZMANumBlockThreads=1
+CompressionThreads=1
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
@@ -49,6 +56,17 @@ CloseApplications=yes
 RestartApplications=no
 UninstallDisplayIcon={app}\bin\{#MyAppExeName}
 UninstallDisplayName={#MyAppName} {#MyAppVersion}
+
+[LangOptions]
+DialogFontName=Segoe UI
+DialogFontSize=10
+WelcomeFontName=Segoe UI
+
+[Messages]
+arabic.WelcomeLabel1=ابنِ الأساس مع نظم
+arabic.WelcomeLabel2=مجمّع نظم وأدواته للبرمجة بلغة التجميع العربية.%n%nسيصبح الأمر نظم متاحاً في طرفية جديدة بعد التثبيت.
+english.WelcomeLabel1=Build with Nazm
+english.WelcomeLabel2=The Nazm assembler and its Arabic assembly tools.%n%nAfter installation, open a new terminal to use nazm.
 
 [Languages]
 Name: "arabic"; MessagesFile: "compiler:Languages\Arabic.isl"
@@ -89,6 +107,7 @@ Name: "{autoprograms}\نظم\إزالة نظم"; Filename: "{uninstallexe}"
 Filename: "{app}\bin\{#MyAppExeName}"; Parameters: "--إصدار"; Description: "التحقق من إصدار نظم"; Flags: postinstall skipifsilent unchecked runhidden
 
 [Code]
+#include "installer\windows_wizard.iss"
 #include "installer\windows_environment.iss"
 #include "installer\windows_scope_migration.iss"
 
@@ -173,7 +192,7 @@ begin
     ApplyNazmEnvironment;
     EcoBroadcastEnvironmentChange;
     if not RunNazmVersionProbe then
-      RaiseException('فشل فحص صحة نظم بعد التثبيت. راجع سجل المثبت.');
+      EcoInstallFailed('فشل فحص صحة نظم بعد التثبيت. راجع سجل المثبت.');
     if not WizardSilent then
       MsgBox('اكتمل تثبيت نظم. افتح طرفية جديدة لاستخدام الأمر نظم.',
         mbInformation, MB_OK);
