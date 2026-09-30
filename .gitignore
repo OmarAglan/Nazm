@@ -20,3 +20,8 @@ CMakeUserPresets.json
 /build
 /build-*/
 /dist/
+
+# توهّم أن الملف التنفيذي الناتج عن البناء مصدراً: ممنوع
+/nazm
+/nazm.exe
+
