@@ -858,6 +858,7 @@
       "movq|immediate-integer,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
       "movq|memory-base-displacement,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
       "movl|memory-rip-relative,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
+      "movw|memory-base-displacement,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
       "movl|register,memory-base-displacement": "tests/fixtures/baa_coverage/حركة-باء.نظم",
       "movl|register,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",
       "movq|memory-rip-relative,register": "tests/fixtures/baa_coverage/حركة-باء.نظم",

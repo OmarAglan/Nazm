@@ -28,7 +28,7 @@ extern "C" {
 
 /* SHA-256 of Docs/generated/nazm_capabilities_v1.json. */
 #define NAZM_CAPABILITIES_SHA256 \
-    "46bbaa2b1428faa848b6bd629808cac9a9844bd4b76b0bac1655b65f12064bcb"
+    "25eed1f73b70a7fbf230c35c69527adef5473a9fdabc92636aa424f171c0f642"
 
 /* Changes whenever API, implementation version, or capabilities change. */
 #define NAZM_FINGERPRINT \
