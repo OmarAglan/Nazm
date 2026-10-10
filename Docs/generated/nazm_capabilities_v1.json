@@ -743,6 +743,9 @@
     { "gas": ".rdata", "nazm": ".بيانات_للقراءة", "object": ".rdata" },
     { "gas": ".bss", "nazm": ".غير_مهيأة", "object": ".bss" }
   ],
+  "implicit_sections": [
+    { "gas": ".note.GNU-stack", "object": ".note.GNU-stack", "format": "elf64", "type": "SHT_PROGBITS", "flags": [], "size": 0, "meaning": "non-executable-stack" }
+  ],
   "symbols": {
     "definitions": true,
     "bindings": ["local", "global"],
@@ -922,7 +925,8 @@
       ".rodata": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".rdata": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
       ".bss": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
-      ".text": "tests/fixtures/baa_coverage/بيانات-باء.نظم"
+      ".text": "tests/fixtures/baa_coverage/بيانات-باء.نظم",
+      ".note.GNU-stack": "tests/fixtures/baa_coverage/بيانات-باء.نظم"
     }
   },
   "known_limits": [

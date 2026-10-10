@@ -64,6 +64,9 @@ jobs:
             --كشف build/خروج.كشف \
             --صيغة إلف64
           grep -F "48 C7 C0 3C 00 00 00" build/خروج.كشف
-          ld -o build/خروج -e البداية build/خروج.o
+          ld --fatal-warnings -o build/خروج -e البداية build/خروج.o
           timeout 5s ./build/خروج
           readelf -h -S -s build/خروج.o
+          readelf -S -W build/خروج.o | grep -F ".note.GNU-stack"
+          readelf -l -W build/خروج | tee build/خروج.segments
+          grep -E "GNU_STACK .* RW +0x" build/خروج.segments

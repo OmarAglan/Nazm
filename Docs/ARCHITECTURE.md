@@ -226,7 +226,9 @@ Implemented now:
 - Basic pass and symbol table structure.
 - Encoder helper modules and instruction table scaffolding.
 - ELF64 and COFF writers with `.text`, optional `.data`, `.rodata`/`.rdata`,
-  `.bss`, symbol/string tables, and section-aware relocation support.
+  `.bss`, symbol/string tables, and section-aware relocation support. ELF64
+  objects end with an empty `.note.GNU-stack` that marks the stack
+  non-executable.
 - CLI option parser and `nazm` executable target.
 - Unit tests for arena, Unicode, symtable, keywords, immediates, REX, lexer,
   parser, encoder, passes, ELF64, COFF, diagnostics, examples, and CLI argument parsing through both CTest

@@ -104,6 +104,25 @@ if(NOT SECTION_COUNT EQUAL 5)
         "Nazm capability contract must expose .text, .data, .rodata, .rdata, and .bss")
 endif()
 
+string(JSON IMPLICIT_SECTION_COUNT LENGTH "${DOCUMENT}" implicit_sections)
+if(NOT IMPLICIT_SECTION_COUNT EQUAL 1)
+    message(FATAL_ERROR
+        "Nazm capability contract must expose exactly the implicit .note.GNU-stack section")
+endif()
+string(JSON IMPLICIT_SECTION GET "${DOCUMENT}" implicit_sections 0 object)
+string(JSON IMPLICIT_FORMAT GET "${DOCUMENT}" implicit_sections 0 format)
+if(NOT IMPLICIT_SECTION STREQUAL ".note.GNU-stack"
+        OR NOT IMPLICIT_FORMAT STREQUAL "elf64")
+    message(FATAL_ERROR
+        "Unexpected implicit section: ${IMPLICIT_SECTION} (${IMPLICIT_FORMAT})")
+endif()
+file(READ "${SOURCE_ROOT}/src/output/elf64.c" ELF64_WRITER)
+string(FIND "${ELF64_WRITER}" "\"${IMPLICIT_SECTION}\"" IMPLICIT_WRITER_FOUND)
+if(IMPLICIT_WRITER_FOUND EQUAL -1)
+    message(FATAL_ERROR
+        "Implicit section '${IMPLICIT_SECTION}' is absent from the ELF64 writer")
+endif()
+
 string(JSON RIP_RELATIVE GET "${DOCUMENT}" source_syntax memory rip_relative)
 if(NOT RIP_RELATIVE)
     message(FATAL_ERROR "Nazm capability contract must expose Arabic RIP-relative memory")

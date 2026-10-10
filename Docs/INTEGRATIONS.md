@@ -26,7 +26,8 @@ network calls, has no telemetry, and contacts no external service.
 - Written through the same UTF-8 path boundary; buffered close failures are
   reported as I/O failure
 - Current section support: `.text` always; optional `.data`, `.rodata`/`.rdata`,
-  and `.bss`; plus section-specific ELF64 or COFF relocation tables
+  and `.bss`; plus section-specific ELF64 or COFF relocation tables. ELF64
+  objects always carry the implicit `.note.GNU-stack` marker
 - Current symbol support: defined labels with section-aware `.text`/`.data`
   indexes and real local/global binding. Labels are local by default; `.عام`
   emits ELF64 `STB_GLOBAL` or COFF `EXTERNAL`, while `.محلي` emits ELF64
@@ -90,9 +91,13 @@ Not applicable. No network communication, no user accounts, no authentication of
 **Linux Linkers:**
 - Relationship: Consumers of ELF64 relocatable object files
 - Current expectation: `.text`, `.data`, `.rodata`, `.bss`, `.symtab`,
-  `.strtab`, `.shstrtab`, and relevant relocation sections are emitted
+  `.strtab`, `.shstrtab`, and relevant relocation sections are emitted.
+  Every object also ends with an empty, non-executable `.note.GNU-stack`,
+  so GNU `ld` does not assume an executable stack
 - Validation status: Unit/subprocess tests verify bytes and section fields;
-  GitHub Actions also links and runs Arabic-entry ELF64 output.
+  GitHub Actions also links Arabic-entry ELF64 output with
+  `ld --fatal-warnings`, runs it, and requires a `GNU_STACK` segment without
+  the execute flag.
 
 **Windows Linkers:**
 - Relationship: Consumers of PE/COFF `.obj` files

@@ -150,8 +150,51 @@ void test_elf_machine_x86_64(void) {
 
 void test_elf_section_count(void) {
     OutputResult r = assemble_elf("ارجع");
-    /* SH_NULL, .text, .symtab, .strtab, .shstrtab = 5 */
-    TEST_ASSERT_EQUAL_INT(5, (int)rd16(r.data+60));
+    /* SH_NULL, .text, .symtab, .strtab, .shstrtab, .note.GNU-stack = 6 */
+    TEST_ASSERT_EQUAL_INT(6, (int)rd16(r.data+60));
+}
+
+/*
+ * GNU ld assumes an executable stack for any object that lacks this section.
+ * It must be empty, non-allocated, and not SHF_EXECINSTR, and it sits last so
+ * that every other section keeps its index.
+ */
+static void assert_non_executable_stack_marker(const OutputResult *r) {
+    const uint8_t *note = find_elf_section_named(r, ".note.GNU-stack");
+    TEST_ASSERT_NOT_NULL(note);
+
+    uint64_t shoff = rd64(r->data + 40);
+    uint16_t count = rd16(r->data + 60);
+    TEST_ASSERT_TRUE(note == r->data + shoff + (size_t)(count - 1) * 64);
+
+    TEST_ASSERT_EQUAL_INT(1, (int)rd32(note + 4));  /* SHT_PROGBITS */
+    TEST_ASSERT_EQUAL_INT(0, (int)rd64(note + 8));  /* no flags */
+    TEST_ASSERT_EQUAL_INT(0, (int)rd64(note + 16)); /* no address */
+    TEST_ASSERT_TRUE(rd64(note + 24) <= r->size);   /* offset inside file */
+    TEST_ASSERT_EQUAL_INT(0, (int)rd64(note + 32)); /* empty */
+    TEST_ASSERT_EQUAL_INT(1, (int)rd64(note + 48)); /* byte aligned */
+}
+
+void test_elf_marks_stack_non_executable(void) {
+    OutputResult text_only = assemble_elf("ارجع");
+    TEST_ASSERT_TRUE(text_only.ok);
+    assert_non_executable_stack_marker(&text_only);
+
+    OutputResult empty = assemble_elf(".نص");
+    TEST_ASSERT_TRUE(empty.ok);
+    assert_non_executable_stack_marker(&empty);
+
+    OutputResult every_section = assemble_elf(
+        ".نص\n"
+        "الدالة:\n"
+        "انقل سجل_البيانات، رسالة\n"
+        "ارجع\n"
+        ".بيانات\n"
+        "رسالة: .عدد٦٤ الدالة\n"
+        ".بيانات_للقراءة\nثابت: .عدد٦٤ الدالة\n"
+        ".غير_مهيأة\nمخزن: .مساحة_صفرية ١٦\n");
+    TEST_ASSERT_TRUE(every_section.ok);
+    assert_non_executable_stack_marker(&every_section);
 }
 
 void test_elf_shstrndx(void) {
@@ -332,15 +375,15 @@ void test_elf_empty_program(void) {
 
 void test_elf_minimum_size(void) {
     OutputResult r = assemble_elf("ارجع");
-    /* Must be at least: 64 (ELF hdr) + 1 (.text) + 5*64 (shdrs) = 385 bytes */
-    TEST_ASSERT_TRUE(r.size >= 385);
+    /* Must be at least: 64 (ELF hdr) + 1 (.text) + 6*64 (shdrs) = 449 bytes */
+    TEST_ASSERT_TRUE(r.size >= 449);
 }
 
 
 void test_elf_data_section_exists_when_data_emitted(void) {
     OutputResult r = assemble_elf(".نص\nارجع\n.بيانات\nرسالة: .سلسلة_منتهية_بصفر \"x\"");
     TEST_ASSERT_TRUE(r.ok);
-    TEST_ASSERT_EQUAL_INT(6, (int)rd16(r.data + 60));
+    TEST_ASSERT_EQUAL_INT(7, (int)rd16(r.data + 60));
     uint64_t shoff = rd64(r.data + 40);
     const uint8_t *data_sh = r.data + shoff + 2 * 64;
     TEST_ASSERT_EQUAL_INT(1, (int)rd32(data_sh + 4)); /* SHT_PROGBITS */
@@ -359,7 +402,7 @@ void test_elf_data_symbol_uses_data_section_index(void) {
 void test_elf_rela_text_for_mov_label(void) {
     OutputResult r = assemble_elf(".نص\nانقل سجل_البيانات، رسالة\n.بيانات\nرسالة: .سلسلة_منتهية_بصفر \"x\"");
     TEST_ASSERT_TRUE(r.ok);
-    TEST_ASSERT_EQUAL_INT(7, (int)rd16(r.data + 60));
+    TEST_ASSERT_EQUAL_INT(8, (int)rd16(r.data + 60));
     uint64_t shoff = rd64(r.data + 40);
     const uint8_t *rela_sh = r.data + shoff + 3 * 64;
     TEST_ASSERT_EQUAL_INT(4, (int)rd32(rela_sh + 4)); /* SHT_RELA */
@@ -379,7 +422,7 @@ void test_elf_read_only_and_bss_sections(void) {
         ".بيانات_للقراءة\nثابت: .عدد٣٢ ٤٢\n"
         ".غير_مهيأة\nمخزن: .مساحة_صفرية ١٦\n");
     TEST_ASSERT_TRUE(r.ok);
-    TEST_ASSERT_EQUAL_INT(7, (int)rd16(r.data + 60));
+    TEST_ASSERT_EQUAL_INT(8, (int)rd16(r.data + 60));
 
     uint64_t shoff = rd64(r.data + 40);
     const uint8_t *read_only = r.data + shoff + 2 * 64;
@@ -401,7 +444,7 @@ void test_elf_rela_data_for_symbol_initializer(void) {
         ".عام المؤشر\n"
         "المؤشر: .عدد٦٤ الدالة\n");
     TEST_ASSERT_TRUE(r.ok);
-    TEST_ASSERT_EQUAL_INT(7, (int)rd16(r.data + 60));
+    TEST_ASSERT_EQUAL_INT(8, (int)rd16(r.data + 60));
 
     uint64_t shoff = rd64(r.data + 40);
     const uint8_t *rela_data = r.data + shoff + 3 * 64;
@@ -572,6 +615,7 @@ int main(void) {
     RUN_TEST(test_elf_dwarf_line_sections_and_text_relocation);
     RUN_TEST(test_elf_machine_x86_64);
     RUN_TEST(test_elf_section_count);
+    RUN_TEST(test_elf_marks_stack_non_executable);
     RUN_TEST(test_elf_shstrndx);
     RUN_TEST(test_elf_shoff_valid);
 

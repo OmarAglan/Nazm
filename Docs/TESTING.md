@@ -154,6 +154,11 @@ more correct merely because it is shorter.
   `.strtab`, and `.rela.text` for the currently supported relocation kind.
   The mixed `.rodata` plus `.rela.text` case also verifies that symbol section
   indices match the physical section-header order consumed by the linker.
+  `test_elf_marks_stack_non_executable` requires an empty `.note.GNU-stack`
+  without `SHF_EXECINSTR` as the last section header of text-only, empty, and
+  mixed data/relocation objects. The Linux CI job proves the linker side: it
+  links with `ld --fatal-warnings` and requires a `GNU_STACK` segment flagged
+  `RW`.
 - COFF tests cover the file header, section headers, raw `.text`/`.data` bytes, symbol table, string table, and `.text` relocation table.
 - Both writer suites build 513-symbol tables, verify the complete emitted count
   and relocation index beyond the old 511-symbol cap, and reject relocations

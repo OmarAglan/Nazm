@@ -9,9 +9,15 @@
  * ELF64 relocatable object writer.
  *
  * Produces .text, optional .data, optional .rela.text, .symtab, .strtab,
- * .shstrtab, and the section header table. ELF section headers describe each
- * section in the object file, and relocation sections carry entries the linker
- * uses to fix symbolic references.
+ * .shstrtab, .note.GNU-stack, and the section header table. ELF section
+ * headers describe each section in the object file, and relocation sections
+ * carry entries the linker uses to fix symbolic references.
+ *
+ * .note.GNU-stack is empty and carries no SHF_EXECINSTR flag. GNU ld reads it
+ * as "this object does not need an executable stack"; an object without it
+ * makes the linker assume one. Nazm source has no way to request an executable
+ * stack, so every object carries the marker. It is written last so that no
+ * other section index depends on it.
  */
 
 #define ET_REL          1
@@ -346,6 +352,8 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     int sh_symtab = next_section++;
     int sh_strtab = next_section++;
     int sh_shstrtab = next_section++;
+    int sh_note_gnu_stack = next_section++;
+    (void)sh_note_gnu_stack;
     int sh_count = next_section;
     (void)sh_null;
 
@@ -573,9 +581,12 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
     uint32_t sh_symtab_name = strtab_add(&shstrtab, ".symtab");
     uint32_t sh_strtab_name = strtab_add(&shstrtab, ".strtab");
     uint32_t sh_shstrtab_name = strtab_add(&shstrtab, ".shstrtab");
+    uint32_t sh_note_gnu_stack_name =
+        strtab_add(&shstrtab, ".note.GNU-stack");
 
     size_t shstrtab_off = ob.size;
     outbuf_write(&ob, shstrtab.data, shstrtab.size);
+    size_t note_gnu_stack_off = ob.size;
 
     align_outbuf(&ob, 8);
     size_t shoff = ob.size;
@@ -735,6 +746,18 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                0,
                (uint64_t)shstrtab_off,
                (uint64_t)shstrtab.size,
+               0,
+               0,
+               1,
+               0);
+
+    write_shdr(&ob,
+               sh_note_gnu_stack_name,
+               SHT_PROGBITS,
+               0,
+               0,
+               (uint64_t)note_gnu_stack_off,
+               0,
                0,
                0,
                1,
