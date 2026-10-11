@@ -112,7 +112,7 @@ Nazm/
   `test_keywords.c`, `test_immediate.c`, `test_rex.c`, `test_lexer.c`,
   `test_parser.c`, `test_encoder.c`, `test_encoder_matrix.c`, `test_passes.c`, `test_elf64.c`,
   `test_coff.c`, `test_cli_args.c`, `test_diagnostics.c`, `test_io.c`,
-  `test_examples.c`, and `test_listing.c`.
+  `test_examples.c`, `test_listing.c`, and `test_fuzz.c`.
 
 **tests/differential/**
 - `gas_reference.s`, `emit_nazm_bytes.c`, `compare_gas.cmake`

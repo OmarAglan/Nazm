@@ -65,6 +65,13 @@ target_link_libraries(test_alloc_faults PRIVATE unity nazm_fault)
 add_test(NAME unit_test_alloc_faults COMMAND test_alloc_faults)
 set_tests_properties(unit_test_alloc_faults PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 
+# Seeded fuzzing of the lexer, the parser and the stages behind them, over the
+# same injected library so a sample of the inputs also runs out of memory.
+add_executable(test_fuzz unit/test_fuzz.c)
+target_link_libraries(test_fuzz PRIVATE unity nazm_fault)
+add_test(NAME unit_test_fuzz COMMAND test_fuzz)
+set_tests_properties(unit_test_fuzz PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
 # The command-line driver over the same injected library; the environment
 # selects the allocation point that fails.
 add_executable(nazm_fault_cli ${PROJECT_SOURCE_DIR}/src/main.c)

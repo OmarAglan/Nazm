@@ -303,7 +303,12 @@ static bool parse_mem_operand(Parser *p, const Token *open_tok, Operand *out) {
         }
 
         const Token *imm_tok = advance(p);
-        int64_t disp = strtoll(imm_tok->value, NULL, 10) * sign;
+        int64_t disp = strtoll(imm_tok->value, NULL, 10);
+        if (sign < 0) {
+            /* INT64_MIN has no negation; any value outside 32 bits is
+             * rejected below all the same. */
+            disp = disp == INT64_MIN ? INT64_MAX : -disp;
+        }
 
         if (!set_memory_displacement(
                 p, out, (RegId)rid, disp, imm_tok)) {

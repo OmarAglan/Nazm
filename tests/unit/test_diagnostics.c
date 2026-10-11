@@ -6,6 +6,7 @@
 #include "parser/parser.h"
 #include "passes/pass1.h"
 #include "passes/pass2.h"
+#include "unicode/arabic.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -128,6 +129,38 @@ void test_pass2_diagnostic_renders_unresolved_label_context(void) {
     assert_contains(text, "غير_موجود");
 }
 
+/* A name too long for a message buffer is cut between characters. */
+void test_long_names_never_cut_a_message_inside_a_character(void) {
+    /* An odd and an even byte offset, so one of the two cuts lands inside
+     * a two-byte letter whatever the length of the message prefix. */
+    for (int underscores = 1; underscores <= 2; underscores++) {
+        char source[1024];
+        size_t at = 0;
+
+        at += (size_t)snprintf(source + at, sizeof(source) - at, "اقفز ");
+        for (int i = 0; i < underscores; i++) source[at++] = '_';
+        for (int i = 0; i < 300; i++) {
+            at += (size_t)snprintf(source + at, sizeof(source) - at, "م");
+        }
+        source[at++] = '\n';
+        source[at] = '\0';
+
+        PipelineResult pipeline = run_pipeline(source);
+        TEST_ASSERT_EQUAL_INT(1, (int)pipeline.pass2.errors.count);
+
+        const char *message = pipeline.pass2.errors.errors[0].message;
+        size_t len = strlen(message);
+        assert_contains(message, "وسم غير محلول");
+        TEST_ASSERT_TRUE(len < 300);
+
+        for (size_t offset = 0; offset < len;) {
+            TEST_ASSERT_TRUE(utf8_is_well_formed_at(
+                (const uint8_t *)message, len, offset));
+            utf8_next_codepoint((const uint8_t *)message, len, &offset);
+        }
+    }
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -135,6 +168,7 @@ int main(void) {
     RUN_TEST(test_parser_diagnostic_renders_missing_comma_context);
     RUN_TEST(test_pass1_diagnostic_renders_duplicate_label_context);
     RUN_TEST(test_pass2_diagnostic_renders_unresolved_label_context);
+    RUN_TEST(test_long_names_never_cut_a_message_inside_a_character);
 
     return UNITY_END();
 }

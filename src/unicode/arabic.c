@@ -52,6 +52,29 @@ uint32_t utf8_peek_codepoint(const uint8_t *src, size_t src_len, size_t offset) 
     return utf8_next_codepoint(src, src_len, &offset);
 }
 
+bool utf8_is_well_formed_at(const uint8_t *src, size_t src_len, size_t offset) {
+    size_t next = offset;
+
+    /* An ill-formed sequence decodes to U+FFFD and consumes one byte; the
+     * real U+FFFD is three bytes long. */
+    return utf8_next_codepoint(src, src_len, &next) != 0xFFFD
+        || next - offset == 3;
+}
+
+size_t utf8_complete_prefix(const uint8_t *src, size_t len) {
+    /* Walk back over at most three continuation bytes to their lead byte. */
+    size_t lead = len;
+    while (lead > 0 && len - lead < 3 && (src[lead - 1] & 0xC0) == 0x80) {
+        lead--;
+    }
+    if (lead == 0) return len;
+    lead--;
+
+    uint8_t b0 = src[lead];
+    size_t needed = b0 >= 0xF0 ? 4 : b0 >= 0xE0 ? 3 : b0 >= 0xC0 ? 2 : 1;
+    return len - lead < needed ? lead : len;
+}
+
 int utf8_codepoint_len(const uint8_t *src, size_t src_len, size_t offset) {
     if (offset >= src_len) return 0;
     uint8_t b = src[offset];

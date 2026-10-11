@@ -283,8 +283,18 @@ static int hex_digit_value(uint32_t cp) {
     return -1;
 }
 
-static int64_t parse_hex_number(Lexer *lx, bool *ok) {
-    int64_t val = 0;
+/* Appends one digit; false when the value no longer fits in 64 bits. */
+static bool append_digit(uint64_t *val, unsigned base, int digit) {
+    if (*val > (UINT64_MAX - (unsigned)digit) / base) {
+        return false;
+    }
+
+    *val = *val * base + (unsigned)digit;
+    return true;
+}
+
+static uint64_t parse_hex_number(Lexer *lx, bool *ok, bool *fits) {
+    uint64_t val = 0;
     bool got = false;
 
     while (!at_end(lx)) {
@@ -293,7 +303,7 @@ static int64_t parse_hex_number(Lexer *lx, bool *ok) {
             break;
         }
 
-        val = val * 16 + digit;
+        if (!append_digit(&val, 16, digit)) *fits = false;
         got = true;
         skip_cp(lx);
     }
@@ -306,8 +316,8 @@ static int64_t parse_hex_number(Lexer *lx, bool *ok) {
     return val;
 }
 
-static int64_t parse_binary_number(Lexer *lx, bool *ok) {
-    int64_t val = 0;
+static uint64_t parse_binary_number(Lexer *lx, bool *ok, bool *fits) {
+    uint64_t val = 0;
     bool got = false;
 
     while (!at_end(lx)) {
@@ -316,7 +326,7 @@ static int64_t parse_binary_number(Lexer *lx, bool *ok) {
             break;
         }
 
-        val = val * 2 + (int)(cp - '0');
+        if (!append_digit(&val, 2, (int)(cp - '0'))) *fits = false;
         got = true;
         skip_cp(lx);
     }
@@ -341,8 +351,11 @@ static int decimal_digit_value(uint32_t cp) {
     return -1;
 }
 
-static int64_t parse_decimal_number(Lexer *lx, bool *ok, bool already_got_digit) {
-    int64_t val = 0;
+static uint64_t parse_decimal_number(Lexer *lx,
+                                     bool *ok,
+                                     bool *fits,
+                                     bool already_got_digit) {
+    uint64_t val = 0;
     bool got = already_got_digit;
 
     while (!at_end(lx)) {
@@ -351,7 +364,7 @@ static int64_t parse_decimal_number(Lexer *lx, bool *ok, bool already_got_digit)
             break;
         }
 
-        val = val * 10 + digit;
+        if (!append_digit(&val, 10, digit)) *fits = false;
         got = true;
         skip_cp(lx);
     }
@@ -369,14 +382,18 @@ static int64_t parse_decimal_number(Lexer *lx, bool *ok, bool already_got_digit)
  *   decimal       42   ٤٢   (ASCII or Arabic-Indic digits, or mixed)
  *   hex           0xFF  0xff
  *   binary        0b1010
- * Returns the integer value; sets *ok=false on overflow/bad input.
+ * Returns the magnitude. Sets *ok=false on a malformed literal, which is
+ * reported here, and *fits=false when the digits exceed 64 bits, which the
+ * caller reports because it knows where the literal began. The whole
+ * literal is consumed either way.
  */
-static int64_t parse_number(Lexer *lx, bool *ok) {
+static uint64_t parse_number(Lexer *lx, bool *ok, bool *fits) {
     *ok = true;
+    *fits = true;
     uint32_t cp = peek_cp(lx);
 
     if (cp != '0') {
-        return parse_decimal_number(lx, ok, false);
+        return parse_decimal_number(lx, ok, fits, false);
     }
 
     skip_cp(lx);
@@ -384,15 +401,26 @@ static int64_t parse_number(Lexer *lx, bool *ok) {
 
     if (next == 'x' || next == 'X') {
         skip_cp(lx);
-        return parse_hex_number(lx, ok);
+        return parse_hex_number(lx, ok, fits);
     }
 
     if (next == 'b' || next == 'B') {
         skip_cp(lx);
-        return parse_binary_number(lx, ok);
+        return parse_binary_number(lx, ok, fits);
     }
 
-    return parse_decimal_number(lx, ok, true);
+    return parse_decimal_number(lx, ok, fits, true);
+}
+
+/* The 64-bit pattern as a signed value, so 0xFFFFFFFFFFFFFFFF is -1. */
+static int64_t as_signed_bits(uint64_t bits) {
+    return bits <= (uint64_t)INT64_MAX
+        ? (int64_t)bits
+        : -(int64_t)(UINT64_MAX - bits) - 1;
+}
+
+static void lex_number_too_large(Lexer *lx, int line, int col) {
+    lex_error_at(lx, line, col, lx->col, "الرقم لا يمثل في ٦٤ بت");
 }
 
 /* ── Identifier / mnemonic / register scanning ───────────────────────────── */
@@ -461,8 +489,30 @@ static void lex_newline(Lexer *lx, int line, int col) {
     push_token_value(lx, TOKEN_NEWLINE, "\n", 1, line, col, col + 1);
 }
 
+static bool at_ill_formed_utf8(const Lexer *lx) {
+    return !utf8_is_well_formed_at(lx->src->data, lx->src->len, lx->pos);
+}
+
+/* Reports a whole run of ill-formed bytes as one error and skips it. */
+static void lex_ill_formed_utf8(Lexer *lx) {
+    int line = lx->line;
+    int col  = lx->col;
+
+    while (at_ill_formed_utf8(lx)) {
+        skip_cp(lx);
+    }
+
+    lex_error_at(lx, line, col, lx->col, "ترميز UTF-8 غير صالح");
+}
+
+/* A comment may say anything, but the source stays UTF-8 throughout. */
 static void lex_comment(Lexer *lx) {
     while (!at_end(lx) && peek_cp(lx) != '\n') {
+        if (at_ill_formed_utf8(lx)) {
+            lex_ill_formed_utf8(lx);
+            continue;
+        }
+
         skip_cp(lx);
     }
 }
@@ -506,10 +556,15 @@ static void lex_minus_or_negative_number(Lexer *lx, int line, int col) {
 
     if (is_number_start(next)) {
         bool ok;
-        int64_t val = parse_number(lx, &ok);
+        bool fits;
+        uint64_t val = parse_number(lx, &ok, &fits);
 
-        if (ok) {
-            push_immediate_token(lx, -val, line, col, lx->col);
+        /* The most negative value has a magnitude one above INT64_MAX. */
+        if (!fits || val > (uint64_t)INT64_MAX + 1u) {
+            lex_number_too_large(lx, line, col);
+        } else if (ok) {
+            push_immediate_token(lx, as_signed_bits(0u - val),
+                                 line, col, lx->col);
         }
 
         return;
@@ -530,6 +585,12 @@ static void lex_string(Lexer *lx, int line, int col) {
     bool ok = true;
 
     while (!at_end(lx)) {
+        if (at_ill_formed_utf8(lx)) {
+            lex_ill_formed_utf8(lx);
+            ok = false;
+            continue;
+        }
+
         size_t cp_start = lx->pos;
         uint32_t cp = peek_cp(lx);
 
@@ -607,10 +668,13 @@ static void lex_string(Lexer *lx, int line, int col) {
 
 static void lex_number(Lexer *lx, int line, int col) {
     bool ok;
-    int64_t val = parse_number(lx, &ok);
+    bool fits;
+    uint64_t val = parse_number(lx, &ok, &fits);
 
-    if (ok) {
-        push_immediate_token(lx, val, line, col, lx->col);
+    if (!fits) {
+        lex_number_too_large(lx, line, col);
+    } else if (ok) {
+        push_immediate_token(lx, as_signed_bits(val), line, col, lx->col);
     }
 }
 
@@ -695,6 +759,11 @@ static void lex_all(Lexer *lx) {
 
         if (is_ident_start(cp)) {
             lex_identifier(lx, tok_line, tok_col);
+            continue;
+        }
+
+        if (at_ill_formed_utf8(lx)) {
+            lex_ill_formed_utf8(lx);
             continue;
         }
 

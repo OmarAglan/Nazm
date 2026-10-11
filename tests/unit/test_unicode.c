@@ -81,6 +81,52 @@ void test_utf8_rejects_truncated_and_bad_continuation(void) {
     TEST_ASSERT_EQUAL_size_t(1, offset);
 }
 
+void test_utf8_well_formedness_tells_replacement_character_from_error(void) {
+    const uint8_t text[] = { 'a', 0xD8, 0xA7, 0xEF, 0xBF, 0xBD };
+    TEST_ASSERT_TRUE(utf8_is_well_formed_at(text, sizeof(text), 0));
+    TEST_ASSERT_TRUE(utf8_is_well_formed_at(text, sizeof(text), 1));
+    TEST_ASSERT_TRUE(utf8_is_well_formed_at(text, sizeof(text), 3));
+    TEST_ASSERT_TRUE(utf8_is_well_formed_at(text, sizeof(text), sizeof(text)));
+
+    /* Inside a character, and a character cut short by the end. */
+    TEST_ASSERT_FALSE(utf8_is_well_formed_at(text, sizeof(text), 2));
+    TEST_ASSERT_FALSE(utf8_is_well_formed_at(text, sizeof(text) - 1, 3));
+
+    const uint8_t overlong[] = { 0xC0, 0xAF };
+    TEST_ASSERT_FALSE(utf8_is_well_formed_at(overlong, sizeof(overlong), 0));
+
+    const uint8_t stray[] = { 0xFF };
+    TEST_ASSERT_FALSE(utf8_is_well_formed_at(stray, sizeof(stray), 0));
+}
+
+void test_utf8_complete_prefix_drops_only_a_cut_character(void) {
+    static const struct {
+        uint8_t bytes[6];
+        size_t  len;
+        size_t  prefix;
+    } cases[] = {
+        { { 0 },                            0, 0 },
+        { { 'a', 'b' },                     2, 2 },
+        { { 0xD8, 0xA7 },                   2, 2 },
+        { { 'a', 0xD8 },                    2, 1 },
+        { { 0xD8, 0xA7, 0xD8 },             3, 2 },
+        { { 0xE2, 0x82, 0xAC },             3, 3 },
+        { { 'a', 0xE2, 0x82 },              3, 1 },
+        { { 'a', 0xE2 },                    2, 1 },
+        { { 0xF0, 0x9F, 0x98, 0x80 },       4, 4 },
+        { { 'a', 0xF0, 0x9F, 0x98 },        4, 1 },
+        { { 'a', 0xF0, 0x9F },              3, 1 },
+        { { 'a', 0xF0 },                    2, 1 },
+        { { 0xF0, 0x9F, 0x98, 0x80, 'z' },  5, 5 },
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        TEST_ASSERT_EQUAL_size_t(
+            cases[i].prefix,
+            utf8_complete_prefix(cases[i].bytes, cases[i].len));
+    }
+}
+
 void test_ident_start_and_continue(void) {
     TEST_ASSERT_TRUE(is_ident_start(0x0627));   /* ا — Arabic letter */
     TEST_ASSERT_TRUE(is_ident_start('_'));
@@ -103,6 +149,8 @@ int main(void) {
     RUN_TEST(test_utf8_decode_arabic_alef);
     RUN_TEST(test_utf8_rejects_non_scalar_and_non_shortest_sequences);
     RUN_TEST(test_utf8_rejects_truncated_and_bad_continuation);
+    RUN_TEST(test_utf8_well_formedness_tells_replacement_character_from_error);
+    RUN_TEST(test_utf8_complete_prefix_drops_only_a_cut_character);
     RUN_TEST(test_ident_start_and_continue);
     return UNITY_END();
 }

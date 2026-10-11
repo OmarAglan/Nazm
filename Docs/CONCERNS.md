@@ -134,6 +134,14 @@
 - Conditional jumps use near `rel32` sizing in pass 1 and encoder output, avoiding short-jump size mismatch.
 - `libnazm` no longer compiles `src/main.c`; the executable owns `main.c`, while library and tests share `NAZM_LIBRARY_SOURCES`.
 - CLI source reads reject files larger than 100 MiB with a specific Arabic diagnostic before allocating the whole file.
+- Ill-formed UTF-8 is rejected inside comments and string literals too; it used
+  to be accepted there and string bytes were copied into the object.
+- Number literals are accumulated unsigned with an overflow check. A literal
+  beyond 64 bits is an error instead of signed-overflow undefined behavior, and
+  negating `INT64_MIN` in a literal or a memory displacement no longer
+  overflows.
+- `error_add_span()` shortens a message at a character boundary, so a name
+  longer than a caller's message buffer cannot leave half a character behind.
 
 ## Security Considerations
 
@@ -150,8 +158,26 @@
   result but is never injected. AddressSanitizer and UBSan run in the Linux CI
   job only.
 - Files: `src/alloc/sysalloc.h`, `src/alloc/arena.c`, `tests/support/alloc_fault.c`.
-- Recommendation: Run the planned lexer/parser fuzzing over the injected build
-  so generated inputs widen the set of reached points.
+- Recommendation: Keep widening the inputs. `unit_test_fuzz` now re-assembles
+  one generated input in four with random allocation points failing, which
+  reaches points the 14 sources never do.
+
+**Fuzzing is seeded and bounded, not coverage-guided:**
+- Status: `unit_test_fuzz` runs 6000 generated inputs per run from a fixed
+  seed and found three defects, all fixed and pinned as regressions.
+- Risk: The generators know the vocabulary and the line shapes, but nothing
+  steers them toward unexecuted branches. A defect that needs a rare
+  combination of operands, sections and relocations can survive any number of
+  seeds. Inputs are capped at 16 KiB, so behavior that depends on very large
+  sources is not exercised. A literal above `INT64_MAX` reaches the parser as
+  its signed 64-bit pattern, so `.عدد٨ 0xFFFFFFFFFFFFFFFF` is the byte `0xFF`
+  while `.عدد٨ 0xFFFF` is an error. That follows from the pattern rule in
+  `Docs/LANGUAGE.md`, but it is a wart.
+- Files: `tests/unit/test_fuzz.c`, `src/lexer/lexer.c`.
+- Recommendation: Before a release, run other seeds with a higher
+  `NAZM_FUZZ_ITERATIONS` and add what they find to `REGRESSIONS`. A libFuzzer
+  or AFL++ harness over `nazm_assemble_buffer()` on Linux would add the
+  coverage feedback this suite lacks.
 
 ## Performance Bottlenecks
 

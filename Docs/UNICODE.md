@@ -11,8 +11,13 @@ on implicit normalization.
 - Source bytes must form valid UTF-8 scalar values.
 - Overlong sequences, UTF-16 surrogate encodings, truncated sequences, invalid
   continuation bytes, and values above U+10FFFF are rejected by the lexer.
+- The rule holds everywhere in the file, comments and string literals included.
+  A run of ill-formed bytes is one error, `ترميز UTF-8 غير صالح`, spanning the
+  whole run. U+FFFD written out as `EF BF BD` is an ordinary character.
 - Diagnostics use codepoint columns while token values and symbol identity keep
   their original UTF-8 bytes.
+- Every diagnostic message is valid UTF-8. A message that echoes a name too
+  long for it is shortened at a character boundary.
 
 ## Mnemonic Spelling
 

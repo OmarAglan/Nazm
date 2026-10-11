@@ -18,6 +18,13 @@ uint32_t utf8_next_codepoint(const uint8_t *src, size_t src_len, size_t *offset)
 /* Peek at the codepoint at `offset` without advancing. */
 uint32_t utf8_peek_codepoint(const uint8_t *src, size_t src_len, size_t offset);
 
+/* Is the sequence at `src[offset]` well-formed UTF-8? True at the end. */
+bool utf8_is_well_formed_at(const uint8_t *src, size_t src_len, size_t offset);
+
+/* Length of the longest prefix of `src` that does not end inside a
+ * character. Shorter than `len` only when the last character is cut off. */
+size_t utf8_complete_prefix(const uint8_t *src, size_t len);
+
 /* How many bytes does the codepoint at `src[offset]` occupy? (1–4) */
 int utf8_codepoint_len(const uint8_t *src, size_t src_len, size_t offset);
 

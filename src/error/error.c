@@ -1,4 +1,5 @@
 #include "error.h"
+#include "../unicode/arabic.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -41,7 +42,10 @@ void error_add_span(ErrorList *list,
     e->line    = line;
     e->col     = col;
     e->end_col = normalized_end_col(col, end_col);
-    e->message = arena_strdup(arena, message);
+    /* A caller's fixed buffer may have cut the text inside a character. */
+    e->message = arena_strndup(
+        arena, message,
+        utf8_complete_prefix((const uint8_t *)message, strlen(message)));
 }
 
 void error_add(ErrorList *list,

@@ -6,12 +6,13 @@
 
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
-- `build.sh test` is the direct no-CMake path and currently runs the same 20 unit-test suites registered for CTest.
-- Current total on Windows: 446 Unity tests across the 20 suites. Three of them,
+- `build.sh test` is the direct no-CMake path and currently runs the same 21 unit-test suites registered for CTest.
+- Current total on Windows: 459 Unity tests across the 21 suites. Three of them,
   the long UTF-8 path round trip, case-insensitive path identity, and
   UTF-16-to-UTF-8 argv conversion, are Windows-only.
 - `test_alloc_faults` is built against the library sources compiled with the
   allocation-failure injector; see Allocation-Failure Injection below.
+- `test_fuzz` is built against the same injected library; see Fuzzing below.
 - CTest additionally registers `differential_encoder_gas` when GNU `as` and
   `objcopy` are available.
 - CTest registers `integration_cli`, which launches the built `nazm` executable
@@ -69,6 +70,7 @@ tests/
     test_encoder.c
     test_encoder_matrix.c
     test_examples.c
+    test_fuzz.c
     test_immediate.c
     test_io.c
     test_keywords.c
@@ -365,6 +367,79 @@ Run the three alone with:
 ```bash
 ctest --test-dir build --output-on-failure -R "alloc_faults|heap_door"
 ```
+
+## Fuzzing
+
+`unit_test_fuzz` feeds the assembler inputs nobody wrote by hand. It links
+`nazm_fault`, the injected library above. The run is a pure function of its
+seed, so it fails the same way on every machine: it is a regression gate, not
+a coverage-guided campaign.
+
+Four generators produce 1500 inputs each by default, at most 16 KiB long:
+
+| Generator | Input |
+| --- | --- |
+| `bytes` | Raw bytes: uniform noise, bytes that matter to UTF-8 and the lexer, Arabic lead bytes with arbitrary continuations, and printable ASCII. |
+| `soup` | Mnemonics, registers, directives, labels, numbers, strings, and punctuation in no order. |
+| `programs` | Sections, labels, instructions, and data built line by line. About half assemble; the suite fails if fewer than one in ten do or if none reach the parser and the passes. |
+| `mutations` | The 14 shipped sources with bits flipped, stretches removed, duplicated, or spliced from another source, vocabulary inserted, long runs of one character, and truncation inside a character. |
+
+Each input is assembled to ELF64 and to COFF through `nazm_assemble_buffer()`
+and also walked through the lexer, parser, pass one, pass two, and the listing
+writer one stage at a time. The suite requires:
+
+- The status is `NAZM_STATUS_OK` or `NAZM_STATUS_SOURCE_ERROR`, never an
+  internal error, and it is OK exactly when every stage accepted the input.
+- Input that is not valid UTF-8 is always a source error.
+- An accepted input yields an object with the ELF magic or the COFF x86-64
+  machine field; a rejected one yields no object and as many diagnostics as the
+  stage that rejected it reported.
+- The token stream ends in one EOF token, every value is NUL-terminated at its
+  length, lines never go backwards, and every token but EOF spans at least one
+  column.
+- Each diagnostic has a non-empty valid UTF-8 message, a position inside the
+  input, and renders through `error_print_all_to()`; there are at most 64.
+- Assembling the same input twice gives the same status, bytes, and
+  diagnostics.
+- No heap block is left alive.
+- For one input in four, three random allocation points are failed in turn.
+  Each must return `NAZM_STATUS_OUT_OF_MEMORY` with an empty result and no live
+  block, and the next unarmed call must reproduce the first answer.
+
+`test_past_findings_stay_fixed` replays the inputs that once broke one of these
+rules, with every allocation point failed, and then the 14 sources unchanged.
+Add an input to `REGRESSIONS` in `tests/unit/test_fuzz.c` when a longer session
+finds one.
+
+The suite prints one line per generator with how far its inputs travelled:
+
+```text
+  programs: 1500 inputs; rejected by lexer 157, parser 312, pass one 164, pass two 108; assembled 759; 2250 allocation failures injected
+```
+
+A broken rule prints the rule, the generator, the iteration, the seed, and the
+input as hex. A crash prints the same from a signal handler, or from the
+sanitizer's death callback under ASan. The environment controls the run:
+
+| Variable | Meaning |
+| --- | --- |
+| `NAZM_FUZZ_SEED=N` | Start from another seed. |
+| `NAZM_FUZZ_ITERATIONS=N` | Inputs per generator. |
+| `NAZM_FUZZ_DUMP=path` | Also write the failing input to this file. |
+| `NAZM_FUZZ_SHOW=generator:iteration` | Print that input, write it to the dump file, and check nothing. |
+| `NAZM_FUZZ_REPLAY=path` | Check one saved input and nothing else. |
+
+Run it alone, or run a longer session with another seed:
+
+```bash
+ctest --test-dir build --output-on-failure -R unit_test_fuzz
+NAZM_FUZZ_SEED=7 NAZM_FUZZ_ITERATIONS=20000 ./build/tests/test_fuzz
+```
+
+Run the binary from the repository root; it reads the sources it mutates by
+relative path. MinGW has no sanitizer runtime, so on Windows build the suite
+with `-fsanitize=undefined -fsanitize-trap=undefined` to turn undefined
+behavior into a trap the crash handler reports.
 
 ## Unit Test Style
 

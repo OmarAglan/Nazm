@@ -240,6 +240,60 @@ void test_lex_immediate_negative(void) {
     TEST_ASSERT_EQUAL_STRING("-8", t.value);
 }
 
+void test_lex_immediate_spans_64_bits(void) {
+    static const struct {
+        const char *literal;
+        const char *value;
+    } cases[] = {
+        { "9223372036854775807",  "9223372036854775807" },
+        { "-9223372036854775808", "-9223372036854775808" },
+        { "0x7FFFFFFFFFFFFFFF",   "9223372036854775807" },
+        /* Above the signed range a literal is its 64-bit pattern. */
+        { "0x8000000000000000",   "-9223372036854775808" },
+        { "0xFFFFFFFFFFFFFFFF",   "-1" },
+        { "18446744073709551615", "-1" },
+        { "١٨٤٤٦٧٤٤٠٧٣٧٠٩٥٥١٦١٥", "-1" },
+        { "0b1111111111111111111111111111111111111111111111111111111111111111",
+          "-1" },
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        LexResult r = lex(cases[i].literal);
+        TEST_ASSERT_FALSE(error_has_any(&r.errors));
+        Token t = tok(&r, 0);
+        TEST_ASSERT_EQUAL_INT(TOKEN_IMMEDIATE, t.type);
+        TEST_ASSERT_EQUAL_STRING(cases[i].value, t.value);
+    }
+}
+
+void test_lex_immediate_beyond_64_bits_is_an_error(void) {
+    static const char *const cases[] = {
+        "18446744073709551616",
+        "١٨٤٤٦٧٤٤٠٧٣٧٠٩٥٥١٦١٦",
+        "99999999999999999999999999999999",
+        "0x10000000000000000",
+        "0b10000000000000000000000000000000000000000000000000000000000000000",
+        "-9223372036854775809",
+        "-0xFFFFFFFFFFFFFFFF",
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        LexResult r = lex(cases[i]);
+        TEST_ASSERT_EQUAL_INT(1, (int)r.errors.count);
+        TEST_ASSERT_NOT_NULL(strstr(
+            r.errors.errors[0].message, "الرقم لا يمثل في ٦٤ بت"));
+        TEST_ASSERT_EQUAL_INT(0, tok_count_typed(&r, TOKEN_IMMEDIATE));
+    }
+
+    /* The error covers the whole literal and lexing resumes after it. */
+    LexResult r = lex("انقل سجل_المركم، 0x10000000000000000\nارجع\n");
+    TEST_ASSERT_EQUAL_INT(1, (int)r.errors.count);
+    TEST_ASSERT_EQUAL_INT(1, r.errors.errors[0].line);
+    TEST_ASSERT_EQUAL_INT(18, r.errors.errors[0].col);
+    TEST_ASSERT_EQUAL_INT(37, r.errors.errors[0].end_col);
+    TEST_ASSERT_EQUAL_INT(2, tok_count_typed(&r, TOKEN_MNEMONIC));
+}
+
 /* ── Labels ───────────────────────────────────────────────────────────────── */
 
 void test_lex_label_definition(void) {
@@ -482,9 +536,47 @@ void test_lex_rejects_invalid_utf8(void) {
     const uint8_t overlong[] = { 0xC0, 0xAF };
     LexResult r = lex_bytes(overlong, sizeof(overlong));
 
-    TEST_ASSERT_TRUE(error_has_any(&r.errors));
+    /* One error for the whole run of ill-formed bytes. */
+    TEST_ASSERT_EQUAL_INT(1, (int)r.errors.count);
     TEST_ASSERT_NOT_NULL(strstr(
-        r.errors.errors[0].message, "محرف غير معروف"));
+        r.errors.errors[0].message, "ترميز UTF-8 غير صالح"));
+    TEST_ASSERT_EQUAL_INT(1, r.errors.errors[0].col);
+    TEST_ASSERT_EQUAL_INT(3, r.errors.errors[0].end_col);
+}
+
+void test_lex_rejects_invalid_utf8_in_comment(void) {
+    const uint8_t source[] = {
+        ';', ' ', 0xFF, '\n',
+        0xD8, 0xA7, 0xD8, 0xB1, 0xD8, 0xAC, 0xD8, 0xB9, '\n',  /* ارجع */
+    };
+    LexResult r = lex_bytes(source, sizeof(source));
+
+    TEST_ASSERT_EQUAL_INT(1, (int)r.errors.count);
+    TEST_ASSERT_NOT_NULL(strstr(
+        r.errors.errors[0].message, "ترميز UTF-8 غير صالح"));
+    TEST_ASSERT_EQUAL_INT(1, r.errors.errors[0].line);
+    TEST_ASSERT_EQUAL_INT(3, r.errors.errors[0].col);
+    TEST_ASSERT_EQUAL_INT(1, tok_count_typed(&r, TOKEN_MNEMONIC));
+}
+
+void test_lex_rejects_invalid_utf8_in_string(void) {
+    const uint8_t source[] = { '"', 'a', 0xE2, 0x82, 'b', '"', '\n' };
+    LexResult r = lex_bytes(source, sizeof(source));
+
+    TEST_ASSERT_EQUAL_INT(1, (int)r.errors.count);
+    TEST_ASSERT_NOT_NULL(strstr(
+        r.errors.errors[0].message, "ترميز UTF-8 غير صالح"));
+    TEST_ASSERT_EQUAL_INT(3, r.errors.errors[0].col);
+    TEST_ASSERT_EQUAL_INT(5, r.errors.errors[0].end_col);
+    TEST_ASSERT_EQUAL_INT(0, tok_count_typed(&r, TOKEN_STRING));
+}
+
+void test_lex_accepts_replacement_character_as_text(void) {
+    /* U+FFFD written out is an ordinary character, not a decoding error. */
+    LexResult r = lex("; \xEF\xBF\xBD\n\"\xEF\xBF\xBD\"\n");
+
+    TEST_ASSERT_FALSE(error_has_any(&r.errors));
+    TEST_ASSERT_EQUAL_INT(1, tok_count_typed(&r, TOKEN_STRING));
 }
 
 void test_lex_bad_hex_reports_error(void) {
@@ -557,6 +649,8 @@ int main(void) {
     RUN_TEST(test_lex_immediate_binary);
     RUN_TEST(test_lex_immediate_zero);
     RUN_TEST(test_lex_immediate_negative);
+    RUN_TEST(test_lex_immediate_spans_64_bits);
+    RUN_TEST(test_lex_immediate_beyond_64_bits_is_an_error);
 
     /* Labels */
     RUN_TEST(test_lex_label_definition);
@@ -597,6 +691,9 @@ int main(void) {
     RUN_TEST(test_lex_mnemonic_source_span);
     RUN_TEST(test_lex_unknown_char_source_span);
     RUN_TEST(test_lex_rejects_invalid_utf8);
+    RUN_TEST(test_lex_rejects_invalid_utf8_in_comment);
+    RUN_TEST(test_lex_rejects_invalid_utf8_in_string);
+    RUN_TEST(test_lex_accepts_replacement_character_as_text);
     RUN_TEST(test_lex_bad_hex_reports_error);
     RUN_TEST(test_lex_bad_binary_reports_error);
     RUN_TEST(test_lex_continues_after_error);

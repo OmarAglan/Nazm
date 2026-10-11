@@ -26,7 +26,7 @@ SRC="src/api/api.c src/alloc/arena.c src/unicode/arabic.c src/error/error.c \
 
 TESTS="test_api test_arena test_unicode test_symtable test_keywords test_immediate test_rex test_lexer test_parser test_encoder test_encoder_matrix test_passes test_elf64 test_cli_args test_diagnostics test_coff test_io test_examples test_listing"
 # Suites that need the library built with the allocation-failure injector.
-FAULT_TESTS="test_alloc_faults"
+FAULT_TESTS="test_alloc_faults test_fuzz"
 FAULT_FLAGS="-Itests/support -DNAZM_ALLOC_FAULT_INJECTION=1"
 FAULT_SRC="tests/support/alloc_fault.c"
 TEST_DIR="${TMPDIR:-/tmp}/nazm_tests"
