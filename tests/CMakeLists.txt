@@ -163,6 +163,7 @@ add_test(
     COMMAND ${CMAKE_COMMAND}
         -DCAPABILITIES=${PROJECT_SOURCE_DIR}/Docs/generated/nazm_capabilities_v1.json
         -DPUBLIC_HEADER=${PROJECT_SOURCE_DIR}/include/nazm.h
+        -DRELEASE_VERSION=${PROJECT_VERSION}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/api_fingerprint_contract.cmake
 )
 

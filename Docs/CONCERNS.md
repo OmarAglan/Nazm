@@ -48,6 +48,24 @@
   `da8378e...` are approved; GAS remains an explicit measured rollback, and
   every Nazm failure is terminal rather than silently retried through GAS.
 
+**The fingerprint names a release, not a revision:**
+- Current behavior: `NAZM_FINGERPRINT` is built from the API schema, the
+  release version, and the capability digest. Revisions on `main` between two
+  releases keep the previous release's version, so they keep its fingerprint
+  even when they change which sources are accepted. The two acceptance fixes
+  after `0.4.0` (ill-formed UTF-8 in comments and strings, numbers beyond 64
+  bits) are in that state.
+- Impact: a consumer that builds an untagged revision and keys an object cache
+  on the fingerprint alone cannot tell that revision from the release. Objects
+  for valid source are unchanged by the two fixes, so no stale object can be
+  reused today.
+- Current mitigation: [COMPATIBILITY.md](COMPATIBILITY.md) requires such a
+  consumer to add the revision to its cache identity, and requires every
+  release to carry a new version. `integration_api_fingerprint_contract`
+  rejects a release whose header does not carry the CMake version.
+- Fix approach: decide at the `1.0` review whether `main` should carry a
+  development version between releases.
+
 **Subprocess acceptance does not link or run objects yet:**
 - Current coverage: `tests/integration/cli_acceptance.cmake` executes `nazm`,
   checks public exit codes, uses Arabic source/output paths, and validates ELF64

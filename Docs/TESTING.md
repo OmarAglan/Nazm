@@ -7,7 +7,7 @@
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
 - `build.sh test` is the direct no-CMake path and currently runs the same 21 unit-test suites registered for CTest.
-- Current total on Windows: 459 Unity tests across the 21 suites. Three of them,
+- Current total on Windows: 462 Unity tests across the 21 suites. Three of them,
   the long UTF-8 path round trip, case-insensitive path identity, and
   UTF-16-to-UTF-8 argv conversion, are Windows-only.
 - `test_alloc_faults` is built against the library sources compiled with the
@@ -311,11 +311,17 @@ The complete migration and bootstrap requirements live in
 
 `unit_test_api` checks `nazm-api-v1` metadata, platform defaults, structured
 source errors, invalid-option rejection, idempotent cleanup, and in-memory
-ELF64/COFF output. `integration_api_cli_equivalence` assembles the same good
+ELF64/COFF output. It also backs [COMPATIBILITY.md](COMPATIBILITY.md): the
+numeric value of every status and format, the size of every public struct and
+the offset of every field on a 64-bit host, the fingerprint rebuilt from its
+four parts, and an instruction name used as a symbol in every position that
+accepts one. `integration_api_cli_equivalence` assembles the same good
 and bad sources through the standalone command and public API, requires exact
 object bytes in both formats, and requires the API primary diagnostic to be
 present in CLI output. `integration_api_fingerprint_contract` hashes
-`nazm_capabilities_v1.json` and rejects a stale public capability digest.
+`nazm_capabilities_v1.json` and rejects a stale public capability digest. It
+also rejects a CMake project version that `NAZM_VERSION_STRING` and
+`NAZM_FINGERPRINT` do not carry.
 
 ## Allocation-Failure Injection
 

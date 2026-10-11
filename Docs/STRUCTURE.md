@@ -178,6 +178,8 @@ Nazm/
 - `Docs/ARCHITECTURE.md` - current pipeline and component ownership.
 - `Docs/LANGUAGE.md` - implemented 0.4 source syntax and common user errors.
 - `Docs/TERMINOLOGY.md` - authoritative Arabic terminology and exact public spellings.
+- `Docs/COMPATIBILITY.md` - what counts as a break, an addition, or a fix on
+  each public surface, and the version each one needs.
 - `Docs/BAA_INTEGRATION.md` - Baa handoff, coverage matrix, migration stages,
   and bootstrap release gates.
 - `Docs/INTEGRATIONS.md` - external tools, linkers, and deployment contracts.

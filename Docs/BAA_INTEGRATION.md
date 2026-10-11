@@ -258,7 +258,8 @@ Nazm is Baa-ready because all of the following are continuously enforced:
 - The Baa corpus passes shadow comparison and then the Nazm-only cutover.
 - Unsupported forms fail with Arabic diagnostics and never guessed bytes.
 - The Arabic assembly syntax and Unicode/diacritic policy are documented and
-  versioned.
+  versioned, and [COMPATIBILITY.md](COMPATIBILITY.md) defines what counts as
+  a break of the source format, the API, or the object contract.
 
 ---
 
