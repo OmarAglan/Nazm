@@ -1,4 +1,5 @@
 #include "arena.h"
+#include "sysalloc.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,7 +29,10 @@ Arena arena_create_with_oom_handler(size_t initial_size,
         .oom_handler = handler,
         .oom_context = context,
     };
-    ArenaBlock *block = malloc(sizeof(ArenaBlock) + initial_size);
+    if (initial_size > SIZE_MAX - sizeof(ArenaBlock)) {
+        arena_out_of_memory(&arena);
+    }
+    ArenaBlock *block = nazm_sys_malloc(sizeof(ArenaBlock) + initial_size);
     if (!block) arena_out_of_memory(&arena);
     block->prev     = NULL;
     block->capacity = initial_size;
@@ -42,18 +46,26 @@ Arena arena_create(size_t initial_size) {
 }
 
 void *arena_alloc(Arena *arena, size_t size, size_t align) {
+#ifdef NAZM_ALLOC_FAULT_INJECTION
+    if (nazm_sys_arena_fault()) arena_out_of_memory(arena);
+#endif
     /* align `used` up to `align` */
     size_t aligned = (arena->used + align - 1) & ~(align - 1);
-    if (aligned + size <= arena->head->capacity) {
+    if (aligned <= arena->head->capacity
+        && size <= arena->head->capacity - aligned) {
         void *ptr       = arena->head->data + aligned;
         arena->used     = aligned + size;
         memset(ptr, 0, size);
         return ptr;
     }
     /* Allocate a new block large enough */
-    size_t cap       = arena->head->capacity * 2;
+    size_t cap       = arena->head->capacity <= SIZE_MAX / 2
+                     ? arena->head->capacity * 2
+                     : arena->head->capacity;
     if (cap < size) cap = size;
-    ArenaBlock *block = malloc(sizeof(ArenaBlock) + cap);
+    /* A size the heap cannot express is the same failure as a full heap. */
+    if (cap > SIZE_MAX - sizeof(ArenaBlock)) arena_out_of_memory(arena);
+    ArenaBlock *block = nazm_sys_malloc(sizeof(ArenaBlock) + cap);
     if (!block) arena_out_of_memory(arena);
     block->prev      = arena->head;
     block->capacity  = cap;
@@ -80,7 +92,7 @@ void arena_free(Arena *arena) {
     ArenaBlock *block = arena->head;
     while (block) {
         ArenaBlock *prev = block->prev;
-        free(block);
+        nazm_sys_free(block);
         block = prev;
     }
     arena->head  = NULL;

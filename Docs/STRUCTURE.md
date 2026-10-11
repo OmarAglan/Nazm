@@ -10,7 +10,7 @@ marked explicitly so release checks do not treat them as implemented behavior.
 ```text
 Nazm/
 ├── src/                  # C source files
-│   ├── alloc/            # Arena allocator
+│   ├── alloc/            # Arena allocator and the single heap door
 │   ├── cli/              # CLI option parsing and source listing rendering
 │   ├── encoder/          # x86-64 byte encoding helpers and table
 │   ├── error/            # Error collection and reporting
@@ -27,6 +27,7 @@ Nazm/
 ├── tests/
 │   ├── differential/     # GNU as byte-comparison corpus and CMake driver
 │   ├── integration/      # Subprocess-level CLI acceptance
+│   ├── support/          # Allocation-failure injector for test builds
 │   ├── unit/             # Unity unit tests named test_*.c
 │   ├── vendor/unity/     # Vendored Unity test framework
 │   └── CMakeLists.txt    # CTest registration
@@ -47,8 +48,10 @@ Nazm/
 ## Current Directory Purposes
 
 **src/alloc/**
-- `arena.c`, `arena.h`
-- Owns arena lifetime support for pipeline allocations.
+- `arena.c`, `arena.h`, `sysalloc.h`
+- Owns arena lifetime support for pipeline allocations. `sysalloc.h` is the
+  only file that names the C heap; every other module calls `nazm_sys_malloc`,
+  `nazm_sys_calloc`, and `nazm_sys_free`.
 
 **src/unicode/**
 - `arabic.c`, `arabic.h`
@@ -105,7 +108,7 @@ Nazm/
   for filesystem operations.
 
 **tests/unit/**
-- Current unit tests: `test_arena.c`, `test_unicode.c`, `test_symtable.c`,
+- Current unit tests: `test_api.c`, `test_alloc_faults.c`, `test_arena.c`, `test_unicode.c`, `test_symtable.c`,
   `test_keywords.c`, `test_immediate.c`, `test_rex.c`, `test_lexer.c`,
   `test_parser.c`, `test_encoder.c`, `test_encoder_matrix.c`, `test_passes.c`, `test_elf64.c`,
   `test_coff.c`, `test_cli_args.c`, `test_diagnostics.c`, `test_io.c`,
@@ -121,6 +124,14 @@ Nazm/
 - Launches both built command names, checks public exit codes and version/help
   output, writes ELF64, COFF, and listing files through Arabic paths, and
   assembles every shipped top-level `.نظم` example to both object formats.
+- `cli_alloc_faults.cmake` fails every allocation point of the command-line
+  driver; `heap_door_contract.cmake` rejects heap calls outside
+  `src/alloc/sysalloc.h`.
+
+**tests/support/**
+- `alloc_fault.c`, `alloc_fault.h`
+- The allocation-failure injector. It is compiled only into the `nazm_fault`
+  test library and never into `libnazm` or the shipped commands.
 
 **examples/**
 - Holds good Arabic `.نظم` examples such as `مرحبا.نظم`, `خروج.نظم`, `حلقة.نظم`, and `بيانات.نظم`.

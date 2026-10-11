@@ -55,6 +55,14 @@ jobs:
       - name: Run direct test path
         run: ./build.sh test
 
+      - name: Build and test under ASan and UBSan
+        env:
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          cmake -S . -B build-sanitize -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build-sanitize --parallel
+          ctest --test-dir build-sanitize --output-on-failure
+
       - name: Link and run Arabic ELF example
         shell: bash
         run: |

@@ -3,7 +3,7 @@
  * alloc/arena.h
  * Simple bump-pointer arena allocator.
  * All pipeline allocations go through one arena; freed in bulk at end.
- * Makes future Baa port easier (no individual free() calls needed).
+ * Makes future Baa port easier (no object is released on its own).
  */
 
 #include <stddef.h>

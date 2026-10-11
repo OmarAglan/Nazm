@@ -1,9 +1,22 @@
 #include "file.h"
+#include "../alloc/sysalloc.h"
 
 #include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+/*
+ * Every helper below that returns NULL sets errno, and sets it to ENOMEM only
+ * when the heap is what failed. This passes a result through and records that
+ * one cause, so a caller can tell "not the same path" from "could not find out".
+ */
+static void *noting_exhaustion(void *result, bool *exhausted) {
+    if (result == NULL && errno == ENOMEM) {
+        *exhausted = true;
+    }
+    return result;
+}
 
 #ifdef _WIN32
 
@@ -23,7 +36,7 @@ static wchar_t *utf8_to_wide(const char *text) {
         return NULL;
     }
 
-    wchar_t *wide = malloc((size_t)length * sizeof(*wide));
+    wchar_t *wide = nazm_sys_malloc((size_t)length * sizeof(*wide));
     if (wide == NULL) {
         errno = ENOMEM;
         return NULL;
@@ -31,7 +44,7 @@ static wchar_t *utf8_to_wide(const char *text) {
 
     if (MultiByteToWideChar(
             CP_UTF8, MB_ERR_INVALID_CHARS, text, -1, wide, length) == 0) {
-        free(wide);
+        nazm_sys_free(wide);
         errno = EINVAL;
         return NULL;
     }
@@ -52,7 +65,7 @@ static char *wide_to_utf8(const wchar_t *text) {
         return NULL;
     }
 
-    char *utf8 = malloc((size_t)length);
+    char *utf8 = nazm_sys_malloc((size_t)length);
     if (utf8 == NULL) {
         errno = ENOMEM;
         return NULL;
@@ -61,7 +74,7 @@ static char *wide_to_utf8(const wchar_t *text) {
     if (WideCharToMultiByte(
             CP_UTF8, WC_ERR_INVALID_CHARS, text, -1, utf8, length,
             NULL, NULL) == 0) {
-        free(utf8);
+        nazm_sys_free(utf8);
         errno = EINVAL;
         return NULL;
     }
@@ -104,22 +117,26 @@ static bool existing_wide_paths_match(const wchar_t *left,
 static wchar_t *normalized_wide_path(const wchar_t *path) {
     DWORD length = GetFullPathNameW(path, 0, NULL, NULL);
     if (length == 0) {
+        errno = EINVAL;
         return NULL;
     }
 #if SIZE_MAX == UINT32_MAX
     if ((size_t)length > SIZE_MAX / sizeof(wchar_t)) {
+        errno = ENAMETOOLONG;
         return NULL;
     }
 #endif
 
-    wchar_t *full = malloc((size_t)length * sizeof(*full));
+    wchar_t *full = nazm_sys_malloc((size_t)length * sizeof(*full));
     if (full == NULL) {
+        errno = ENOMEM;
         return NULL;
     }
 
     DWORD written = GetFullPathNameW(path, length, full, NULL);
     if (written == 0 || written >= length) {
-        free(full);
+        nazm_sys_free(full);
+        errno = EINVAL;
         return NULL;
     }
 
@@ -149,15 +166,15 @@ static wchar_t *extended_wide_path(const wchar_t *path) {
     if (prefix_length > SIZE_MAX - suffix_length - 1
         || prefix_length + suffix_length + 1
                > SIZE_MAX / sizeof(wchar_t)) {
-        free(full);
+        nazm_sys_free(full);
         errno = ENAMETOOLONG;
         return NULL;
     }
 
-    wchar_t *extended = malloc(
+    wchar_t *extended = nazm_sys_malloc(
         (prefix_length + suffix_length + 1) * sizeof(*extended));
     if (extended == NULL) {
-        free(full);
+        nazm_sys_free(full);
         errno = ENOMEM;
         return NULL;
     }
@@ -165,7 +182,7 @@ static wchar_t *extended_wide_path(const wchar_t *path) {
     memcpy(extended + prefix_length,
            suffix,
            (suffix_length + 1) * sizeof(*extended));
-    free(full);
+    nazm_sys_free(full);
     return extended;
 }
 
@@ -175,7 +192,7 @@ static wchar_t *extended_wide_path_utf8(const char *path) {
         return NULL;
     }
     wchar_t *extended = extended_wide_path(wide);
-    free(wide);
+    nazm_sys_free(wide);
     return extended;
 }
 
@@ -187,13 +204,13 @@ FILE *io_fopen_utf8(const char *path, const char *mode) {
 
     wchar_t *wide_mode = utf8_to_wide(mode);
     if (wide_mode == NULL) {
-        free(wide_path);
+        nazm_sys_free(wide_path);
         return NULL;
     }
 
     FILE *file = _wfopen(wide_path, wide_mode);
-    free(wide_mode);
-    free(wide_path);
+    nazm_sys_free(wide_mode);
+    nazm_sys_free(wide_path);
     return file;
 }
 
@@ -204,52 +221,61 @@ bool io_remove_utf8(const char *path) {
     }
 
     int result = _wremove(wide_path);
-    free(wide_path);
+    nazm_sys_free(wide_path);
     return result == 0;
 }
 
-bool io_paths_refer_to_same_file(const char *left, const char *right) {
+IoPathIdentity io_path_identity(const char *left, const char *right) {
     if (left == NULL || right == NULL
         || left[0] == '\0' || right[0] == '\0') {
-        return false;
+        return IO_PATH_IDENTITY_DIFFERENT;
     }
     if (strcmp(left, right) == 0) {
-        return true;
+        return IO_PATH_IDENTITY_SAME;
     }
 
-    wchar_t *wide_left = utf8_to_wide(left);
-    wchar_t *wide_right = utf8_to_wide(right);
+    bool exhausted = false;
+    wchar_t *wide_left = noting_exhaustion(utf8_to_wide(left), &exhausted);
+    wchar_t *wide_right = noting_exhaustion(utf8_to_wide(right), &exhausted);
     if (wide_left == NULL || wide_right == NULL) {
-        free(wide_left);
-        free(wide_right);
-        return false;
+        nazm_sys_free(wide_left);
+        nazm_sys_free(wide_right);
+        return exhausted ? IO_PATH_IDENTITY_UNKNOWN
+                         : IO_PATH_IDENTITY_DIFFERENT;
     }
 
-    wchar_t *extended_left = extended_wide_path(wide_left);
-    wchar_t *extended_right = extended_wide_path(wide_right);
+    wchar_t *extended_left =
+        noting_exhaustion(extended_wide_path(wide_left), &exhausted);
+    wchar_t *extended_right =
+        noting_exhaustion(extended_wide_path(wide_right), &exhausted);
     if (extended_left != NULL && extended_right != NULL
         && existing_wide_paths_match(extended_left, extended_right)) {
-        free(extended_left);
-        free(extended_right);
-        free(wide_left);
-        free(wide_right);
-        return true;
+        nazm_sys_free(extended_left);
+        nazm_sys_free(extended_right);
+        nazm_sys_free(wide_left);
+        nazm_sys_free(wide_right);
+        return IO_PATH_IDENTITY_SAME;
     }
-    free(extended_left);
-    free(extended_right);
+    nazm_sys_free(extended_left);
+    nazm_sys_free(extended_right);
 
-    wchar_t *full_left = normalized_wide_path(wide_left);
-    wchar_t *full_right = normalized_wide_path(wide_right);
+    wchar_t *full_left =
+        noting_exhaustion(normalized_wide_path(wide_left), &exhausted);
+    wchar_t *full_right =
+        noting_exhaustion(normalized_wide_path(wide_right), &exhausted);
     bool same = full_left != NULL
              && full_right != NULL
              && CompareStringOrdinal(
                     full_left, -1, full_right, -1, TRUE) == CSTR_EQUAL;
 
-    free(full_left);
-    free(full_right);
-    free(wide_left);
-    free(wide_right);
-    return same;
+    nazm_sys_free(full_left);
+    nazm_sys_free(full_right);
+    nazm_sys_free(wide_left);
+    nazm_sys_free(wide_right);
+    if (same) {
+        return IO_PATH_IDENTITY_SAME;
+    }
+    return exhausted ? IO_PATH_IDENTITY_UNKNOWN : IO_PATH_IDENTITY_DIFFERENT;
 }
 
 char **io_utf8_argv_from_wide(int argc, wchar_t **wide_argv) {
@@ -258,7 +284,7 @@ char **io_utf8_argv_from_wide(int argc, wchar_t **wide_argv) {
         return NULL;
     }
 
-    char **argv = calloc((size_t)argc + 1, sizeof(*argv));
+    char **argv = nazm_sys_calloc((size_t)argc + 1, sizeof(*argv));
     if (argv == NULL) {
         errno = ENOMEM;
         return NULL;
@@ -281,9 +307,9 @@ void io_free_utf8_argv(char **argv, int argc) {
     }
 
     for (int i = 0; i < argc; i++) {
-        free(argv[i]);
+        nazm_sys_free(argv[i]);
     }
-    free(argv);
+    nazm_sys_free(argv);
 }
 
 #else
@@ -293,10 +319,12 @@ void io_free_utf8_argv(char **argv, int argc) {
 
 static char *duplicate_string(const char *text) {
     size_t length = strlen(text);
-    char *copy = malloc(length + 1);
-    if (copy != NULL) {
-        memcpy(copy, text, length + 1);
+    char *copy = nazm_sys_malloc(length + 1);
+    if (copy == NULL) {
+        errno = ENOMEM;
+        return NULL;
     }
+    memcpy(copy, text, length + 1);
     return copy;
 }
 
@@ -304,8 +332,9 @@ static char *current_working_directory(void) {
     size_t capacity = 256;
 
     for (;;) {
-        char *buffer = malloc(capacity);
+        char *buffer = nazm_sys_malloc(capacity);
         if (buffer == NULL) {
+            errno = ENOMEM;
             return NULL;
         }
         if (getcwd(buffer, capacity) != NULL) {
@@ -313,8 +342,9 @@ static char *current_working_directory(void) {
         }
 
         int error = errno;
-        free(buffer);
+        nazm_sys_free(buffer);
         if (error != ERANGE || capacity > SIZE_MAX / 2) {
+            errno = error;
             return NULL;
         }
         capacity *= 2;
@@ -334,17 +364,21 @@ static char *absolute_posix_path(const char *path) {
     size_t cwd_length = strlen(cwd);
     size_t path_length = strlen(path);
     if (cwd_length > SIZE_MAX - path_length - 2) {
-        free(cwd);
+        nazm_sys_free(cwd);
+        errno = ENAMETOOLONG;
         return NULL;
     }
 
-    char *absolute = malloc(cwd_length + path_length + 2);
-    if (absolute != NULL) {
-        memcpy(absolute, cwd, cwd_length);
-        absolute[cwd_length] = '/';
-        memcpy(absolute + cwd_length + 1, path, path_length + 1);
+    char *absolute = nazm_sys_malloc(cwd_length + path_length + 2);
+    if (absolute == NULL) {
+        nazm_sys_free(cwd);
+        errno = ENOMEM;
+        return NULL;
     }
-    free(cwd);
+    memcpy(absolute, cwd, cwd_length);
+    absolute[cwd_length] = '/';
+    memcpy(absolute + cwd_length + 1, path, path_length + 1);
+    nazm_sys_free(cwd);
     return absolute;
 }
 
@@ -355,9 +389,10 @@ static char *normalized_posix_path(const char *path) {
     }
 
     size_t length = strlen(absolute);
-    char *normalized = malloc(length + 2);
+    char *normalized = nazm_sys_malloc(length + 2);
     if (normalized == NULL) {
-        free(absolute);
+        nazm_sys_free(absolute);
+        errno = ENOMEM;
         return NULL;
     }
 
@@ -402,7 +437,7 @@ static char *normalized_posix_path(const char *path) {
     }
 
     normalized[output] = '\0';
-    free(absolute);
+    nazm_sys_free(absolute);
     return normalized;
 }
 
@@ -414,13 +449,13 @@ bool io_remove_utf8(const char *path) {
     return remove(path) == 0;
 }
 
-bool io_paths_refer_to_same_file(const char *left, const char *right) {
+IoPathIdentity io_path_identity(const char *left, const char *right) {
     if (left == NULL || right == NULL
         || left[0] == '\0' || right[0] == '\0') {
-        return false;
+        return IO_PATH_IDENTITY_DIFFERENT;
     }
     if (strcmp(left, right) == 0) {
-        return true;
+        return IO_PATH_IDENTITY_SAME;
     }
 
     struct stat left_info;
@@ -428,17 +463,23 @@ bool io_paths_refer_to_same_file(const char *left, const char *right) {
     if (stat(left, &left_info) == 0 && stat(right, &right_info) == 0
         && left_info.st_dev == right_info.st_dev
         && left_info.st_ino == right_info.st_ino) {
-        return true;
+        return IO_PATH_IDENTITY_SAME;
     }
 
-    char *full_left = normalized_posix_path(left);
-    char *full_right = normalized_posix_path(right);
+    bool exhausted = false;
+    char *full_left =
+        noting_exhaustion(normalized_posix_path(left), &exhausted);
+    char *full_right =
+        noting_exhaustion(normalized_posix_path(right), &exhausted);
     bool same = full_left != NULL
              && full_right != NULL
              && strcmp(full_left, full_right) == 0;
-    free(full_left);
-    free(full_right);
-    return same;
+    nazm_sys_free(full_left);
+    nazm_sys_free(full_right);
+    if (same) {
+        return IO_PATH_IDENTITY_SAME;
+    }
+    return exhausted ? IO_PATH_IDENTITY_UNKNOWN : IO_PATH_IDENTITY_DIFFERENT;
 }
 
 #endif

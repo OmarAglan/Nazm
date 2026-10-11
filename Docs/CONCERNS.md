@@ -137,10 +137,21 @@
 
 ## Security Considerations
 
-**Arena allocation failure still exits immediately:**
-- Risk: Library-style callers cannot recover from allocation failure because `arena_alloc()` exits on OOM.
-- File: `src/alloc/arena.c`.
-- Recommendation: Before the public API is implemented, decide whether OOM remains fatal or becomes a recoverable diagnostic in API mode.
+**Allocation-failure coverage is per executed path:**
+- Status: `arena_alloc()` no longer ends an embedding process. The API returns
+  `NAZM_STATUS_OUT_OF_MEMORY`, the CLI prints an Arabic message and exits `2`,
+  and `unit_test_alloc_faults` and `integration_cli_alloc_faults` fail every
+  allocation point their inputs reach.
+- Risk: A point is failed only when a test input reaches it. The sweep drives
+  14 sources through the API and one source through the CLI. Points reached
+  only by other inputs rest on the design (one heap door, one arena handler),
+  not on an executed failure. Allocations inside libc, such as `fopen` stream
+  buffers, are outside the door: an `ENOMEM` from them is mapped to the same
+  result but is never injected. AddressSanitizer and UBSan run in the Linux CI
+  job only.
+- Files: `src/alloc/sysalloc.h`, `src/alloc/arena.c`, `tests/support/alloc_fault.c`.
+- Recommendation: Run the planned lexer/parser fuzzing over the injected build
+  so generated inputs widen the set of reached points.
 
 ## Performance Bottlenecks
 

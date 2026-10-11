@@ -1,5 +1,7 @@
 #include "unity.h"
 #include "alloc/arena.h"
+#include <setjmp.h>
+#include <stdbool.h>
 #include <string.h>
 
 void setUp(void) {}
@@ -46,11 +48,57 @@ void test_arena_grows_past_initial(void) {
     arena_free(&a);
 }
 
+static jmp_buf oom_escape;
+static int     oom_calls;
+static Arena   guarded;
+
+static void count_and_escape(void *context) {
+    (void)context;
+    oom_calls++;
+    longjmp(oom_escape, 1);
+}
+
+/* True when the call left through the handler instead of returning. */
+static bool create_escapes(size_t initial_size) {
+    if (setjmp(oom_escape) != 0) {
+        return true;
+    }
+    guarded = arena_create_with_oom_handler(
+        initial_size, count_and_escape, NULL);
+    return false;
+}
+
+static bool alloc_escapes(size_t size) {
+    if (setjmp(oom_escape) != 0) {
+        return true;
+    }
+    (void)arena_alloc(&guarded, size, 1);
+    return false;
+}
+
+void test_arena_treats_unrepresentable_sizes_as_out_of_memory(void) {
+    oom_calls = 0;
+
+    /* The block header would wrap the request around to a tiny one. */
+    TEST_ASSERT_TRUE(create_escapes(SIZE_MAX));
+    TEST_ASSERT_EQUAL_INT(1, oom_calls);
+
+    TEST_ASSERT_FALSE(create_escapes(64));
+    TEST_ASSERT_TRUE(alloc_escapes(SIZE_MAX - 4));
+    TEST_ASSERT_EQUAL_INT(2, oom_calls);
+
+    /* The refused request left the arena usable. */
+    char *copy = arena_strdup(&guarded, "نظم");
+    TEST_ASSERT_EQUAL_STRING("نظم", copy);
+    arena_free(&guarded);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_arena_basic_alloc);
     RUN_TEST(test_arena_alloc_array);
     RUN_TEST(test_arena_strdup);
     RUN_TEST(test_arena_grows_past_initial);
+    RUN_TEST(test_arena_treats_unrepresentable_sizes_as_out_of_memory);
     return UNITY_END();
 }

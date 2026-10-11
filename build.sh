@@ -25,6 +25,10 @@ SRC="src/api/api.c src/alloc/arena.c src/unicode/arabic.c src/error/error.c \
      src/cli/args.c src/cli/listing.c"
 
 TESTS="test_api test_arena test_unicode test_symtable test_keywords test_immediate test_rex test_lexer test_parser test_encoder test_encoder_matrix test_passes test_elf64 test_cli_args test_diagnostics test_coff test_io test_examples test_listing"
+# Suites that need the library built with the allocation-failure injector.
+FAULT_TESTS="test_alloc_faults"
+FAULT_FLAGS="-Itests/support -DNAZM_ALLOC_FAULT_INJECTION=1"
+FAULT_SRC="tests/support/alloc_fault.c"
 TEST_DIR="${TMPDIR:-/tmp}/nazm_tests"
 
 case "${1:-build}" in
@@ -38,9 +42,13 @@ case "${1:-build}" in
     echo "اختبار..."
     mkdir -p "$TEST_DIR"
     PASS=0; FAIL=0
-    for t in $TESTS; do
-      $CC $CFLAGS -DNAZM_LIBRARY_BUILD=1 $SRC tests/unit/$t.c \
-          -o "$TEST_DIR/$t" 2>/dev/null
+    for t in $TESTS $FAULT_TESTS; do
+      extra_flags=""; extra_src=""
+      case " $FAULT_TESTS " in
+        *" $t "*) extra_flags="$FAULT_FLAGS"; extra_src="$FAULT_SRC" ;;
+      esac
+      $CC $CFLAGS $extra_flags -DNAZM_LIBRARY_BUILD=1 $SRC $extra_src \
+          tests/unit/$t.c -o "$TEST_DIR/$t" 2>/dev/null
       result=$("$TEST_DIR/$t")
       if echo "$result" | grep -q "^OK"; then
         echo "  ✓ $t: $result"

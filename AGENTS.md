@@ -232,7 +232,7 @@ Raw encoded bytes:
 | Headers | Corresponding header first, internal headers next, standard headers last. |
 | Includes | Prefer local component headers or explicit relative paths. |
 | Allocation | Use `Arena` for pipeline data where established. |
-| Heap | Every heap allocation must have a cleanup path. |
+| Heap | Every heap allocation must have a cleanup path and go through `src/alloc/sysalloc.h`. |
 | Errors | Prefer result structs and collected errors over returning `NULL` without context. |
 | Diagnostics | User-facing messages in Arabic UTF-8. |
 | Assertions | Developer-only assertions may be English, but must not replace user diagnostics. |

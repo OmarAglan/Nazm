@@ -42,6 +42,37 @@ add_nazm_test(NAME test_listing  SOURCES unit/test_listing.c)
 set_tests_properties(unit_test_examples PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 set_tests_properties(unit_test_api PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 
+# ── Allocation-failure injection ─────────────────────────────────────────────
+# The library sources built a second time with every heap request and every
+# arena allocation routed through tests/support/alloc_fault.c. The shipped
+# libnazm is not involved and gains no code.
+list(TRANSFORM NAZM_LIBRARY_SOURCES
+    PREPEND "${PROJECT_SOURCE_DIR}/"
+    OUTPUT_VARIABLE NAZM_FAULT_LIBRARY_SOURCES)
+add_library(nazm_fault STATIC
+    ${NAZM_FAULT_LIBRARY_SOURCES}
+    support/alloc_fault.c
+)
+target_compile_definitions(nazm_fault PUBLIC NAZM_ALLOC_FAULT_INJECTION=1)
+target_include_directories(nazm_fault PUBLIC
+    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+add_executable(test_alloc_faults unit/test_alloc_faults.c)
+target_link_libraries(test_alloc_faults PRIVATE unity nazm_fault)
+add_test(NAME unit_test_alloc_faults COMMAND test_alloc_faults)
+set_tests_properties(unit_test_alloc_faults PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
+# The command-line driver over the same injected library; the environment
+# selects the allocation point that fails.
+add_executable(nazm_fault_cli ${PROJECT_SOURCE_DIR}/src/main.c)
+target_link_libraries(nazm_fault_cli PRIVATE nazm_fault)
+if(MINGW)
+    target_link_options(nazm_fault_cli PRIVATE -municode)
+endif()
+
 add_executable(nazm_api_probe integration/api_probe.c)
 target_link_libraries(nazm_api_probe PRIVATE libnazm)
 target_include_directories(nazm_api_probe PRIVATE
@@ -101,6 +132,23 @@ add_test(
         -DPARSER_SOURCE=${PROJECT_SOURCE_DIR}/src/parser/parser.c
         -DSOURCE_ROOT=${PROJECT_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/capabilities_contract.cmake
+)
+
+add_test(
+    NAME integration_cli_alloc_faults
+    COMMAND ${CMAKE_COMMAND}
+        -DFAULT_CLI=$<TARGET_FILE:nazm_fault_cli>
+        -DNAZM_EXE=$<TARGET_FILE:nazm>
+        -DGOOD_SOURCE=${PROJECT_SOURCE_DIR}/examples/خروج.نظم
+        -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/cli-alloc-faults-work
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/cli_alloc_faults.cmake
+)
+
+add_test(
+    NAME integration_heap_door_contract
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${PROJECT_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/heap_door_contract.cmake
 )
 
 add_test(

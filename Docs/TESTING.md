@@ -1,15 +1,17 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-07-10
+**Analysis Date:** 2026-10-11
 
 ## Test Framework
 
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
-- `build.sh test` is the direct no-CMake path and currently runs the same 18 unit-test suites registered for CTest.
-- Current total: 426 portable Unity tests across the 18 suites, plus two
-  Windows-only tests for case-insensitive path identity and UTF-16-to-UTF-8
-  argv conversion.
+- `build.sh test` is the direct no-CMake path and currently runs the same 20 unit-test suites registered for CTest.
+- Current total on Windows: 446 Unity tests across the 20 suites. Three of them,
+  the long UTF-8 path round trip, case-insensitive path identity, and
+  UTF-16-to-UTF-8 argv conversion, are Windows-only.
+- `test_alloc_faults` is built against the library sources compiled with the
+  allocation-failure injector; see Allocation-Failure Injection below.
 - CTest additionally registers `differential_encoder_gas` when GNU `as` and
   `objcopy` are available.
 - CTest registers `integration_cli`, which launches the built `nazm` executable
@@ -40,9 +42,25 @@ Current workspace note: the commands above require the matching toolchain on `PA
 ```text
 tests/
   CMakeLists.txt
+  differential/
+    compare_gas.cmake
+    emit_nazm_bytes.c
+    gas_reference.s
   integration/
+    api_cli_equivalence.cmake
+    api_fingerprint_contract.cmake
+    api_probe.c
+    capabilities_contract.cmake
     cli_acceptance.cmake
+    cli_alloc_faults.cmake
+    examples_acceptance.cmake
+    heap_door_contract.cmake
+  support/
+    alloc_fault.c
+    alloc_fault.h
   unit/
+    test_alloc_faults.c
+    test_api.c
     test_arena.c
     test_cli_args.c
     test_coff.c
@@ -223,8 +241,14 @@ through Arabic object/كشف paths, checks a known instruction byte sequence,
 links the ELF64 object with GNU `ld -e البداية`, executes it under a five-second
 timeout, and inspects it with `readelf`.
 
-The workflow definition is checked in, but its first successful remote run must
-be observed before the Linux CI roadmap item is marked complete.
+The same job then configures a second tree with `-DCMAKE_BUILD_TYPE=Debug`,
+which enables AddressSanitizer and UBSan, and runs the complete CTest set under
+them with `UBSAN_OPTIONS=halt_on_error=1`, so an undefined-behavior report
+fails the test instead of only printing. This is where the allocation-failure sweeps run with leak and
+out-of-bounds detection, since the Windows toolchain has no sanitizer runtime.
+
+The Windows job builds, tests, and packages the installer through
+`scripts/build_installer.ps1`, then exercises a silent install and uninstall.
 
 ## UTF-8 Filesystem Tests
 
@@ -290,6 +314,57 @@ and bad sources through the standalone command and public API, requires exact
 object bytes in both formats, and requires the API primary diagnostic to be
 present in CLI output. `integration_api_fingerprint_contract` hashes
 `nazm_capabilities_v1.json` and rejects a stale public capability digest.
+
+## Allocation-Failure Injection
+
+Every heap request in `src/` goes through `src/alloc/sysalloc.h`, and every
+pipeline allocation goes through `arena_alloc()`. `tests/support/alloc_fault.c`
+replaces that door when the sources are compiled with
+`NAZM_ALLOC_FAULT_INJECTION`. It numbers each `nazm_sys_malloc`,
+`nazm_sys_calloc`, and `arena_alloc` call as one allocation point, can fail
+point N once or fail N and every later point (sticky, an exhausted heap), sets
+`errno` to `ENOMEM` on an injected failure, and counts live heap blocks. The
+shipped `libnazm` and commands are built without the define and contain none of
+this code; CMake builds a separate `nazm_fault` static library for the tests.
+
+`unit_test_alloc_faults` first runs each case unarmed to count its points, then
+fails every point in turn. For the buffer API it sweeps 14 sources (the four
+examples, five diagnostics examples, and five Baa coverage fixtures) in both
+object formats, single and sticky. Each failed call must return
+`NAZM_STATUS_OUT_OF_MEMORY` with an empty result, report exactly one injected
+failure in single mode, and leave no live heap block. Arming one past the last
+point must reproduce the unarmed result byte for byte. The suite prints the
+number of points it failed: 830 for ELF64 and 823 for COFF at the time of
+writing. The same sweep covers `nazm_assemble_file()`, rejected calls, the
+arena's handler contract, and `io_path_identity()`, which must answer
+`IO_PATH_IDENTITY_UNKNOWN` rather than "different" when memory runs out.
+
+`integration_cli_alloc_faults` runs `nazm_fault_cli`, the real `src/main.c`
+linked against the injected library, one process per allocation point. The
+environment selects the point:
+
+| Variable | Meaning |
+| --- | --- |
+| `NAZM_ALLOC_FAULT_AT=N` | Fail allocation point N, counting from 1. |
+| `NAZM_ALLOC_FAULT_STICKY=1` | Also fail every point after N. |
+| `NAZM_ALLOC_FAULT_REPORT=1` | Print the point, failure, and live-block counters to stderr at exit. |
+
+Every armed run must exit with code `2`, print an Arabic message containing
+`الذاكرة غير كافية`, leave the source file untouched, and leave either no
+object or listing, or one identical to the shipped command's output. A second
+scenario names the source as the output through another spelling and requires
+a refusal at every point, so the object can never replace the source.
+
+`integration_heap_door_contract` keeps the door the only one. It fails if any
+file under `src/` or `include/` other than `sysalloc.h` names `malloc`,
+`calloc`, `realloc`, `aligned_alloc`, `free`, `strdup`, or `strndup` followed
+by an opening parenthesis, in code or in a comment.
+
+Run the three alone with:
+
+```bash
+ctest --test-dir build --output-on-failure -R "alloc_faults|heap_door"
+```
 
 ## Unit Test Style
 

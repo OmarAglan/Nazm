@@ -216,6 +216,9 @@ machine stream before Nazm sees the source.
   individually.
 - Heap-owned output buffers and API result buffers need explicit cleanup by
   their owning module or future public API cleanup function.
+- Every heap request goes through `src/alloc/sysalloc.h`, so test builds can
+  fail any allocation point. An allocation failure is reported to the caller
+  and never ends an embedding process.
 - User-facing diagnostic strings must remain valid until printed or copied into
   the public result.
 

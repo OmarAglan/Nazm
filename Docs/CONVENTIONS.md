@@ -57,7 +57,8 @@
 **Patterns:**
 - Functions that can fail return a result struct: `{ bool ok; T value; Error err; }`
 - Never return `NULL` to signal errors — use the result struct
-- Fatal / unrecoverable errors (out of memory): `fprintf(stderr, ...) ; exit(1)` — these should not happen in normal use
+- Out of memory is recoverable inside the library: `arena_alloc()` never returns `NULL`; it hands the failure to the arena's OOM handler. The API handler returns `NAZM_STATUS_OUT_OF_MEMORY` to the caller, and the CLI handler prints an Arabic message before exit code `2`. Heap helpers in `src/io/` return `NULL` with `errno == ENOMEM`.
+- All heap requests go through `nazm_sys_malloc`, `nazm_sys_calloc`, and `nazm_sys_free` in `src/alloc/sysalloc.h`. No other file under `src/` or `include/` may name a libc heap function, even in a comment; `integration_heap_door_contract` enforces this so allocation-failure injection reaches every request.
 - Collect multiple errors when possible (the parser and pass1 both accumulate errors rather than stopping at first)
 
 **Error Types:**

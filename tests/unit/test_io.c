@@ -64,14 +64,14 @@ void test_path_identity_matches_existing_relative_alias(void) {
     TEST_ASSERT_NOT_NULL(file);
     TEST_ASSERT_EQUAL_INT(0, fclose(file));
 
-    TEST_ASSERT_TRUE(io_paths_refer_to_same_file(
+    TEST_ASSERT_EQUAL_INT(IO_PATH_IDENTITY_SAME, io_path_identity(
         TEST_PATH, "./اختبار-مسار-عربي-مؤقت.bin"));
 }
 
 void test_path_identity_normalizes_unwritten_relative_alias(void) {
-    TEST_ASSERT_TRUE(io_paths_refer_to_same_file(
+    TEST_ASSERT_EQUAL_INT(IO_PATH_IDENTITY_SAME, io_path_identity(
         "خرج-عربي-مؤقت.o", "./خرج-عربي-مؤقت.o"));
-    TEST_ASSERT_FALSE(io_paths_refer_to_same_file(
+    TEST_ASSERT_EQUAL_INT(IO_PATH_IDENTITY_DIFFERENT, io_path_identity(
         "خرج-عربي-مؤقت.o", "خرج-عربي-آخر.o"));
 }
 
@@ -195,7 +195,7 @@ void test_windows_long_utf8_path_round_trips_bytes(void) {
 }
 
 void test_windows_path_identity_is_case_insensitive(void) {
-    TEST_ASSERT_TRUE(io_paths_refer_to_same_file(
+    TEST_ASSERT_EQUAL_INT(IO_PATH_IDENTITY_SAME, io_path_identity(
         "NAZM-PATH-CASE-TEMP.O", "nazm-path-case-temp.o"));
 }
 

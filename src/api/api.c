@@ -1,6 +1,7 @@
 #include "nazm.h"
 
 #include "alloc/arena.h"
+#include "alloc/sysalloc.h"
 #include "error/error.h"
 #include "io/file.h"
 #include "lexer/lexer.h"
@@ -9,6 +10,7 @@
 #include "passes/pass1.h"
 #include "passes/pass2.h"
 
+#include <errno.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,7 +40,7 @@ static char *nazm_api_strdup(const char *text)
 {
     const char *value = text ? text : "";
     size_t size = strlen(value) + 1u;
-    char *copy = (char *)malloc(size);
+    char *copy = (char *)nazm_sys_malloc(size);
     if (copy) memcpy(copy, value, size);
     return copy;
 }
@@ -46,13 +48,13 @@ static char *nazm_api_strdup(const char *text)
 void nazm_result_free(NazmResult *result)
 {
     if (!result) return;
-    free(result->object_data);
+    nazm_sys_free(result->object_data);
     for (size_t i = 0; i < result->diagnostic_count; ++i)
     {
-        free((void *)result->diagnostics[i].file);
-        free((void *)result->diagnostics[i].message);
+        nazm_sys_free((void *)result->diagnostics[i].file);
+        nazm_sys_free((void *)result->diagnostics[i].message);
     }
-    free(result->diagnostics);
+    nazm_sys_free(result->diagnostics);
     memset(result, 0, sizeof(*result));
 }
 
@@ -63,10 +65,12 @@ static bool nazm_add_single_diagnostic(NazmResult *result,
                                        int end_col,
                                        const char *message)
 {
-    result->diagnostics = (NazmDiagnostic *)calloc(1u, sizeof(NazmDiagnostic));
+    result->diagnostics = (NazmDiagnostic *)nazm_sys_calloc(1u, sizeof(NazmDiagnostic));
     if (!result->diagnostics) return false;
     result->diagnostics[0].file = nazm_api_strdup(file);
     result->diagnostics[0].message = nazm_api_strdup(message);
+    /* العنصر مملوك من هنا، فيحرر نصه الناجح إن فشل نسخ النص الآخر. */
+    result->diagnostic_count = 1u;
     if (!result->diagnostics[0].file || !result->diagnostics[0].message)
     {
         nazm_result_free(result);
@@ -75,7 +79,6 @@ static bool nazm_add_single_diagnostic(NazmResult *result,
     result->diagnostics[0].line = line;
     result->diagnostics[0].col = col;
     result->diagnostics[0].end_col = end_col;
-    result->diagnostic_count = 1u;
     return true;
 }
 
@@ -92,7 +95,7 @@ static NazmResult nazm_diagnostic_result(NazmStatus status,
 static bool nazm_copy_diagnostics(NazmResult *result, const ErrorList *errors)
 {
     if (!errors || errors->count == 0u) return true;
-    result->diagnostics = (NazmDiagnostic *)calloc(
+    result->diagnostics = (NazmDiagnostic *)nazm_sys_calloc(
         errors->count, sizeof(NazmDiagnostic));
     if (!result->diagnostics) return false;
 
@@ -180,7 +183,7 @@ static NazmResult nazm_assemble_caught(
     if (setjmp(context->oom_jump) != 0)
     {
         arena_free(&context->arena);
-        free(context);
+        nazm_sys_free(context);
         return nazm_empty_result(NAZM_STATUS_OUT_OF_MEMORY);
     }
     context->arena = arena_create_with_oom_handler(
@@ -197,7 +200,7 @@ static NazmResult nazm_assemble_caught(
     {
         NazmResult result = nazm_source_error(&lex.errors);
         arena_free(&context->arena);
-        free(context);
+        nazm_sys_free(context);
         return result;
     }
 
@@ -206,7 +209,7 @@ static NazmResult nazm_assemble_caught(
     {
         NazmResult result = nazm_source_error(&parse.errors);
         arena_free(&context->arena);
-        free(context);
+        nazm_sys_free(context);
         return result;
     }
 
@@ -215,7 +218,7 @@ static NazmResult nazm_assemble_caught(
     {
         NazmResult result = nazm_source_error(&pass1.errors);
         arena_free(&context->arena);
-        free(context);
+        nazm_sys_free(context);
         return result;
     }
 
@@ -225,7 +228,7 @@ static NazmResult nazm_assemble_caught(
     {
         NazmResult result = nazm_source_error(&pass2.errors);
         arena_free(&context->arena);
-        free(context);
+        nazm_sys_free(context);
         return result;
     }
 
@@ -255,23 +258,23 @@ static NazmResult nazm_assemble_caught(
             output.error_message ? output.error_message :
                 "فشل توليد الملف الكائني داخليا.");
         arena_free(&context->arena);
-        free(context);
+        nazm_sys_free(context);
         return result;
     }
 
     NazmResult result = nazm_empty_result(NAZM_STATUS_OK);
-    result.object_data = (uint8_t *)malloc(output.size ? output.size : 1u);
+    result.object_data = (uint8_t *)nazm_sys_malloc(output.size ? output.size : 1u);
     if (!result.object_data)
     {
         arena_free(&context->arena);
-        free(context);
+        nazm_sys_free(context);
         return nazm_empty_result(NAZM_STATUS_OUT_OF_MEMORY);
     }
     if (output.size) memcpy(result.object_data, output.data, output.size);
     result.object_size = output.size;
 
     arena_free(&context->arena);
-    free(context);
+    nazm_sys_free(context);
     return result;
 }
 
@@ -287,7 +290,7 @@ NazmResult nazm_assemble_buffer(const uint8_t *source,
             logical_name,
             "خيارات واجهة نظم أو مخزن المصدر غير صالح.");
 
-    NazmApiContext *context = (NazmApiContext *)calloc(1u, sizeof(*context));
+    NazmApiContext *context = (NazmApiContext *)nazm_sys_calloc(1u, sizeof(*context));
     if (!context) return nazm_empty_result(NAZM_STATUS_OUT_OF_MEMORY);
     context->source = source;
     context->source_len = source_len;
@@ -304,7 +307,10 @@ NazmResult nazm_assemble_file(const char *source_path, NazmOptions options)
             "",
             "مسار مصدر نظم مفقود.");
 
+    errno = 0;
     FILE *file = io_fopen_utf8(source_path, "rb");
+    if (!file && errno == ENOMEM)
+        return nazm_empty_result(NAZM_STATUS_OUT_OF_MEMORY);
     if (!file)
         return nazm_diagnostic_result(
             NAZM_STATUS_IO_ERROR,
@@ -328,7 +334,7 @@ NazmResult nazm_assemble_file(const char *source_path, NazmOptions options)
     }
 
     size_t size = (size_t)length;
-    uint8_t *buffer = (uint8_t *)malloc(size ? size : 1u);
+    uint8_t *buffer = (uint8_t *)nazm_sys_malloc(size ? size : 1u);
     if (!buffer)
     {
         fclose(file);
@@ -336,7 +342,7 @@ NazmResult nazm_assemble_file(const char *source_path, NazmOptions options)
     }
     if (size && fread(buffer, 1u, size, file) != size)
     {
-        free(buffer);
+        nazm_sys_free(buffer);
         fclose(file);
         return nazm_diagnostic_result(
             NAZM_STATUS_IO_ERROR,
@@ -347,6 +353,6 @@ NazmResult nazm_assemble_file(const char *source_path, NazmOptions options)
 
     NazmResult result = nazm_assemble_buffer(
         buffer, size, source_path, options);
-    free(buffer);
+    nazm_sys_free(buffer);
     return result;
 }

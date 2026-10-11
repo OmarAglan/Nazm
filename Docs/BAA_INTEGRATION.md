@@ -229,8 +229,12 @@ that is unrelated to the Arabic-first goal.
   identity before either enables Nazm object reuse.
 - Keep the subprocess mode as an isolation/debugging option.
 - CLI and API paths now produce byte-identical ELF64/COFF objects and matching
-  primary diagnostics in Nazm acceptance. Baa integration remains opt-in until
-  its own ecosystem gates pass.
+  primary diagnostics in Nazm acceptance. Baa 0.6.0 embeds this API as its
+  release default.
+- Allocation-failure injection fails every allocation point the API tests
+  reach and requires `NAZM_STATUS_OUT_OF_MEMORY` with no leaked heap block, so
+  an exhausted heap inside Nazm does not end the Baa process on any tested
+  path.
 
 ### Stage F: Rewrite and Bootstrap
 
