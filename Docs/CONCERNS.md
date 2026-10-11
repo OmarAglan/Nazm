@@ -1,6 +1,9 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-07-17
+**Analysis Date:** 2026-10-11
+
+The conditions Nazm sets itself before `1.0`, with their evidence, are listed
+in [READINESS.md](READINESS.md). This file keeps the reasoning behind them.
 
 ## Tech Debt
 
@@ -63,17 +66,18 @@
   consumer to add the revision to its cache identity, and requires every
   release to carry a new version. `integration_api_fingerprint_contract`
   rejects a release whose header does not carry the CMake version.
-- Fix approach: decide at the `1.0` review whether `main` should carry a
-  development version between releases.
+- Fix approach: the `1.0` review recorded this as decision م٦ in
+  [READINESS.md](READINESS.md): either `main` carries a development version
+  between releases, or Baa adds the embedded revision to its cache key.
 
-**Subprocess acceptance does not link or run objects yet:**
+**COFF objects are not linked and run in Nazm's own CI:**
 - Current coverage: `tests/integration/cli_acceptance.cmake` executes `nazm`,
   checks public exit codes, uses Arabic source/output paths, and validates ELF64
-  and AMD64 COFF signatures.
-- Remaining gap: The harness does not yet pass the objects to platform linkers
-  and execute the resulting programs.
-- Fix approach: Extend the acceptance layer with Linux ELF64 and Windows COFF
-  link/run cases when those linkers are available in CI.
+  and AMD64 COFF signatures. The Linux CI job links `examples/خروج.نظم` with
+  `ld`, runs it, and checks `.note.GNU-stack` with `readelf`.
+- Remaining gap: A COFF object is linked and run only by Baa's Windows CI.
+- Fix approach: Add a link/run step to the Windows job (condition م٢ in
+  [READINESS.md](READINESS.md)).
 
 ## Recently Resolved From Earlier Audits
 
@@ -263,9 +267,17 @@
 - Priority: Future producer-surface expansion, not current production
   admission.
 
-**All 16 general-purpose registers in all operand positions:**
-- What's not tested: Coverage exists for several extended-register cases, but not every source/destination/memory position combination.
-- Priority: High for encoder confidence.
+**Symbolic forms have no independent assembler comparison:**
+- What's covered: `differential_register_matrix_gas` puts every general and
+  scalar decimal register in every operand position of every register,
+  immediate and base-displacement form, 116442 statements, and compares Nazm's
+  disassembly with GNU `as`. Nazm differs in bytes for 363 of them, all
+  accumulator-immediate forms where GNU picks the short encoding.
+- What's not tested: Label branches and calls, RIP-relative memory, and
+  `MOV reg, label` are pinned by unit tests and the Linux link, not by an
+  external assembler. The 64-bit absolute relocation that `MOV reg, label`
+  emits for an external symbol is executed by no test.
+- Priority: High; conditions ت٣ and م٤ in [READINESS.md](READINESS.md).
 
 **CLI end-to-end behavior:**
 - What's covered: `tests/unit/test_cli_args.c` covers argument parsing;
@@ -274,7 +286,7 @@
   `tests/unit/test_diagnostics.c` covers rendered Arabic diagnostic shape.
   `tests/integration/cli_acceptance.cmake` executes the binary, checks exit
   codes, and validates ELF64/COFF output files written through Arabic paths.
-- What's not covered: Linking and running those objects with platform toolchains.
+- What's not covered: Linking and running a COFF object in Nazm's own CI.
 
 ---
 

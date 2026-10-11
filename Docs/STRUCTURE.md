@@ -118,6 +118,10 @@ Nazm/
 - `gas_reference.s`, `emit_nazm_bytes.c`, `compare_gas.cmake`
 - Assembles a curated equivalent corpus with GNU `as`, extracts `.text` with
   `objcopy`, and compares it byte-for-byte with Nazm encoding output.
+- `gen_register_matrix.c`, `compare_register_matrix.cmake`
+- Generates every register in every operand position of every non-symbolic
+  form, as Nazm source and as GNU `as` Intel syntax, assembles both, and
+  compares the two `objdump` disassemblies line by line.
 
 **tests/integration/**
 - `cli_acceptance.cmake`, `examples_acceptance.cmake`
@@ -180,6 +184,8 @@ Nazm/
 - `Docs/TERMINOLOGY.md` - authoritative Arabic terminology and exact public spellings.
 - `Docs/COMPATIBILITY.md` - what counts as a break, an addition, or a fix on
   each public surface, and the version each one needs.
+- `Docs/READINESS.md` - the conditions for `1.0`, each with its state and
+  evidence.
 - `Docs/BAA_INTEGRATION.md` - Baa handoff, coverage matrix, migration stages,
   and bootstrap release gates.
 - `Docs/INTEGRATIONS.md` - external tools, linkers, and deployment contracts.

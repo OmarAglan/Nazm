@@ -252,6 +252,55 @@ void test_enc_movzx_movsx_width_forms(void) {
     }
 }
 
+/* The forms below are the ones the 1.0 readiness review found no test
+ * executing. Each expected sequence is what GNU as emits for the same form. */
+void test_enc_movzx_movsx_word_source(void) {
+    {
+        uint8_t expected[]={0x0F,0xB7,0xC1};
+        ENC(OPCODE_MOVZX, reg_op(REG_EAX), reg_op(REG_CX));
+    }
+    {
+        uint8_t expected[]={0x4D,0x0F,0xB7,0xD3};
+        ENC(OPCODE_MOVZX, reg_op(REG_R10), reg_op(REG_R11W));
+    }
+    {
+        uint8_t expected[]={0x48,0x0F,0xBF,0xC1};
+        ENC(OPCODE_MOVSX, reg_op(REG_RAX), reg_op(REG_CX));
+    }
+}
+
+void test_enc_word_immediate_forms(void) {
+    {
+        /* 66 81 /0 iw: the immediate does not fit one signed byte. */
+        uint8_t expected[]={0x66,0x81,0xC1,0xE8,0x03};
+        ENC(OPCODE_ADD, reg_op(REG_CX), imm_op(1000));
+    }
+    {
+        uint8_t expected[]={0x66,0x41,0x81,0xFA,0x00,0x80};
+        ENC(OPCODE_CMP, reg_op(REG_R10W), imm_op(-32768));
+    }
+    {
+        /* 66 69 /r iw */
+        uint8_t expected[]={0x66,0x69,0xCA,0xE8,0x03};
+        ENC(OPCODE_IMUL, reg_op(REG_CX), reg_op(REG_DX), imm_op(1000));
+    }
+}
+
+void test_enc_test_byte_and_word_immediate(void) {
+    {
+        uint8_t expected[]={0xF6,0xC1,0x05};
+        ENC(OPCODE_TEST, reg_op(REG_CL), imm_op(5));
+    }
+    {
+        uint8_t expected[]={0x41,0xF6,0xC2,0x80};
+        ENC(OPCODE_TEST, reg_op(REG_R10B), imm_op(-128));
+    }
+    {
+        uint8_t expected[]={0x66,0xF7,0xC1,0xE8,0x03};
+        ENC(OPCODE_TEST, reg_op(REG_CX), imm_op(1000));
+    }
+}
+
 void test_enc_cqo_and_unsigned_div(void) {
     {
         uint8_t expected[]={0x48,0x99};
@@ -872,6 +921,9 @@ int main(void) {
     RUN_TEST(test_enc_setcc_condition_bytes_and_rex);
     RUN_TEST(test_enc_setcc_memory_forms);
     RUN_TEST(test_enc_movzx_movsx_width_forms);
+    RUN_TEST(test_enc_movzx_movsx_word_source);
+    RUN_TEST(test_enc_word_immediate_forms);
+    RUN_TEST(test_enc_test_byte_and_word_immediate);
     RUN_TEST(test_enc_cqo_and_unsigned_div);
     RUN_TEST(test_enc_scalar_sse2_moves);
     RUN_TEST(test_enc_scalar_sse2_arithmetic_and_compare);

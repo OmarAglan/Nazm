@@ -26,7 +26,7 @@
   boundary after Baa instruction selection and register allocation; see
   `Docs/BAA_INTEGRATION.md`.
 - The encoding/object correctness gate is closed. Current roadmap priority is
-  the remaining CLI/Linux acceptance work in 7.2; do not regress byte safety.
+  the open `1.0` conditions in `Docs/READINESS.md`; do not regress byte safety.
 - Output formats are intended to be ELF64 and PE/COFF.
 - Tests use vendored Unity plus CTest.
 - User-facing diagnostics should be Arabic-first and UTF-8.
@@ -149,6 +149,7 @@ Update docs only when behavior, public interfaces, source syntax, diagnostics, o
 | `Docs/STRUCTURE.md` | Files, directories, or where-to-add-code guidance changed. |
 | `Docs/CONVENTIONS.md` | Style, errors, memory, or module conventions changed. |
 | `Docs/TESTING.md` | Test structure, commands, fixtures, or framework usage changed. |
+| `Docs/READINESS.md` | A `1.0` condition was closed, opened, or decided. |
 | `Docs/CONCERNS.md` | Known bugs, fragile areas, security concerns, or coverage gaps changed. |
 | `include/nazm.h` | Public API behavior or ABI changed. |
 
@@ -246,13 +247,17 @@ Known Arabic mnemonics currently include:
 
 | Category | Mnemonics |
 |----------|-----------|
-| Data movement | `انقل`, `ادفع`, `اسحب`, `احسب_عنوان` |
-| Arithmetic | `أضف`, `اطرح`, `اضرب_موقع`, `اقسم_موقع`, `زد`, `انقص`, `اعكس_الإشارة` |
+| Data movement | `انقل`, `ادفع`, `اسحب`, `احسب_عنوان`, `وسع_بصفر`, `وسع_بإشارة` |
+| Arithmetic | `أضف`, `اطرح`, `اضرب_موقع`, `اقسم_موقع`, `اقسم_غير_موقع`, `وسع_إشارة_القسمة`, `زد`, `انقص`, `اعكس_الإشارة` |
 | Logic | `و_بتيا`, `أو_بتيا`, `خالف_بتيا`, `اعكس_البتات`, `ازح_يسارا`, `ازح_منطقيا_يمينا`, `ازح_حسابيا_يمينا` |
 | Comparison | `قارن`, `اختبر_البتات` |
 | Control flow | `اقفز`, `ناد`, `ارجع` |
 | Conditional jumps | `اقفز_مساو`, `اقفز_غير_مساو`, `اقفز_أكبر`, `اقفز_أكبر_أو_مساو`, `اقفز_أصغر`, `اقفز_أصغر_أو_مساو`, `اقفز_صفر`, `اقفز_غير_صفر`, `اقفز_سالب`, `اقفز_غير_سالب` |
-| System | `ناد_النظام`, `لا_تفعل`, `أوقف`, `اطلب_مقاطعة` |
+| System | `ناد_النظام`, `لا_تفعل`, `اقرأ_عداد_الزمن`, `أوقف`, `اطلب_مقاطعة` |
+| Set on condition | the twelve `عين_*` names in `Docs/TERMINOLOGY.md` |
+| Scalar decimal | `جمع_عشري`, `طرح_عشري`, `ضرب_عشري`, `قسمة_عشرية`, `مقارنة_عشرية`, `خلاف_عشري`, `تحويل_صحيح_إلى_عشري`, `تحويل_عشري_إلى_صحيح` |
+
+`Docs/TERMINOLOGY.md` is the binding list; this table is a reminder.
 
 When adding or changing a mnemonic:
 1. Update `src/lexer/keywords.c`.

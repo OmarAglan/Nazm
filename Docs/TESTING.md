@@ -7,14 +7,15 @@
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
 - `build.sh test` is the direct no-CMake path and currently runs the same 21 unit-test suites registered for CTest.
-- Current total on Windows: 462 Unity tests across the 21 suites. Three of them,
+- Current total on Windows: 466 Unity tests across the 21 suites. Three of them,
   the long UTF-8 path round trip, case-insensitive path identity, and
   UTF-16-to-UTF-8 argv conversion, are Windows-only.
 - `test_alloc_faults` is built against the library sources compiled with the
   allocation-failure injector; see Allocation-Failure Injection below.
 - `test_fuzz` is built against the same injected library; see Fuzzing below.
 - CTest additionally registers `differential_encoder_gas` when GNU `as` and
-  `objcopy` are available.
+  `objcopy` are available, and `differential_register_matrix_gas` when GNU `as`
+  and `objdump` are available. With both, CTest runs 31 tests on Windows.
 - CTest registers `integration_cli`, which launches the built `nazm` executable
   and checks its public exit-code and object-file behavior.
 
@@ -166,6 +167,30 @@ and Nazm intentionally select the same valid encoding; it currently compares
 217 logical `.text` bytes. MinGW COFF alignment NOPs are accepted only as a
 trailing all-`0x90` suffix. This test does not claim that one legal encoding is
 more correct merely because it is shorter.
+
+## Register Matrix Differential Test
+
+When GNU `as` and `objdump` are discoverable at configure time, CTest builds
+`nazm_register_matrix_generator` and registers
+`differential_register_matrix_gas`. The generator writes the same 116442
+statements twice, as Nazm source and as GNU `as` Intel syntax: every 8-, 16-,
+32- and 64-bit general register and every scalar decimal register in every
+operand position of every register, immediate and base-displacement form, with
+displacements and immediates at the `disp8`/`disp32` and `imm8`/`imm16`/`imm32`
+boundaries. Its register and mnemonic tables are written by hand and do not
+use Nazm's own, so a wrong name or register number cannot agree with itself.
+
+`compare_register_matrix.cmake` assembles the Nazm source through the real
+`nazm` executable and the reference through `as`, disassembles both objects
+with `objdump -d -M intel`, and requires the same instruction on every line.
+It compares meaning, not bytes, so the 363 accumulator-immediate statements
+where GNU picks the short encoding (`04 ib`) and Nazm the general one
+(`80 /0 ib`) pass. Symbolic forms, which need labels and relocations, are not
+in the matrix; see condition ت٣ in [READINESS.md](READINESS.md).
+
+On a mismatch, compare `nazm/matrix.dis` with `gas/matrix.dis` under
+`register-matrix-work` in the test build directory: line N of each is
+statement N of the two generated sources.
 
 ## Object Writer Test Style
 

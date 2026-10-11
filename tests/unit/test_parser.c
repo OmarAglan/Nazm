@@ -533,6 +533,15 @@ void test_parse_too_many_operands(void) {
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
 }
 
+void test_parse_fourth_operand_reports_limit(void) {
+    /* Three operands a statement is a documented limit of the language. */
+    ParseResult result = parse(
+        "اضرب_موقع سجل_المركم، سجل_العداد، 2، 3");
+    TEST_ASSERT_TRUE(error_has_any(&result.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        result.errors.errors[0].message, "الحد الأقصى 3"));
+}
+
 void test_parse_missing_comma(void) {
     ParseResult r = parse("انقل سجل_المركم سجل_العداد");  /* missing comma */
     TEST_ASSERT_TRUE(error_has_any(&r.errors));
@@ -807,6 +816,7 @@ int main(void) {
     /* Error cases */
     RUN_TEST(test_parse_too_few_operands);
     RUN_TEST(test_parse_too_many_operands);
+    RUN_TEST(test_parse_fourth_operand_reports_limit);
     RUN_TEST(test_parse_missing_comma);
     RUN_TEST(test_parse_bad_memory_no_reg);
     RUN_TEST(test_parse_removed_mnemonic_reports_replacement);

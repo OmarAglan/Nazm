@@ -73,6 +73,72 @@ if(NOT ARGUMENT_RESULT STREQUAL "2")
         "${ARGUMENT_STDOUT}\n${ARGUMENT_STDERR}")
 endif()
 
+# An unknown format name and a format option with no value are argument
+# errors: exit code 2, and nothing is written.
+set(REJECTED_FORMAT_OUTPUT "${ARABIC_SOURCE_DIR}/صيغة-مرفوضة.o")
+file(REMOVE "${REJECTED_FORMAT_OUTPUT}")
+execute_process(
+    COMMAND "${NAZM_EXE}" "${ARABIC_SOURCE}"
+        --خرج "${REJECTED_FORMAT_OUTPUT}" --صيغة ماخ
+    RESULT_VARIABLE UNKNOWN_FORMAT_RESULT
+    OUTPUT_VARIABLE UNKNOWN_FORMAT_STDOUT
+    ERROR_VARIABLE UNKNOWN_FORMAT_STDERR
+    ENCODING UTF-8
+)
+if(NOT UNKNOWN_FORMAT_RESULT STREQUAL "2"
+   OR EXISTS "${REJECTED_FORMAT_OUTPUT}")
+    message(FATAL_ERROR
+        "Unknown --صيغة value returned ${UNKNOWN_FORMAT_RESULT}, expected 2 "
+        "and no object\n${UNKNOWN_FORMAT_STDOUT}\n${UNKNOWN_FORMAT_STDERR}")
+endif()
+
+execute_process(
+    COMMAND "${NAZM_EXE}" "${ARABIC_SOURCE}" --صيغة
+    RESULT_VARIABLE MISSING_FORMAT_RESULT
+    OUTPUT_VARIABLE MISSING_FORMAT_STDOUT
+    ERROR_VARIABLE MISSING_FORMAT_STDERR
+    ENCODING UTF-8
+)
+if(NOT MISSING_FORMAT_RESULT STREQUAL "2")
+    message(FATAL_ERROR
+        "--صيغة without a value returned ${MISSING_FORMAT_RESULT}, "
+        "expected 2\n${MISSING_FORMAT_STDOUT}\n${MISSING_FORMAT_STDERR}")
+endif()
+
+# The six keys of --معلومات-الواجهة=json are a frozen contract
+# (Docs/COMPATIBILITY.md): one JSON object on stdout, exit code 0.
+execute_process(
+    COMMAND "${NAZM_EXE}" --معلومات-الواجهة=json
+    RESULT_VARIABLE API_INFO_RESULT
+    OUTPUT_VARIABLE API_INFO_STDOUT
+    ERROR_VARIABLE API_INFO_STDERR
+    ENCODING UTF-8
+)
+if(NOT API_INFO_RESULT STREQUAL "0")
+    message(FATAL_ERROR
+        "nazm --معلومات-الواجهة=json failed (${API_INFO_RESULT})\n"
+        "${API_INFO_STDOUT}\n${API_INFO_STDERR}")
+endif()
+foreach(API_INFO_KEY
+        schema api_version version capabilities_schema
+        capabilities_sha256 fingerprint)
+    string(JSON API_INFO_VALUE ERROR_VARIABLE API_INFO_ERROR
+        GET "${API_INFO_STDOUT}" ${API_INFO_KEY})
+    if(API_INFO_ERROR OR API_INFO_VALUE STREQUAL "")
+        message(FATAL_ERROR
+            "--معلومات-الواجهة=json lacks the key ${API_INFO_KEY}: "
+            "${API_INFO_ERROR}\n${API_INFO_STDOUT}")
+    endif()
+endforeach()
+string(JSON API_INFO_SHA GET "${API_INFO_STDOUT}" capabilities_sha256)
+string(JSON API_INFO_FINGERPRINT GET "${API_INFO_STDOUT}" fingerprint)
+if(NOT API_INFO_SHA MATCHES "^[0-9a-f]+$"
+   OR NOT API_INFO_FINGERPRINT MATCHES "${API_INFO_SHA}")
+    message(FATAL_ERROR
+        "The fingerprint does not carry the capabilities hash\n"
+        "${API_INFO_STDOUT}")
+endif()
+
 execute_process(
     COMMAND "${NAZM_EXE}" "${BAD_SOURCE}"
     RESULT_VARIABLE ASSEMBLY_ERROR_RESULT

@@ -194,3 +194,28 @@ else()
     message(STATUS
         "GNU as/objcopy not found; differential_encoder_gas is unavailable")
 endif()
+
+# ── Differential register matrix ─────────────────────────────────────────────
+# Every register in every operand position of every implemented form, through
+# the real CLI, compared with GNU as by disassembly.
+find_program(NAZM_OBJDUMP NAMES objdump)
+
+if(NAZM_GNU_AS AND NAZM_OBJDUMP)
+    add_executable(nazm_register_matrix_generator
+        differential/gen_register_matrix.c
+    )
+
+    add_test(
+        NAME differential_register_matrix_gas
+        COMMAND ${CMAKE_COMMAND}
+            -DGENERATOR=$<TARGET_FILE:nazm_register_matrix_generator>
+            -DNAZM_EXE=$<TARGET_FILE:nazm>
+            -DGNU_AS=${NAZM_GNU_AS}
+            -DOBJDUMP=${NAZM_OBJDUMP}
+            -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/register-matrix-work
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/differential/compare_register_matrix.cmake
+    )
+else()
+    message(STATUS
+        "GNU as/objdump not found; differential_register_matrix_gas is unavailable")
+endif()
