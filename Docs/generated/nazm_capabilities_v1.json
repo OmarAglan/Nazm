@@ -871,6 +871,7 @@
       "movsbl|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "movsbq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "movslq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
+      "movswl|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "movzbl|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "movzbq|register,register": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
       "nop|": "tests/fixtures/baa_coverage/حساب-وتحكم-باء.نظم",
