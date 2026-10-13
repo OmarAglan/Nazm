@@ -280,6 +280,44 @@ if(NOT DEFAULT_COFF_RESULT STREQUAL "0"
         "${DEFAULT_COFF_STDERR}")
 endif()
 
+# File failures are reported in Arabic with exit code 2, and name the path.
+function(expect_file_failure description fragment)
+    execute_process(
+        COMMAND "${NAZM_EXE}" ${ARGN}
+        RESULT_VARIABLE FAILURE_RESULT
+        OUTPUT_VARIABLE FAILURE_STDOUT
+        ERROR_VARIABLE FAILURE_STDERR
+        ENCODING UTF-8
+    )
+    string(FIND "${FAILURE_STDERR}" "${fragment}" FRAGMENT_AT)
+    if(NOT FAILURE_RESULT STREQUAL "2" OR FRAGMENT_AT LESS 0)
+        message(FATAL_ERROR
+            "${description}: exit ${FAILURE_RESULT}, expected 2 and "
+            "'${fragment}'\n${FAILURE_STDOUT}\n${FAILURE_STDERR}")
+    endif()
+endfunction()
+
+set(MISSING_DIR "${ARABIC_SOURCE_DIR}/مجلد-غير-موجود")
+expect_file_failure("Missing source file" "تعذّر فتح الملف"
+    "${ARABIC_SOURCE_DIR}/غير-موجود.نظم")
+expect_file_failure("Object path in a missing directory" "تعذّر كتابة الملف"
+    "${GOOD_SOURCE}" --خرج "${MISSING_DIR}/خرج.o")
+expect_file_failure("Listing path in a missing directory"
+    "تعذرت كتابة ملف كشف التجميع"
+    "${GOOD_SOURCE}" --خرج "${ARABIC_SOURCE_DIR}/كشف-فاشل.o"
+    --كشف "${MISSING_DIR}/كشف.كشف")
+
+# One byte past the 100 MiB source limit; the command reads only its size.
+set(OVERSIZE_SOURCE "${ARABIC_SOURCE_DIR}/فوق-الحد.نظم")
+string(REPEAT "\n" 1048576 ONE_MEBIBYTE)
+file(WRITE "${OVERSIZE_SOURCE}" "\n")
+foreach(MEBIBYTE RANGE 1 100)
+    file(APPEND "${OVERSIZE_SOURCE}" "${ONE_MEBIBYTE}")
+endforeach()
+expect_file_failure("Source larger than the limit"
+    "حجم الملف أكبر من الحد المسموح" "${OVERSIZE_SOURCE}")
+file(REMOVE "${OVERSIZE_SOURCE}")
+
 set(LEGACY_SOURCE "${ARABIC_SOURCE_DIR}/قديم.مجمع")
 file(COPY_FILE "${GOOD_SOURCE}" "${LEGACY_SOURCE}" ONLY_IF_DIFFERENT)
 execute_process(

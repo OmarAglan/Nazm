@@ -18,6 +18,10 @@ typedef struct {
     size_t      data_size;   /* total bytes in .data section */
     size_t      read_only_data_size; /* total bytes in .rodata/.rdata */
     size_t      bss_size;    /* zero-initialized bytes in .bss */
+    /* Largest '.محاذاة' boundary used in each section; 0 if none. */
+    size_t      data_alignment;
+    size_t      read_only_data_alignment;
+    size_t      bss_alignment;
     DebugFileList debug_files;
     ErrorList   errors;
 } Pass1Result;

@@ -149,6 +149,11 @@ static void align_outbuf(OutBuf *ob, size_t alignment) {
     }
 }
 
+/* Data sections keep an 8-byte floor; a larger '.محاذاة' raises it. */
+static uint64_t data_section_alignment(size_t requested) {
+    return requested > 8 ? (uint64_t)requested : 8;
+}
+
 static void write_shdr(OutBuf *ob,
                        uint32_t name,
                        uint32_t type,
@@ -615,7 +620,7 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                    (uint64_t)in->data_size,
                    0,
                    0,
-                   8,
+                   data_section_alignment(in->data_alignment),
                    0);
     }
 
@@ -629,7 +634,7 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                    (uint64_t)in->read_only_data_size,
                    0,
                    0,
-                   8,
+                   data_section_alignment(in->read_only_data_alignment),
                    0);
     }
 
@@ -643,7 +648,7 @@ OutputResult output_write_elf64(const OutputInput *in, Arena *arena) {
                    (uint64_t)in->bss_size,
                    0,
                    0,
-                   8,
+                   data_section_alignment(in->bss_alignment),
                    0);
     }
 

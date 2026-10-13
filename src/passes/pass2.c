@@ -117,6 +117,19 @@ static bool opcode_uses_relative_label(OpcodeEnum opcode) {
     }
 }
 
+/* The message for a jump or call whose target is neither of the kinds the
+ * instruction takes, or NULL when the target kind is not the problem. */
+static const char *branch_target_error(const Instruction *instr) {
+    if (!opcode_uses_relative_label(instr->opcode) || instr->op_count != 1 ||
+        instr->ops[0].kind == OP_LABEL) {
+        return NULL;
+    }
+    if (instr->opcode == OPCODE_JMP || instr->opcode == OPCODE_CALL) {
+        return "هدف 'اقفز' و'ناد' يجب أن يكون وسما أو سجلا من 64 بت";
+    }
+    return "هدف القفز الشرطي يجب أن يكون وسما";
+}
+
 static bool is_mov_reg_label(const Instruction *instr, int operand_index) {
     return instr->opcode == OPCODE_MOV
         && instr->op_count == 2
@@ -657,9 +670,14 @@ Pass2Result pass2_run(const InstructionList *instructions,
                                                 resolved_target);
         if (enc.error) {
             char msg[256];
-            snprintf(msg, sizeof(msg),
-                     "تعذر ترميز التعليمة (شفرة العملية=%d)",
-                     (int)instr->opcode);
+            const char *target_message = branch_target_error(instr);
+            if (target_message) {
+                snprintf(msg, sizeof(msg), "%s", target_message);
+            } else {
+                snprintf(msg, sizeof(msg),
+                         "تعذر ترميز التعليمة (شفرة العملية=%d)",
+                         (int)instr->opcode);
+            }
             error_add_span(&result.errors, arena,
                            instructions->source_name
                                ? instructions->source_name : "unknown",

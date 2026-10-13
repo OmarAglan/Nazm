@@ -23,6 +23,14 @@
 #define COFF_SCN_MEM_WRITE       0x80000000u
 #define COFF_SCN_ALIGN_1         0x00100000u
 #define COFF_SCN_ALIGN_16        0x00500000u
+
+/* IMAGE_SCN_ALIGN_nBYTES is (log2(n) + 1) in bits 20..23. Data sections stay
+ * byte-aligned unless the source asked for a boundary with '.محاذاة'. */
+static uint32_t coff_data_alignment_flag(size_t requested) {
+    uint32_t exponent = 0;
+    while (((size_t)1 << exponent) < requested && exponent < 13) exponent++;
+    return (exponent + 1u) << 20;
+}
 #define COFF_SYM_CLASS_EXTERNAL  2u
 #define COFF_SYM_CLASS_STATIC    3u
 #define COFF_SYM_TYPE_NULL       0u
@@ -433,7 +441,8 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
                    data_reloc_ptr,
                    data_reloc_count,
                    COFF_SCN_CNT_INIT_DATA | COFF_SCN_MEM_READ |
-                       COFF_SCN_MEM_WRITE | COFF_SCN_ALIGN_1);
+                       COFF_SCN_MEM_WRITE |
+                       coff_data_alignment_flag(in->data_alignment));
     }
 
     if (has_read_only_data) {
@@ -444,7 +453,8 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
                    read_only_data_reloc_ptr,
                    read_only_data_reloc_count,
                    COFF_SCN_CNT_INIT_DATA | COFF_SCN_MEM_READ |
-                       COFF_SCN_ALIGN_1);
+                       coff_data_alignment_flag(
+                           in->read_only_data_alignment));
     }
 
     if (has_bss) {
@@ -455,7 +465,8 @@ OutputResult output_write_coff(const OutputInput *in, Arena *arena) {
                    0,
                    0,
                    COFF_SCN_CNT_UNINIT_DATA | COFF_SCN_MEM_READ |
-                       COFF_SCN_MEM_WRITE | COFF_SCN_ALIGN_1);
+                       COFF_SCN_MEM_WRITE |
+                       coff_data_alignment_flag(in->bss_alignment));
     }
 
     if (has_debug) {

@@ -1,6 +1,6 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-10-11
+**Analysis Date:** 2026-10-13
 
 The conditions Nazm sets itself before `1.0`, with their evidence, are listed
 in [READINESS.md](READINESS.md). This file keeps the reasoning behind them.
@@ -66,20 +66,30 @@ in [READINESS.md](READINESS.md). This file keeps the reasoning behind them.
   consumer to add the revision to its cache identity, and requires every
   release to carry a new version. `integration_api_fingerprint_contract`
   rejects a release whose header does not carry the CMake version.
-- Fix approach: the `1.0` review recorded this as decision م٦ in
-  [READINESS.md](READINESS.md): either `main` carries a development version
-  between releases, or Baa adds the embedded revision to its cache key.
-
-**COFF objects are not linked and run in Nazm's own CI:**
-- Current coverage: `tests/integration/cli_acceptance.cmake` executes `nazm`,
-  checks public exit codes, uses Arabic source/output paths, and validates ELF64
-  and AMD64 COFF signatures. The Linux CI job links `examples/خروج.نظم` with
-  `ld`, runs it, and checks `.note.GNU-stack` with `readelf`.
-- Remaining gap: A COFF object is linked and run only by Baa's Windows CI.
-- Fix approach: Add a link/run step to the Windows job (condition م٢ in
-  [READINESS.md](READINESS.md)).
+- Decision م٦ in [READINESS.md](READINESS.md): the fingerprint stays a
+  release identity and `main` carries no development version. Baa adds the
+  embedded Nazm revision to its object cache key.
 
 ## Recently Resolved From Earlier Audits
+
+- A jump or call whose target was neither a label nor a 64-bit register,
+  such as `ناد [سجل_المركم]` or `اقفز ٥`, was encoded as a relative branch
+  with a zero displacement and no diagnostic. The encoder now refuses the
+  form and pass 2 names the accepted targets.
+
+- `.محاذاة` padded inside a section without raising the section's own
+  alignment in the object, so a linker could place the section on a smaller
+  boundary. The largest boundary used in each data section is now that
+  section's alignment in ELF64 and COFF.
+
+- Symbolic forms are compared with GNU `as` after linking by
+  `differential_symbolic_forms_gas`; a COFF and an ELF64 object are linked
+  and run in Nazm's own CI by `integration_link_and_run`; the 64-bit absolute
+  relocation of an external symbol is executed by unit tests.
+
+- A libFuzzer target over `nazm_assemble_buffer()` runs in CI, line coverage
+  is measured and published there, and the five functions without a caller
+  are gone.
 
 - `nazm-api-v1` now implements buffer/file assembly, owned object bytes,
   structured Arabic diagnostics, idempotent result cleanup, and recoverable
@@ -194,12 +204,14 @@ in [READINESS.md](READINESS.md). This file keeps the reasoning behind them.
   sources is not exercised. A literal above `INT64_MAX` reaches the parser as
   its signed 64-bit pattern, so `.عدد٨ 0xFFFFFFFFFFFFFFFF` is the byte `0xFF`
   while `.عدد٨ 0xFFFF` is an error. That follows from the pattern rule in
-  `Docs/LANGUAGE.md`, but it is a wart.
+  `Docs/LANGUAGE.md`; decision ت٦ keeps it as the `1.0` contract.
 - Files: `tests/unit/test_fuzz.c`, `src/lexer/lexer.c`.
-- Recommendation: Before a release, run other seeds with a higher
-  `NAZM_FUZZ_ITERATIONS` and add what they find to `REGRESSIONS`. A libFuzzer
-  or AFL++ harness over `nazm_assemble_buffer()` on Linux would add the
-  coverage feedback this suite lacks.
+- Mitigation: `tests/fuzz/fuzz_assemble.c` is a libFuzzer target over
+  `nazm_assemble_buffer()`; the CI `fuzz` job runs it for 180 seconds per
+  push with ASan and UBSan. That is a smoke run, not a campaign.
+- Recommendation: Before a release, run the libFuzzer target for hours, and
+  run other seeds of `unit_test_fuzz` with a higher `NAZM_FUZZ_ITERATIONS`;
+  add what either finds to `REGRESSIONS`.
 
 ## Performance Bottlenecks
 
@@ -267,17 +279,12 @@ in [READINESS.md](READINESS.md). This file keeps the reasoning behind them.
 - Priority: Future producer-surface expansion, not current production
   admission.
 
-**Symbolic forms have no independent assembler comparison:**
-- What's covered: `differential_register_matrix_gas` puts every general and
-  scalar decimal register in every operand position of every register,
-  immediate and base-displacement form, 116442 statements, and compares Nazm's
-  disassembly with GNU `as`. Nazm differs in bytes for 363 of them, all
-  accumulator-immediate forms where GNU picks the short encoding.
-- What's not tested: Label branches and calls, RIP-relative memory, and
-  `MOV reg, label` are pinned by unit tests and the Linux link, not by an
-  external assembler. The 64-bit absolute relocation that `MOV reg, label`
-  emits for an external symbol is executed by no test.
-- Priority: High; conditions ت٣ and م٤ in [READINESS.md](READINESS.md).
+**The MSVC build is not tested:**
+- What's covered: every CI job builds with GCC or Clang.
+- What's not tested: an MSVC build of the library and command, and a COFF
+  object linked by `link.exe` in Nazm's own CI. Baa's Windows CI links Nazm
+  objects with its own linker path.
+- Priority: Low; no release artifact is built with MSVC.
 
 **CLI end-to-end behavior:**
 - What's covered: `tests/unit/test_cli_args.c` covers argument parsing;
@@ -286,7 +293,8 @@ in [READINESS.md](READINESS.md). This file keeps the reasoning behind them.
   `tests/unit/test_diagnostics.c` covers rendered Arabic diagnostic shape.
   `tests/integration/cli_acceptance.cmake` executes the binary, checks exit
   codes, and validates ELF64/COFF output files written through Arabic paths.
-- What's not covered: Linking and running a COFF object in Nazm's own CI.
+- What's not covered: `fseek`, `ftell` and short-read failures, and Windows
+  path-conversion failures, which need a faulting file system.
 
 ---
 

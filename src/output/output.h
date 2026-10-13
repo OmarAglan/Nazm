@@ -25,6 +25,11 @@ typedef struct {
     const uint8_t  *read_only_data_bytes; /* NULL if no read-only section */
     size_t          read_only_data_size;
     size_t          bss_size;
+    /* Largest boundary requested inside each section; 0 keeps the writer's
+     * default section alignment. */
+    size_t          data_alignment;
+    size_t          read_only_data_alignment;
+    size_t          bss_alignment;
     const SymbolTable *symtable;
     const RelocationList *relocations;
     const DebugFileList *debug_files;

@@ -1,21 +1,26 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-10-11
+**Analysis Date:** 2026-10-13
 
 ## Test Framework
 
 - Unity is vendored in `tests/vendor/unity/`.
 - CTest registration lives in `tests/CMakeLists.txt`.
 - `build.sh test` is the direct no-CMake path and currently runs the same 21 unit-test suites registered for CTest.
-- Current total on Windows: 466 Unity tests across the 21 suites. Three of them,
+- Current total on Windows: 483 Unity tests across the 21 suites. Three of them,
   the long UTF-8 path round trip, case-insensitive path identity, and
   UTF-16-to-UTF-8 argv conversion, are Windows-only.
 - `test_alloc_faults` is built against the library sources compiled with the
   allocation-failure injector; see Allocation-Failure Injection below.
 - `test_fuzz` is built against the same injected library; see Fuzzing below.
-- CTest additionally registers `differential_encoder_gas` when GNU `as` and
-  `objcopy` are available, and `differential_register_matrix_gas` when GNU `as`
-  and `objdump` are available. With both, CTest runs 31 tests on Windows.
+- Five tests need GNU binutils and register only when the tools are found at
+  configure time: `differential_encoder_gas` (`as`, `objcopy`),
+  `differential_register_matrix_gas` (`as`, `objdump`),
+  `differential_symbolic_forms_gas` (`as`, `ld`, `objdump`),
+  `integration_link_and_run` (`ld`) and `integration_debug_line_readelf`
+  (`readelf`). With all of them, CTest runs 34 tests on Windows. Both CI jobs
+  fail if one of the five is not registered, so a missing tool cannot drop a
+  gate silently.
 - CTest registers `integration_cli`, which launches the built `nazm` executable
   and checks its public exit-code and object-file behavior.
 
@@ -39,6 +44,42 @@ ctest --test-dir build-release --output-on-failure
 
 Current workspace note: the commands above require the matching toolchain on `PATH`. On Windows, use an environment that provides CMake and a C11 compiler.
 
+## Symbolic Form Differential Test
+
+`differential_symbolic_forms_gas` covers what the matrix cannot: every form
+whose bytes depend on a symbol. `tests/differential/أشكال_رمزية.نظم` and
+`symbolic_reference.s` are the same program, in Nazm source and in GNU `as`
+Intel syntax, with the same Arabic symbol names: jumps and calls to earlier
+and later labels, the ten conditional jumps, calls and jumps to external
+symbols, `[مؤشر_التعليمة+وسم]` loads, stores and `احسب_عنوان` against a label
+in each section and against an external symbol, `انقل سجل، وسم` for a local
+and an external symbol, and `.عدد٦٤` initialized with a symbol.
+
+`compare_symbolic.cmake` assembles both, links each object with the object of
+`symbolic_externals.s` using GNU `ld`, and requires identical `.text`, `.data`
+and read-only data bytes in the two linked images. Comparing after the link
+checks the encoding and the relocation together: a wrong relocation type,
+offset or addend gives different linked bytes. The reference forces `rel32`
+branches with `{disp32}` because Nazm always emits the near form.
+
+GNU `as` pads COFF sections to 16 bytes. Every section of the fixture is a
+multiple of 16 bytes so that padding is empty; keep it so when adding a line.
+On a mismatch, compare `nazm/linked.dis` with `gas/linked.dis` under
+`symbolic-forms-work` in the test build directory.
+
+## Link-And-Run And Line-Table Tests
+
+`integration_link_and_run` assembles `tests/fixtures/link_run/ربط-كوف.نظم` on
+Windows or `ربط-إلف.نظم` elsewhere, links it with `ld --fatal-warnings` using
+the Arabic entry symbol, runs the program, and requires exit code 42. The
+program reaches 42 through a RIP-relative load, a label call, an indirect
+call through a 64-bit absolute pointer stored in `.data`, and an absolute
+address in a register, so a wrong relocation changes the exit code.
+
+`integration_debug_line_readelf` assembles `ملفان-تنقيح.نظم`, which names two
+source files and jumps from line 7 to line 300, and requires the rows
+`readelf --debug-dump=decodedline` prints for both files.
+
 ## Current Test Files
 
 ```text
@@ -46,8 +87,19 @@ tests/
   CMakeLists.txt
   differential/
     compare_gas.cmake
+    compare_register_matrix.cmake
+    compare_symbolic.cmake
     emit_nazm_bytes.c
     gas_reference.s
+    gen_register_matrix.c
+    symbolic_externals.s
+    symbolic_reference.s
+    أشكال_رمزية.نظم
+  fixtures/
+    baa_coverage/
+    link_run/
+  fuzz/
+    fuzz_assemble.c
   integration/
     api_cli_equivalence.cmake
     api_fingerprint_contract.cmake
@@ -55,8 +107,10 @@ tests/
     capabilities_contract.cmake
     cli_acceptance.cmake
     cli_alloc_faults.cmake
+    debug_line_readelf.cmake
     examples_acceptance.cmake
     heap_door_contract.cmake
+    link_and_run.cmake
   support/
     alloc_fault.c
     alloc_fault.h
@@ -84,6 +138,7 @@ tests/
     test_unicode.c
   vendor/
     unity/
+      README.md
       unity.c
       unity.h
 ```
@@ -186,7 +241,7 @@ with `objdump -d -M intel`, and requires the same instruction on every line.
 It compares meaning, not bytes, so the 363 accumulator-immediate statements
 where GNU picks the short encoding (`04 ib`) and Nazm the general one
 (`80 /0 ib`) pass. Symbolic forms, which need labels and relocations, are not
-in the matrix; see condition ت٣ in [READINESS.md](READINESS.md).
+in the matrix; the symbolic differential below compares them.
 
 On a mismatch, compare `nazm/matrix.dis` with `gas/matrix.dis` under
 `register-matrix-work` in the test build directory: line N of each is
@@ -244,6 +299,11 @@ byte-identical COFF objects, proving that temporary filenames do not leak into
 deterministic output. `test_io.c` separately covers existing
 file identity and normalized aliases for paths that have not been written yet.
 
+The failure paths are checked the same way: a missing source, an object or
+listing path inside a missing directory, and a source one byte past the
+100 MiB limit must each exit with code `2` and the Arabic message for that
+failure.
+
 `tests/unit/test_listing.c` separately pins pass-two emission spans for `.text`
 and `.data`, exact rendered instruction/data bytes, 16-byte wrapping, and
 rejection of a missing or mismatched emission map.
@@ -274,8 +334,31 @@ them with `UBSAN_OPTIONS=halt_on_error=1`, so an undefined-behavior report
 fails the test instead of only printing. This is where the allocation-failure sweeps run with leak and
 out-of-bounds detection, since the Windows toolchain has no sanitizer runtime.
 
+It then measures line coverage: a `Coverage` build runs the CTest set and
+`tools/coverage_summary.py` merges the `gcov` counts of every file under
+`src/`, writes the per-file table to the job summary, and fails below 90%.
+Run the same measurement locally with:
+
+```bash
+cmake -S . -B build-coverage -DCMAKE_BUILD_TYPE=Coverage
+cmake --build build-coverage
+ctest --test-dir build-coverage
+python3 tools/coverage_summary.py build-coverage --unexecuted
+```
+
+`--unexecuted` also lists the line numbers no test reached.
+
+Last, the job installs the Release build into
+`nazm-<version>-linux-x64.tar.gz`, records its SHA-256, and runs the archive
+in an `ubuntu:24.04` container with no network and no compiler: it verifies
+the checksum, runs `nazm --إصدار`, assembles an example, and requires the
+object digest the build produced. The receipt is uploaded with the archive.
+`tools/check_utf8.py` runs in the same job and rejects a tracked text file
+that is not clean UTF-8.
+
 The Windows job builds, tests, and packages the installer through
 `scripts/build_installer.ps1`, then exercises a silent install and uninstall.
+The installer name follows the version in `CMakeLists.txt`.
 
 ## UTF-8 Filesystem Tests
 
@@ -472,6 +555,26 @@ relative path. MinGW has no sanitizer runtime, so on Windows build the suite
 with `-fsanitize=undefined -fsanitize-trap=undefined` to turn undefined
 behavior into a trap the crash handler reports.
 
+### Coverage-guided target
+
+`tests/fuzz/fuzz_assemble.c` is a libFuzzer target over
+`nazm_assemble_buffer()`. It assembles each input to ELF64 and to COFF and
+traps when a call succeeds without an object, reports a source error without
+a diagnostic, or returns any status other than success, source error or out
+of memory. It needs Clang and is not part of the default build:
+
+```bash
+CC=clang cmake -S . -B build-fuzz -DCMAKE_BUILD_TYPE=Debug \
+    -DNAZM_BUILD_FUZZER=ON -DNAZM_BUILD_TESTS=OFF -DNAZM_BUILD_CLI=OFF
+cmake --build build-fuzz --target nazm_fuzz_assemble
+./build-fuzz/nazm_fuzz_assemble corpus -max_len=4096 -max_total_time=180
+```
+
+The CI `fuzz` job seeds the corpus with the `.نظم` examples and fixtures,
+runs for 180 seconds with ASan and UBSan, and uploads the crashing input when
+it fails. Add an input it finds to `REGRESSIONS` in `tests/unit/test_fuzz.c`
+so the fixed-seed gate keeps it on every platform.
+
 ## Unit Test Style
 
 - Keep `setUp()` and `tearDown()` in every Unity file, even when empty.
@@ -489,7 +592,9 @@ behavior into a trap the crash handler reports.
 
 ## Coverage Expectations
 
-- No numeric coverage threshold is enforced yet.
+- CI fails below 90% line coverage of `src/`. The Windows measurement on
+  2026-10-13 was 95.4%; the lines left are defensive returns, internal
+  errors, and file-system failures no test can provoke.
 - Critical modules are lexer, parser, pass1, pass2, encoder, and output writers.
 - Any change that affects machine bytes, symbol resolution, diagnostics, or object layout needs focused tests or a stated reason for deferral.
 - Diagnostic changes should assert both Arabic message intent, rendered source context, and source span (`line`, `col`, `end_col`) where the exact position matters.

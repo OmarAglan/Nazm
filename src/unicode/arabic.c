@@ -75,16 +75,6 @@ size_t utf8_complete_prefix(const uint8_t *src, size_t len) {
     return len - lead < needed ? lead : len;
 }
 
-int utf8_codepoint_len(const uint8_t *src, size_t src_len, size_t offset) {
-    if (offset >= src_len) return 0;
-    uint8_t b = src[offset];
-    if (b < 0x80) return 1;
-    if ((b & 0xE0) == 0xC0) return 2;
-    if ((b & 0xF0) == 0xE0) return 3;
-    if ((b & 0xF8) == 0xF0) return 4;
-    return 1;
-}
-
 bool is_arabic_letter(uint32_t cp) {
     /*
      * Exclude Arabic punctuation / formatting inside 0x0600-0x06FF:
@@ -114,10 +104,6 @@ int arabic_digit_value(uint32_t cp) {
     if (nazm_is_arabic_digit(cp)) return (int)(cp - 0x0660);
     if (cp >= '0' && cp <= '9') return (int)(cp - '0');
     return -1;
-}
-
-bool is_ascii_whitespace(uint32_t cp) {
-    return cp == ' ' || cp == '\t' || cp == '\r' || cp == '\n';
 }
 
 bool is_ident_start(uint32_t cp) {

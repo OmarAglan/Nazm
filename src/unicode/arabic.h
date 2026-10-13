@@ -25,9 +25,6 @@ bool utf8_is_well_formed_at(const uint8_t *src, size_t src_len, size_t offset);
  * character. Shorter than `len` only when the last character is cut off. */
 size_t utf8_complete_prefix(const uint8_t *src, size_t len);
 
-/* How many bytes does the codepoint at `src[offset]` occupy? (1–4) */
-int utf8_codepoint_len(const uint8_t *src, size_t src_len, size_t offset);
-
 /* Is this codepoint a letter that can appear in an Arabic identifier/mnemonic? */
 bool is_arabic_letter(uint32_t cp);
 
@@ -36,9 +33,6 @@ bool nazm_is_arabic_digit(uint32_t cp);
 
 /* Convert Arabic-Indic digit codepoint to its integer value (0–9). */
 int arabic_digit_value(uint32_t cp);
-
-/* Is this codepoint ASCII whitespace? */
-bool is_ascii_whitespace(uint32_t cp);
 
 /* Is this a codepoint that can begin an identifier? */
 bool is_ident_start(uint32_t cp);

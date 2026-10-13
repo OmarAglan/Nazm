@@ -25,8 +25,11 @@
 - Strategic integration target: Nazm will replace Baa's AT&T/GAS assembly
   boundary after Baa instruction selection and register allocation; see
   `Docs/BAA_INTEGRATION.md`.
-- The encoding/object correctness gate is closed. Current roadmap priority is
-  the open `1.0` conditions in `Docs/READINESS.md`; do not regress byte safety.
+- The encoding/object correctness gate is closed, and every `1.0` condition in
+  `Docs/READINESS.md` is closed. What remains is cutting `0.5.0` and then
+  `1.0`; do not regress byte safety or reopen a condition silently.
+- Labels may not begin with `سجل_`, `مؤشر_` or `فهرس_`; these prefixes are
+  reserved for register names.
 - Output formats are intended to be ELF64 and PE/COFF.
 - Tests use vendored Unity plus CTest.
 - User-facing diagnostics should be Arabic-first and UTF-8.

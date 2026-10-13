@@ -622,6 +622,43 @@ void test_lex_nonempty_ends_with_eof(void) {
 }
 
 /* ── Main ─────────────────────────────────────────────────────────────────── */
+static void assert_reserved_prefix_error(const char *src) {
+    LexResult r = lex(src);
+    TEST_ASSERT_EQUAL_INT(1, (int)r.errors.count);
+    TEST_ASSERT_NOT_NULL(
+        strstr(r.errors.errors[0].message, "بادئة محجوزة لأسماء السجلات"));
+}
+
+void test_lex_rejects_labels_with_reserved_register_prefixes(void) {
+    assert_reserved_prefix_error("سجل_جديد:\n");
+    assert_reserved_prefix_error("مؤشر_دالة:\n");
+    assert_reserved_prefix_error("فهرس_جدول:\n");
+    assert_reserved_prefix_error("ناد سجل_جديد\n");
+    assert_reserved_prefix_error(".خارجي مؤشر_دالة\n");
+    assert_reserved_prefix_error("انقل سجل_المركم، [مؤشر_التعليمة+فهرس_جدول]\n");
+    /* A register name is not a label either. */
+    assert_reserved_prefix_error("سجل_المركم:\n");
+
+    /* The error covers the whole name. */
+    LexResult spanned = lex("ناد سجل_جديد\n");
+    TEST_ASSERT_EQUAL_INT(5, spanned.errors.errors[0].col);
+    TEST_ASSERT_EQUAL_INT(13, spanned.errors.errors[0].end_col);
+}
+
+void test_lex_reserved_prefixes_leave_other_words_alone(void) {
+    /* Registers, the instruction pointer name, and words that only contain
+     * a reserved word are unaffected. */
+    TEST_ASSERT_EQUAL_INT(0, (int)lex(
+        "انقل سجل_المركم، [مؤشر_التعليمة+جدول]\n").errors.count);
+    TEST_ASSERT_EQUAL_INT(0, (int)lex("سجل:\nمؤشر:\nفهرس:\n").errors.count);
+    TEST_ASSERT_EQUAL_INT(0, (int)lex("سجلات_النظام:\n").errors.count);
+    TEST_ASSERT_EQUAL_INT(0, (int)lex("جدول_سجل_:\n").errors.count);
+
+    /* A removed register name keeps the diagnostic that names its
+     * replacement, which the parser reports. */
+    TEST_ASSERT_EQUAL_INT(0, (int)lex("ادفع سجل_عام_8\n").errors.count);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -702,6 +739,8 @@ int main(void) {
     RUN_TEST(test_lex_multiple_blank_lines_collapsed);
     RUN_TEST(test_lex_always_ends_with_eof);
     RUN_TEST(test_lex_nonempty_ends_with_eof);
+    RUN_TEST(test_lex_rejects_labels_with_reserved_register_prefixes);
+    RUN_TEST(test_lex_reserved_prefixes_leave_other_words_alone);
 
     return UNITY_END();
 }

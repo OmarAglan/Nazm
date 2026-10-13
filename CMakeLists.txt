@@ -26,6 +26,7 @@ add_compile_definitions($<$<CONFIG:Debug>:NAZM_DEBUG=1>)
 
 option(NAZM_BUILD_CLI "Build the standalone Nazm command" ON)
 option(NAZM_BUILD_TESTS "Build Nazm tests" ON)
+option(NAZM_BUILD_FUZZER "Build the libFuzzer target (requires Clang)" OFF)
 
 if(CMAKE_C_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
     add_compile_options(
@@ -149,3 +150,27 @@ if(NAZM_BUILD_CLI)
 endif()
 install(TARGETS libnazm ARCHIVE DESTINATION lib)
 install(FILES include/nazm.h DESTINATION include)
+
+# ── Coverage-guided fuzzing ──────────────────────────────────────────────────
+# libFuzzer instruments the library itself, so the target compiles its own copy
+# of the sources instead of linking libnazm.
+if(NAZM_BUILD_FUZZER)
+    if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR "NAZM_BUILD_FUZZER requires Clang")
+    endif()
+    add_executable(nazm_fuzz_assemble
+        tests/fuzz/fuzz_assemble.c
+        ${NAZM_LIBRARY_SOURCES}
+    )
+    target_include_directories(nazm_fuzz_assemble PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/src
+    )
+    target_compile_options(nazm_fuzz_assemble PRIVATE
+        -g -O1 -fsanitize=fuzzer,address,undefined
+        -fno-sanitize-recover=undefined
+    )
+    target_link_options(nazm_fuzz_assemble PRIVATE
+        -fsanitize=fuzzer,address,undefined
+    )
+endif()

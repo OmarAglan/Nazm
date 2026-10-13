@@ -68,9 +68,6 @@ typedef struct {
  */
 LexResult lexer_lex(const SourceBuffer *src, Arena *arena);
 
-/* Debug helper: print token array to stdout */
-void token_array_print(const TokenArray *tokens);
-
 const char *token_type_name(TokenType type);
 
 /*

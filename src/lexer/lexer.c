@@ -142,7 +142,22 @@ static const LegacyRegister LEGACY_REGISTERS[] = {
     { NULL, NULL },
 };
 
-/* ── Internal lexer state ────────────────────────────────────────────────── */
+/*
+ * Prefixes reserved for register names. A word that begins with one and is
+ * not a register is rejected, so a register added later is never a word that
+ * used to be a label.
+ */
+static const char *const RESERVED_REGISTER_PREFIXES[] = {
+    "سجل_",
+    "مؤشر_",
+    "فهرس_",
+    NULL,
+};
+
+/* The one reserved-prefix word that is neither a register nor a label. */
+static const char INSTRUCTION_POINTER_NAME[] = "مؤشر_التعليمة";
+
+/* ── Internal lexer state────────────────────────────────────────────────── */
 typedef struct {
     const SourceBuffer *src;
     Arena              *arena;
@@ -686,11 +701,33 @@ static void lex_directive(Lexer *lx, int line, int col) {
     push_token_value(lx, TOKEN_DIRECTIVE, dname, dlen, line, col, lx->col);
 }
 
+static bool has_reserved_register_prefix(const char *text, size_t len) {
+    for (const char *const *prefix = RESERVED_REGISTER_PREFIXES;
+         *prefix != NULL;
+         prefix++) {
+        size_t prefix_len = strlen(*prefix);
+        if (len >= prefix_len && memcmp(text, *prefix, prefix_len) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void lex_reserved_prefix_error(Lexer *lx, int line, int col, int end_col) {
+    lex_error_at(lx, line, col, end_col,
+                 "اسم الوسم يبدأ ببادئة محجوزة لأسماء السجلات منذ نَظْم 0.5 "
+                 "('سجل_' أو 'مؤشر_' أو 'فهرس_')؛ اختر اسما لا يبدأ بها");
+}
+
 static void lex_identifier(Lexer *lx, int line, int col) {
     size_t id_len;
     const char *id = scan_ident(lx, &id_len);
 
     if (!at_end(lx) && peek_cp(lx) == ':') {
+        if (has_reserved_register_prefix(id, id_len)) {
+            lex_reserved_prefix_error(lx, line, col, lx->col);
+        }
         skip_cp(lx);
         push_token_value(lx, TOKEN_LABEL_DEF, id, id_len, line, col, lx->col - 1);
         return;
@@ -706,6 +743,15 @@ static void lex_identifier(Lexer *lx, int line, int col) {
     if (reg_id >= 0) {
         push_token_value(lx, TOKEN_REGISTER, id, id_len, line, col, lx->col);
         return;
+    }
+
+    /* A removed register name keeps its own diagnostic, which names the
+     * replacement; the parser reports it. */
+    if (has_reserved_register_prefix(id, id_len)
+        && !(id_len == sizeof(INSTRUCTION_POINTER_NAME) - 1
+             && memcmp(id, INSTRUCTION_POINTER_NAME, id_len) == 0)
+        && lexer_register_legacy_replacement(id, id_len) == NULL) {
+        lex_reserved_prefix_error(lx, line, col, lx->col);
     }
 
     push_token_value(lx, TOKEN_LABEL_REF, id, id_len, line, col, lx->col);
@@ -798,21 +844,6 @@ LexResult lexer_lex(const SourceBuffer *src, Arena *arena) {
 
     lex_all(&lx);
     return result;
-}
-
-/* ── Debug helpers ───────────────────────────────────────────────────────── */
-void token_array_print(const TokenArray *tokens) {
-    for (size_t i = 0; i < tokens->count; i++) {
-        const Token *t = &tokens->data[i];
-
-        printf("[%-12s] \"%.*s\" (%d:%d-%d)\n",
-               token_type_name(t->type),
-               (int)t->len,
-               t->value,
-               t->line,
-               t->col,
-               t->end_col);
-    }
 }
 
 const char *token_type_name(TokenType type) {

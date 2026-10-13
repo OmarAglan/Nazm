@@ -637,6 +637,36 @@ void test_enc_call_register_sizes(void) {
           expected_r8, (int)sizeof(expected_r8));
 }
 
+void test_enc_branches_reject_targets_without_a_displacement(void) {
+    static const OpcodeEnum conditional[] = {
+        OPCODE_JE, OPCODE_JNE, OPCODE_JG, OPCODE_JGE,
+        OPCODE_JL, OPCODE_JLE, OPCODE_JZ, OPCODE_JNZ,
+        OPCODE_JS, OPCODE_JNS,
+    };
+    Operand immediate[] = { imm_op(5) };
+    Operand memory[] = { mem_op(REG_RAX) };
+    Operand displaced[] = { memd_op(REG_RBP, -8) };
+    Operand rip_relative[] = { rip_op("x") };
+    Operand reg[] = { reg_op(REG_RAX) };
+
+    /* E9/E8 rel32 would otherwise be emitted with a zero displacement. */
+    check_error(OPCODE_JMP, immediate, 1);
+    check_error(OPCODE_JMP, memory, 1);
+    check_error(OPCODE_JMP, displaced, 1);
+    check_error(OPCODE_JMP, rip_relative, 1);
+    check_error(OPCODE_CALL, immediate, 1);
+    check_error(OPCODE_CALL, memory, 1);
+    check_error(OPCODE_CALL, displaced, 1);
+    check_error(OPCODE_CALL, rip_relative, 1);
+
+    for (size_t i = 0; i < sizeof(conditional) / sizeof(conditional[0]); i++) {
+        check_error(conditional[i], immediate, 1);
+        check_error(conditional[i], memory, 1);
+        check_error(conditional[i], rip_relative, 1);
+        check_error(conditional[i], reg, 1);
+    }
+}
+
 /* ── Jcc (conditional) ───────────────────────────────────────────────────── */
 void test_enc_je(void) {
     /* 0F 84 + rel32 */
@@ -974,6 +1004,7 @@ int main(void) {
     RUN_TEST(test_enc_jmp_backward);
     RUN_TEST(test_enc_call_rel);
     RUN_TEST(test_enc_relative_disp32_boundaries_and_overflow);
+    RUN_TEST(test_enc_branches_reject_targets_without_a_displacement);
     RUN_TEST(test_enc_jmp_register_sizes);
     RUN_TEST(test_enc_call_register_sizes);
     RUN_TEST(test_enc_je);

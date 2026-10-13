@@ -308,18 +308,18 @@
     },
     {
       "arabic": "وسع_بصفر",
-      "gas_mnemonics": ["movzbl", "movzbq"],
-      "width_bits": { "source": [8], "destination": [32, 64] },
+      "gas_mnemonics": ["movzbw", "movzbl", "movzbq", "movzwl", "movzwq"],
+      "width_bits": { "source": [8, 16], "destination": [16, 32, 64] },
       "forms": [
-        { "gas": ["register", "register"], "nazm": ["register", "register"] }
+        { "gas": ["register", "register"], "nazm": ["register", "register"], "constraint": "destination-is-wider-than-source" }
       ]
     },
     {
       "arabic": "وسع_بإشارة",
-      "gas_mnemonics": ["movsbl", "movsbq", "movslq"],
-      "width_bits": { "source": [8, 32], "destination": [32, 64] },
+      "gas_mnemonics": ["movsbw", "movsbl", "movsbq", "movswl", "movswq", "movslq"],
+      "width_bits": { "source": [8, 16, 32], "destination": [16, 32, 64] },
       "forms": [
-        { "gas": ["register", "register"], "nazm": ["register", "register"] }
+        { "gas": ["register", "register"], "nazm": ["register", "register"], "constraint": "destination-is-wider-than-source" }
       ]
     },
     {
@@ -466,7 +466,7 @@
           "gas": ["symbol"],
           "nazm": ["label"],
           "coverage_status": "partial",
-          "reason": "Only labels defined in the same .text input are supported; external call relocations are not implemented."
+          "reason": "Arabic labels defined in the input and symbols declared with .خارجي are supported, the latter through a PC-relative relocation; Latin linker identifiers are not accepted."
         }
       ]
     },
@@ -932,6 +932,7 @@
   "known_limits": [
     "All 8-, 16-, 32-, and 64-bit general-purpose registers and all 16 scalar decimal registers use canonical Arabic source names; high-byte AH/CH/DH/BH forms are intentionally excluded.",
     "The scalar decimal surface is limited to Baa's current SSE2 forms; packed SIMD operations are not implemented.",
+    "Labels and symbols may not begin with سجل_, مؤشر_, or فهرس_; these prefixes are reserved for register names, so a register added later never changes the meaning of an accepted label.",
     "No leave support is implemented.",
     "Latin source and object identifiers are not accepted; the entry symbol remains الرئيسية end to end.",
     "External symbols must retain Arabic names; linking to a Latin platform ABI requires a separately reviewed Arabic bridge.",

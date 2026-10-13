@@ -255,6 +255,29 @@ void test_p2_rdtsc_bytes(void) {
     TEST_ASSERT_EQUAL_HEX8(0x31, pl.p2.text_bytes[1]);
 }
 
+void test_p1_debug_file_list_grows_past_its_first_block(void) {
+    Pipeline pl = run(
+        ".ملف ١، \"أ.باء\"\n"
+        ".ملف ٢، \"ب.باء\"\n"
+        ".ملف ٣، \"ج.باء\"\n"
+        ".ملف ٤، \"د.باء\"\n"
+        ".ملف ٥، \"ه.باء\"\n"
+        ".ملف ٦، \"و.باء\"\n"
+        ".ملف ٧، \"ز.باء\"\n"
+        ".ملف ٨، \"ح.باء\"\n"
+        ".ملف ٩، \"ط.باء\"\n"
+        ".موضع ٩، ٤، ١\n"
+        "ارجع\n");
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(9, (int)pl.p1.debug_files.count);
+    TEST_ASSERT_EQUAL_STRING("أ.باء", pl.p1.debug_files.data[0].path);
+    TEST_ASSERT_EQUAL_UINT32(8, pl.p1.debug_files.data[7].id);
+    TEST_ASSERT_EQUAL_STRING("ط.باء", pl.p1.debug_files.data[8].path);
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.debug_lines.count);
+    TEST_ASSERT_EQUAL_UINT32(9, pl.p2.debug_lines.data[0].file_id);
+}
+
 void test_debug_directives_record_exact_text_offsets(void) {
     Pipeline pl = run(
         ".ملف_بايتات ١، \"٢١٧،١٣٣،٢١٦،١٨١،٢١٦،١٧٥،٢١٦،١٧٧،٤٦،٢١٦،١٦٨،٢١٦،١٦٧،٢١٦،١٦١\"\n"
@@ -655,6 +678,26 @@ void test_p1_rejects_data_values_that_do_not_fit(void) {
     TEST_ASSERT_TRUE(error_has_any(&dword_above.p1.errors));
 }
 
+/* A literal above INT64_MAX reaches the parser as its signed 64-bit pattern,
+ * so all-ones is -1 and fits a byte, while 0xFFFF is 65535 and does not. */
+void test_data_directive_literal_follows_the_pattern_rule(void) {
+    Pipeline all_ones = run(
+        ".بيانات\n"
+        ".عدد٨ 0xFFFFFFFFFFFFFFFF\n"
+        ".عدد١٦ 0xFFFFFFFFFFFFFFFE\n");
+    uint8_t expected[] = { 0xFF, 0xFE, 0xFF };
+    TEST_ASSERT_FALSE(error_has_any(&all_ones.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&all_ones.p2.errors));
+    TEST_ASSERT_EQUAL_size_t(sizeof(expected), all_ones.p2.data_size);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(
+        expected, all_ones.p2.data_bytes, sizeof(expected));
+
+    Pipeline two_bytes = run(".بيانات\n.عدد٨ 0xFFFF");
+    TEST_ASSERT_TRUE(error_has_any(&two_bytes.p1.errors));
+    TEST_ASSERT_NOT_NULL(strstr(
+        two_bytes.p1.errors.errors[0].message, "8 بت"));
+}
+
 void test_p2_emits_data_boundary_values_without_truncation(void) {
     Pipeline pl = run(
         ".بيانات\n"
@@ -834,6 +877,94 @@ void test_p2_data_capacity_mismatch_is_hard_error(void) {
 }
 
 /* ── Main ─────────────────────────────────────────────────────────────────── */
+void test_p2_external_mov_label_creates_abs64_relocation(void) {
+    Pipeline pl = run(".خارجي عنوان_خارجي\nانقل سجل_المركم، عنوان_خارجي");
+
+    const uint8_t expected[] = {
+        0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    };
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(10, (int)pl.p2.text_size);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, pl.p2.text_bytes, 10);
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.relocations.count);
+    TEST_ASSERT_EQUAL_INT(RELOC_ABS64, pl.p2.relocations.data[0].kind);
+    TEST_ASSERT_EQUAL_INT(
+        RELOC_SECTION_TEXT, pl.p2.relocations.data[0].section);
+    TEST_ASSERT_EQUAL_INT(2, (int)pl.p2.relocations.data[0].offset);
+    TEST_ASSERT_EQUAL_INT64(0, pl.p2.relocations.data[0].addend);
+    TEST_ASSERT_EQUAL_STRING(
+        "عنوان_خارجي", pl.p2.relocations.data[0].symbol);
+}
+
+static void assert_pass2_error(const char *src, const char *fragment) {
+    Pipeline pl = run(src);
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_TRUE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_NOT_NULL(
+        strstr(pl.p2.errors.errors[0].message, fragment));
+}
+
+void test_p2_rejects_branch_targets_that_are_not_labels(void) {
+    assert_pass2_error("ناد [سجل_المركم]", "وسما أو سجلا من 64 بت");
+    assert_pass2_error("ناد [مؤشر_القاعدة-٨]", "وسما أو سجلا من 64 بت");
+    assert_pass2_error("اقفز [سجل_المركم]", "وسما أو سجلا من 64 بت");
+    assert_pass2_error("اقفز ٥", "وسما أو سجلا من 64 بت");
+    assert_pass2_error("ناد سجل_المركم_٣٢", "وسما أو سجلا من 64 بت");
+    assert_pass2_error(
+        ".بيانات\nقيمة: .عدد٦٤ ١\n.نص\nناد [مؤشر_التعليمة+قيمة]",
+        "وسما أو سجلا من 64 بت");
+    assert_pass2_error("اقفز_مساو سجل_المركم", "القفز الشرطي يجب أن يكون وسما");
+    assert_pass2_error("اقفز_غير_صفر ٥", "القفز الشرطي يجب أن يكون وسما");
+    assert_pass2_error(
+        "اقفز_سالب [سجل_المركم]", "القفز الشرطي يجب أن يكون وسما");
+}
+
+static void assert_pass1_error(const char *src, const char *fragment) {
+    Pipeline pl = run(src);
+    TEST_ASSERT_TRUE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_NOT_NULL(
+        strstr(pl.p1.errors.errors[0].message, fragment));
+}
+
+void test_p1_reports_debug_directive_operand_errors(void) {
+    assert_pass1_error(".ملف ١\nارجع", "يتطلب معرفا موجبا");
+    assert_pass1_error(".ملف ٠، \"م.باء\"\nارجع", "بين 1 و4294967295");
+    assert_pass1_error(".ملف ١، \"\"\nارجع", "لا يجوز أن يكون فارغا");
+    assert_pass1_error(".موضع ١، ٧\nارجع", "يتطلب معرف ملف ورقم سطر");
+    assert_pass1_error(
+        ".ملف_بايتات ١، \"١٢س\"\nارجع", "يقبل أرقاما عربية");
+    assert_pass1_error(
+        ".ملف_بايتات ١، \"١٢٣٤\"\nارجع", "يقبل أرقاما عربية");
+    assert_pass1_error(
+        ".ملف_بايتات ١، \"٢٥٦\"\nارجع", "بين 1 و255");
+    assert_pass1_error(
+        ".ملف_بايتات ١، \"٠\"\nارجع", "بين 1 و255");
+    assert_pass1_error(
+        ".ملف_بايتات ١، \"٦٥،\"\nارجع", "لا يجوز أن يكون فارغا");
+}
+
+void test_p1_reports_data_directive_operand_errors(void) {
+    assert_pass1_error(
+        ".بيانات\n.سلسلة_منتهية_بصفر\n", "يتطلب سلسلة نصية واحدة");
+    assert_pass1_error(".بيانات\n.مساحة_صفرية\n", "يتطلب عددا واحدا");
+    assert_pass1_error(".بيانات\n.مساحة_صفرية -١\n", "بين 0 وINT_MAX");
+    assert_pass1_error(".بيانات\n.محاذاة\n", "'.محاذاة' يتطلب عددا واحدا");
+    assert_pass1_error(".بيانات\n.عدد٨\n", "يتطلب قيمة واحدة على الأقل");
+}
+
+void test_p1_external_declaration_rules(void) {
+    assert_pass1_error(".خارجي\nارجع", "يتطلب اسم رمز عربي واحداً");
+    assert_pass1_error(
+        "دالة:\nارجع\n.خارجي دالة", "تعارض في إعلان الرمز الخارجي 'دالة'");
+
+    /* A symbol already declared global may then be declared external. */
+    Pipeline pl = run(".عام دالة_بعيدة\n.خارجي دالة_بعيدة\nناد دالة_بعيدة");
+    TEST_ASSERT_FALSE(error_has_any(&pl.p1.errors));
+    TEST_ASSERT_FALSE(error_has_any(&pl.p2.errors));
+    TEST_ASSERT_EQUAL_INT(1, (int)pl.p2.relocations.count);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -865,6 +996,7 @@ int main(void) {
     RUN_TEST(test_p2_nop_bytes);
     RUN_TEST(test_p2_rdtsc_bytes);
     RUN_TEST(test_debug_directives_record_exact_text_offsets);
+    RUN_TEST(test_p1_debug_file_list_grows_past_its_first_block);
     RUN_TEST(test_debug_location_reset_stops_line_rows);
     RUN_TEST(test_debug_directives_reject_invalid_contracts);
     RUN_TEST(test_debug_file_bytes_accept_valid_replacement_character);
@@ -902,6 +1034,12 @@ int main(void) {
     RUN_TEST(test_p2_rejects_unresolved_data_symbol);
     RUN_TEST(test_p2_text_capacity_mismatch_is_hard_error);
     RUN_TEST(test_p2_data_capacity_mismatch_is_hard_error);
+    RUN_TEST(test_p2_external_mov_label_creates_abs64_relocation);
+    RUN_TEST(test_p1_reports_debug_directive_operand_errors);
+    RUN_TEST(test_p1_reports_data_directive_operand_errors);
+    RUN_TEST(test_data_directive_literal_follows_the_pattern_rule);
+    RUN_TEST(test_p1_external_declaration_rules);
+    RUN_TEST(test_p2_rejects_branch_targets_that_are_not_labels);
 
     return UNITY_END();
 }

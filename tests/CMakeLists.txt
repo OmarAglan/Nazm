@@ -167,6 +167,43 @@ add_test(
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/api_fingerprint_contract.cmake
 )
 
+# ── Link and run ─────────────────────────────────────────────────────────────
+# An object in the host format, linked by a real linker and executed: the
+# relocations are judged by the loader, not by a reader of the object file.
+find_program(NAZM_GNU_LD NAMES ld)
+
+if(NAZM_BUILD_CLI AND NAZM_GNU_LD AND NOT CMAKE_CROSSCOMPILING)
+    add_test(
+        NAME integration_link_and_run
+        COMMAND ${CMAKE_COMMAND}
+            -DNAZM_EXE=$<TARGET_FILE:nazm>
+            -DGNU_LD=${NAZM_GNU_LD}
+            -DFIXTURE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/fixtures/link_run
+            -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/link-and-run-work
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/link_and_run.cmake
+    )
+else()
+    message(STATUS "GNU ld not found; integration_link_and_run is unavailable")
+endif()
+
+# ── DWARF line program read by readelf ───────────────────────────────────────
+find_program(NAZM_READELF NAMES readelf)
+
+if(NAZM_BUILD_CLI AND NAZM_READELF)
+    add_test(
+        NAME integration_debug_line_readelf
+        COMMAND ${CMAKE_COMMAND}
+            -DNAZM_EXE=$<TARGET_FILE:nazm>
+            -DREADELF=${NAZM_READELF}
+            -DFIXTURE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/fixtures/link_run
+            -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/debug-line-work
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/debug_line_readelf.cmake
+    )
+else()
+    message(STATUS
+        "readelf not found; integration_debug_line_readelf is unavailable")
+endif()
+
 # ── Differential encoder test ────────────────────────────────────────────────
 find_program(NAZM_GNU_AS NAMES as)
 find_program(NAZM_OBJCOPY NAMES objcopy llvm-objcopy)
@@ -218,4 +255,24 @@ if(NAZM_GNU_AS AND NAZM_OBJDUMP)
 else()
     message(STATUS
         "GNU as/objdump not found; differential_register_matrix_gas is unavailable")
+endif()
+
+# ── Differential symbolic forms ──────────────────────────────────────────────
+# Label jumps and calls, RIP-relative memory, absolute label loads and symbol
+# initializers, through the real CLI, compared with GNU as after linking.
+if(NAZM_GNU_AS AND NAZM_GNU_LD AND NAZM_OBJDUMP)
+    add_test(
+        NAME differential_symbolic_forms_gas
+        COMMAND ${CMAKE_COMMAND}
+            -DNAZM_EXE=$<TARGET_FILE:nazm>
+            -DGNU_AS=${NAZM_GNU_AS}
+            -DGNU_LD=${NAZM_GNU_LD}
+            -DOBJDUMP=${NAZM_OBJDUMP}
+            -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/differential
+            -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/symbolic-forms-work
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/differential/compare_symbolic.cmake
+    )
+else()
+    message(STATUS
+        "GNU as/ld/objdump not found; differential_symbolic_forms_gas is unavailable")
 endif()

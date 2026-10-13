@@ -17,12 +17,6 @@ int emit_imm8(uint8_t *buf, int8_t val) {
     return 1;
 }
 
-int emit_imm16(uint8_t *buf, int16_t val) {
-    buf[0] = (uint8_t)(val);
-    buf[1] = (uint8_t)(val >> 8);
-    return 2;
-}
-
 int emit_imm32(uint8_t *buf, int32_t val) {
     buf[0] = (uint8_t)(val);
     buf[1] = (uint8_t)(val >> 8);

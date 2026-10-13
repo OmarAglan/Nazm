@@ -122,6 +122,18 @@ Nazm/
 - Generates every register in every operand position of every non-symbolic
   form, as Nazm source and as GNU `as` Intel syntax, assembles both, and
   compares the two `objdump` disassemblies line by line.
+- `أشكال_رمزية.نظم`, `symbolic_reference.s`, `symbolic_externals.s`,
+  `compare_symbolic.cmake`
+- Assembles the same symbolic program with Nazm and GNU `as`, links both
+  objects with `ld`, and compares the linked section bytes.
+
+**tests/fuzz/**
+- `fuzz_assemble.c` - the libFuzzer target over `nazm_assemble_buffer()`,
+  built only with `-DNAZM_BUILD_FUZZER=ON` and Clang.
+
+**tests/fixtures/link_run/**
+- The COFF and ELF64 programs `integration_link_and_run` links and runs, and
+  the two-file debug source `integration_debug_line_readelf` reads back.
 
 **tests/integration/**
 - `cli_acceptance.cmake`, `examples_acceptance.cmake`
@@ -131,6 +143,9 @@ Nazm/
 - `cli_alloc_faults.cmake` fails every allocation point of the command-line
   driver; `heap_door_contract.cmake` rejects heap calls outside
   `src/alloc/sysalloc.h`.
+- `link_and_run.cmake` links an assembled object with GNU `ld` and requires
+  the program's exit code; `debug_line_readelf.cmake` reads a two-file line
+  table with `readelf`.
 
 **tests/support/**
 - `alloc_fault.c`, `alloc_fault.h`
@@ -177,6 +192,10 @@ Nazm/
 **Developer checks**
 - `tools/check-markdown.ps1` - validates local Markdown links and obvious
   inline repository paths.
+- `tools/check_utf8.py` - rejects a tracked text file that is not clean
+  UTF-8.
+- `tools/coverage_summary.py` - merges `gcov` line counts of a `Coverage`
+  build into a per-file table and enforces a minimum.
 
 **Architecture and integration documents**
 - `Docs/ARCHITECTURE.md` - current pipeline and component ownership.

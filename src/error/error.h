@@ -42,14 +42,6 @@ void error_list_set_source(ErrorList *list,
                            const uint8_t *data,
                            size_t len);
 
-/* Add an error. If list is full, sets fatal and returns. */
-void error_add(ErrorList *list,
-               Arena *arena,
-               const char *file,
-               int line,
-               int col,
-               const char *message);
-
 /* Add an error with an explicit source span. end_col is exclusive. */
 void error_add_span(ErrorList *list,
                     Arena *arena,

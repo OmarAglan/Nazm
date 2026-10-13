@@ -71,7 +71,12 @@
 
 **Development:**
 - Linux (x86-64) or macOS with cross-compile toolchain — primary dev platform
-- Windows (x86-64) with MSVC or MinGW — secondary; COFF output exists but needs linker validation on Windows CI
+- Windows (x86-64) — MinGW-w64 GCC is the toolchain CI builds, tests and
+  packages with. `integration_link_and_run` links a COFF object with GNU `ld`
+  and runs it there. MSVC builds with its native Debug flags, but no CI job
+  uses it: it has no `-Werror` parity with GCC, no sanitizers through this
+  build, no `Coverage` build type, and the GNU `as` differential tests and
+  the link-and-run test register only when GNU binutils are on `PATH`.
 - No Docker required (no external services)
 
 **Distributed binary:**

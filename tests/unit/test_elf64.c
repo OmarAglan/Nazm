@@ -37,6 +37,9 @@ static OutputResult assemble_elf(const char *src) {
         .read_only_data_bytes = p2.read_only_data_bytes,
         .read_only_data_size = p2.read_only_data_size,
         .bss_size = p2.bss_size,
+        .data_alignment = p1.data_alignment,
+        .read_only_data_alignment = p1.read_only_data_alignment,
+        .bss_alignment = p1.bss_alignment,
         .symtable    = &p1.symtable,
         .relocations = &p2.relocations,
         .debug_files = &p1.debug_files,
@@ -91,6 +94,34 @@ static const uint8_t *find_elf_section_named(
         }
     }
     return NULL;
+}
+
+static void test_elf_section_alignment_follows_alignment_directives(void) {
+    OutputResult r = assemble_elf(
+        ".بيانات\n"
+        "بايت: .عدد٨ ١\n"
+        ".محاذاة ٦٤\n"
+        "محاذى: .عدد٦٤ ٢\n"
+        ".بيانات_للقراءة\n"
+        ".محاذاة ٤\n"
+        "ثابت: .عدد٣٢ ٣\n"
+        ".غير_مهيأة\n"
+        ".محاذاة ٤٠٩٦\n"
+        "مخزن: .مساحة_صفرية ٨\n"
+        ".نص\n"
+        "ارجع");
+    TEST_ASSERT_TRUE(r.ok);
+
+    /* sh_addralign is the largest boundary used, never below the default. */
+    const uint8_t *data = find_elf_section_named(&r, ".data");
+    const uint8_t *read_only = find_elf_section_named(&r, ".rodata");
+    const uint8_t *bss = find_elf_section_named(&r, ".bss");
+    TEST_ASSERT_NOT_NULL(data);
+    TEST_ASSERT_NOT_NULL(read_only);
+    TEST_ASSERT_NOT_NULL(bss);
+    TEST_ASSERT_EQUAL_INT(64, (int)rd64(data + 48));
+    TEST_ASSERT_EQUAL_INT(8, (int)rd64(read_only + 48));
+    TEST_ASSERT_EQUAL_INT(4096, (int)rd64(bss + 48));
 }
 
 static const char *insert_many_symbols(SymbolTable *symtable, size_t count) {
@@ -605,6 +636,80 @@ void test_elf_rejects_relocation_to_missing_symbol(void) {
 }
 
 /* ── Main ─────────────────────────────────────────────────────────────────── */
+void test_elf_dwarf_line_program_for_two_files(void) {
+    /* A path longer than the writer's first buffer forces it to grow. */
+    char source[1024];
+    char long_path[401];
+    memset(long_path, 'a', sizeof(long_path) - 1);
+    long_path[sizeof(long_path) - 1] = '\0';
+    snprintf(source, sizeof(source),
+             ".ملف ١، \"أول.باء\"\n"
+             ".ملف ٢، \"%s\"\n"
+             ".موضع ١، ٧، ٣\n"
+             "ارجع\n"
+             ".موضع ٢، ٣٠٠، ١\n"
+             "ارجع\n",
+             long_path);
+
+    OutputResult r = assemble_elf(source);
+    TEST_ASSERT_TRUE(r.ok);
+
+    const uint8_t *debug = find_elf_section_named(&r, ".debug_line");
+    TEST_ASSERT_NOT_NULL(debug);
+    const uint8_t *program = r.data + rd64(debug + 24);
+    uint64_t size = rd64(debug + 32);
+
+    /* Both paths are in the file table, in declaration order. */
+    const uint8_t first_path[] = "أول.باء";
+    const uint8_t *files = program + 10 + 6 + 12 + 1;
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(first_path, files, sizeof(first_path));
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(
+        (const uint8_t *)long_path,
+        files + sizeof(first_path) + 3,
+        sizeof(long_path));
+
+    /* Row 1 stays in file 1; row 2 switches file with DW_LNS_set_file and
+     * advances 293 lines, which takes a two-byte SLEB128. */
+    const uint8_t rows[] = {
+        0x05, 0x03,             /* set_column 3 */
+        0x03, 0x06,             /* advance_line +6 */
+        0x01,                   /* copy */
+        0x04, 0x02,             /* set_file 2 */
+        0x05, 0x01,             /* set_column 1 */
+        0x03, 0xA5, 0x02,       /* advance_line +293 */
+        0x02, 0x01,             /* advance_pc 1 */
+        0x01,                   /* copy */
+        0x02, 0x01,             /* advance_pc to the end of .text */
+        0x00, 0x01, 0x01,       /* end_sequence */
+    };
+    TEST_ASSERT_TRUE(size > sizeof(rows));
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(
+        rows, program + size - sizeof(rows), sizeof(rows));
+}
+
+void test_elf_text_relocation_for_external_mov_label(void) {
+    OutputResult r = assemble_elf(
+        ".خارجي عنوان_خارجي\nانقل سجل_المركم، عنوان_خارجي\n");
+    TEST_ASSERT_TRUE(r.ok);
+
+    const uint8_t *rela_sh = find_elf_section_named(&r, ".rela.text");
+    TEST_ASSERT_NOT_NULL(rela_sh);
+    TEST_ASSERT_EQUAL_INT(24, (int)rd64(rela_sh + 32));
+
+    const uint8_t *rela = r.data + rd64(rela_sh + 24);
+    TEST_ASSERT_EQUAL_INT(2, (int)rd64(rela));
+    TEST_ASSERT_EQUAL_UINT32(1, (uint32_t)rd64(rela + 8)); /* R_X86_64_64 */
+    TEST_ASSERT_EQUAL_INT64(0, (int64_t)rd64(rela + 16));
+
+    /* The relocation names an undefined global symbol. */
+    const uint8_t *symtab = find_elf_section_named(&r, ".symtab");
+    TEST_ASSERT_NOT_NULL(symtab);
+    const uint8_t *symbol = r.data + rd64(symtab + 24)
+        + (size_t)(rd64(rela + 8) >> 32) * 24;
+    TEST_ASSERT_EQUAL_INT(1, symbol[4] >> 4);           /* STB_GLOBAL */
+    TEST_ASSERT_EQUAL_INT(0, (int)rd16(symbol + 6));    /* SHN_UNDEF */
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -640,6 +745,9 @@ int main(void) {
     RUN_TEST(test_elf_rip_relative_data_uses_pc32);
     RUN_TEST(test_elf_preserves_symbols_and_relocation_beyond_old_limit);
     RUN_TEST(test_elf_rejects_relocation_to_missing_symbol);
+    RUN_TEST(test_elf_dwarf_line_program_for_two_files);
+    RUN_TEST(test_elf_text_relocation_for_external_mov_label);
+    RUN_TEST(test_elf_section_alignment_follows_alignment_directives);
 
     return UNITY_END();
 }

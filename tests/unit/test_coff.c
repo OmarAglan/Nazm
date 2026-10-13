@@ -31,6 +31,9 @@ static Pipeline run(const char *src) {
         .read_only_data_bytes=p2.read_only_data_bytes,
         .read_only_data_size=p2.read_only_data_size,
         .bss_size=p2.bss_size,
+        .data_alignment=p1.data_alignment,
+        .read_only_data_alignment=p1.read_only_data_alignment,
+        .bss_alignment=p1.bss_alignment,
         .symtable=&p1.symtable, .relocations=&p2.relocations,
         .debug_files=&p1.debug_files, .debug_lines=&p2.debug_lines,
         .source_name="test.نظم"
@@ -54,6 +57,11 @@ static const uint8_t *find_coff_section(
         }
     }
     return NULL;
+}
+
+/* IMAGE_SCN_ALIGN_nBYTES field of a section header. */
+static uint32_t coff_section_alignment_field(const uint8_t *section) {
+    return r32(section + 36) & 0x00F00000u;
 }
 
 static const char *coff_symbol_name(const Pipeline *pl, const uint8_t *symbol) {
@@ -337,6 +345,73 @@ void test_coff_codeview_line_section_and_text_relocations(void) {
     TEST_ASSERT_EQUAL_INT(0x000A, (int)r16(reloc + 18));
 }
 
+/* Data of the first CodeView subsection of the given kind, or NULL. */
+static const uint8_t *codeview_subsection(const uint8_t *raw, uint32_t size,
+                                          uint32_t kind, uint32_t *length) {
+    uint32_t offset = 4; /* after CV_SIGNATURE_C13 */
+    while (offset + 8 <= size) {
+        uint32_t found_kind = r32(raw + offset);
+        uint32_t found_length = r32(raw + offset + 4);
+        if (found_kind == kind) {
+            *length = found_length;
+            return raw + offset + 8;
+        }
+        offset += 8 + ((found_length + 3u) & ~3u);
+    }
+    return NULL;
+}
+
+void test_coff_codeview_groups_lines_by_file(void) {
+    /* Three files: the second has no line, and the lines of the first are
+     * split by one of the third. */
+    Pipeline pl = run(
+        ".ملف ١، \"اول.باء\"\n"
+        ".ملف ٢، \"فارغ.باء\"\n"
+        ".ملف ٣، \"ثان.باء\"\n"
+        ".موضع ١، ٧، ١\n"
+        "لا_تفعل\n"
+        ".موضع ٣، ٣٠٠، ١\n"
+        "لا_تفعل\n"
+        ".موضع ١، ٩، ١\n"
+        "ارجع\n");
+    TEST_ASSERT_TRUE(pl.coff.ok);
+
+    const uint8_t *section = find_coff_section(&pl, ".debug$S");
+    TEST_ASSERT_NOT_NULL(section);
+    uint32_t raw_size = r32(section + 16);
+    const uint8_t *raw = pl.coff.data + r32(section + 20);
+
+    /* DEBUG_S_FILECHKSMS: one 8-byte entry per declared file. */
+    uint32_t checksums_length = 0;
+    TEST_ASSERT_NOT_NULL(
+        codeview_subsection(raw, raw_size, 0xF4, &checksums_length));
+    TEST_ASSERT_EQUAL_UINT32(24, checksums_length);
+
+    /* DEBUG_S_LINES: 12-byte header, then one block per file with lines. */
+    uint32_t lines_length = 0;
+    const uint8_t *lines =
+        codeview_subsection(raw, raw_size, 0xF2, &lines_length);
+    TEST_ASSERT_NOT_NULL(lines);
+    TEST_ASSERT_EQUAL_UINT32(12 + 28 + 20, lines_length);
+    TEST_ASSERT_EQUAL_UINT32(3, r32(lines + 8)); /* code size */
+
+    const uint8_t *first = lines + 12;
+    TEST_ASSERT_EQUAL_UINT32(0, r32(first));      /* checksum entry */
+    TEST_ASSERT_EQUAL_UINT32(2, r32(first + 4));  /* line count */
+    TEST_ASSERT_EQUAL_UINT32(28, r32(first + 8)); /* block size */
+    TEST_ASSERT_EQUAL_UINT32(0, r32(first + 12));
+    TEST_ASSERT_EQUAL_UINT32(0x80000007u, r32(first + 16));
+    TEST_ASSERT_EQUAL_UINT32(2, r32(first + 20));
+    TEST_ASSERT_EQUAL_UINT32(0x80000009u, r32(first + 24));
+
+    const uint8_t *third = first + 28;
+    TEST_ASSERT_EQUAL_UINT32(16, r32(third));
+    TEST_ASSERT_EQUAL_UINT32(1, r32(third + 4));
+    TEST_ASSERT_EQUAL_UINT32(20, r32(third + 8));
+    TEST_ASSERT_EQUAL_UINT32(1, r32(third + 12));
+    TEST_ASSERT_EQUAL_UINT32(0x8000012Cu, r32(third + 16));
+}
+
 void test_coff_symbol_storage_classes_follow_visibility(void) {
     Pipeline pl = run(
         ".عام مدخل\n"
@@ -556,6 +631,47 @@ void test_coff_rejects_relocation_to_missing_symbol(void) {
 }
 
 /* ── Main ────────────────────────────────────────────────────────────────── */
+static void test_coff_section_alignment_follows_alignment_directives(void) {
+    Pipeline pl = run(
+        ".بيانات\n"
+        "بايت: .عدد٨ ١\n"
+        ".محاذاة ١٦\n"
+        "محاذى: .عدد٦٤ ٢\n"
+        ".بيانات_للقراءة\n"
+        ".محاذاة ٤\n"
+        "ثابت: .عدد٣٢ ٣\n"
+        ".غير_مهيأة\n"
+        ".محاذاة ٤٠٩٦\n"
+        "مخزن: .مساحة_صفرية ٨\n"
+        ".نص\n"
+        "ارجع");
+    TEST_ASSERT_TRUE(pl.coff.ok);
+
+    const uint8_t *data = find_coff_section(&pl, ".data\0\0\0");
+    const uint8_t *read_only = find_coff_section(&pl, ".rdata\0\0");
+    const uint8_t *bss = find_coff_section(&pl, ".bss\0\0\0\0");
+    TEST_ASSERT_NOT_NULL(data);
+    TEST_ASSERT_NOT_NULL(read_only);
+    TEST_ASSERT_NOT_NULL(bss);
+    TEST_ASSERT_EQUAL_UINT32(0x00500000u, coff_section_alignment_field(data));
+    TEST_ASSERT_EQUAL_UINT32(0x00300000u,
+                             coff_section_alignment_field(read_only));
+    TEST_ASSERT_EQUAL_UINT32(0x00D00000u, coff_section_alignment_field(bss));
+}
+
+static void test_coff_data_sections_stay_byte_aligned_without_directive(void) {
+    Pipeline pl = run(
+        ".بيانات\n"
+        "قيمة: .عدد٦٤ ١\n"
+        ".نص\n"
+        "ارجع");
+    TEST_ASSERT_TRUE(pl.coff.ok);
+
+    const uint8_t *data = find_coff_section(&pl, ".data\0\0\0");
+    TEST_ASSERT_NOT_NULL(data);
+    TEST_ASSERT_EQUAL_UINT32(0x00100000u, coff_section_alignment_field(data));
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -568,6 +684,7 @@ int main(void) {
     RUN_TEST(test_coff_optional_header_size_zero);
     RUN_TEST(test_coff_timestamp_zero_reproducible);
     RUN_TEST(test_coff_codeview_line_section_and_text_relocations);
+    RUN_TEST(test_coff_codeview_groups_lines_by_file);
 
     /* Section headers */
     RUN_TEST(test_coff_text_section_name);
@@ -610,6 +727,8 @@ int main(void) {
     RUN_TEST(test_coff_external_call_uses_undefined_symbol_and_rel32);
     RUN_TEST(test_coff_rip_relative_data_uses_rel32);
     RUN_TEST(test_coff_preserves_symbols_and_relocation_beyond_old_limit);
+    RUN_TEST(test_coff_section_alignment_follows_alignment_directives);
+    RUN_TEST(test_coff_data_sections_stay_byte_aligned_without_directive);
     RUN_TEST(test_coff_rejects_relocation_to_missing_symbol);
 
     return UNITY_END();

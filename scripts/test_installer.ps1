@@ -6,7 +6,11 @@ param(
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 if ([string]::IsNullOrWhiteSpace($Installer)) {
-    $Installer = Join-Path $root "dist\installer\nazm-setup-0.4.0-x64.exe"
+    $cmakeText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root "CMakeLists.txt")
+    if ($cmakeText -notmatch "project\(nazm\s+VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)") {
+        throw "CMakeLists.txt does not declare the Nazm project version."
+    }
+    $Installer = Join-Path $root "dist\installer\nazm-setup-$($Matches[1])-x64.exe"
 }
 if ([string]::IsNullOrWhiteSpace($InstallDirectory)) {
     $InstallDirectory = Join-Path $env:LOCALAPPDATA "Temp\NazmInstallerContract"

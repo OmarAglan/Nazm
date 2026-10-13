@@ -235,6 +235,38 @@ void test_file_api_matches_buffer_api(void)
     nazm_result_free(&buffer);
 }
 
+void test_file_api_reports_unusable_sources(void)
+{
+    NazmOptions options = options_for(NAZM_FORMAT_ELF64);
+
+    NazmResult no_path = nazm_assemble_file(NULL, options);
+    TEST_ASSERT_EQUAL_INT(NAZM_STATUS_INVALID_ARGUMENT, no_path.status);
+    TEST_ASSERT_EQUAL_size_t(1u, no_path.diagnostic_count);
+    nazm_result_free(&no_path);
+
+    NazmResult missing = nazm_assemble_file("ملف-غير-موجود.نظم", options);
+    TEST_ASSERT_EQUAL_INT(NAZM_STATUS_IO_ERROR, missing.status);
+    TEST_ASSERT_NULL(missing.object_data);
+    nazm_result_free(&missing);
+
+    /* One byte past the 100 MiB source limit. Only the size is read. */
+    const char *oversize_path = "مصدر-فوق-الحد.نظم";
+    FILE *oversize = io_fopen_utf8(oversize_path, "wb");
+    TEST_ASSERT_NOT_NULL(oversize);
+    TEST_ASSERT_EQUAL_INT(0, fseek(oversize, 100L * 1024L * 1024L, SEEK_SET));
+    TEST_ASSERT_EQUAL_INT('\n', fputc('\n', oversize));
+    TEST_ASSERT_EQUAL_INT(0, fclose(oversize));
+
+    NazmResult too_large = nazm_assemble_file(oversize_path, options);
+    TEST_ASSERT_TRUE(io_remove_utf8(oversize_path));
+    TEST_ASSERT_EQUAL_INT(NAZM_STATUS_IO_ERROR, too_large.status);
+    TEST_ASSERT_EQUAL_size_t(1u, too_large.diagnostic_count);
+    TEST_ASSERT_NOT_NULL(
+        strstr(too_large.diagnostics[0].message, "يتجاوز الحد المسموح"));
+    TEST_ASSERT_NULL(too_large.object_data);
+    nazm_result_free(&too_large);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -247,5 +279,6 @@ int main(void)
     RUN_TEST(test_source_error_is_structured_and_owned);
     RUN_TEST(test_invalid_options_are_rejected_without_exit);
     RUN_TEST(test_file_api_matches_buffer_api);
+    RUN_TEST(test_file_api_reports_unusable_sources);
     return UNITY_END();
 }

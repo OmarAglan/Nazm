@@ -17,6 +17,16 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v7
 
+      - name: Read release version
+        id: version
+        shell: pwsh
+        run: |
+          $text = Get-Content -Raw -Encoding UTF8 CMakeLists.txt
+          if ($text -notmatch 'project\(nazm\s+VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)') {
+            throw "CMakeLists.txt does not declare the Nazm project version."
+          }
+          "version=$($Matches[1])" >> $env:GITHUB_OUTPUT
+
       - name: Install Inno Setup
         shell: pwsh
         run: choco install innosetup --no-progress -y
@@ -25,6 +35,23 @@ jobs:
         shell: pwsh
         run: .\scripts\build_installer.ps1
 
+      - name: Require the linked COFF and GNU as gates
+        shell: pwsh
+        run: |
+          # These tests register only where binutils is found. A runner image
+          # without it must fail here instead of passing with fewer tests.
+          $registered = (ctest --test-dir build\windows-release -N) -join "`n"
+          foreach ($name in @(
+              "integration_link_and_run",
+              "integration_debug_line_readelf",
+              "differential_encoder_gas",
+              "differential_register_matrix_gas",
+              "differential_symbolic_forms_gas")) {
+            if ($registered -notmatch [regex]::Escape($name)) {
+              throw "CTest did not register $name on this runner."
+            }
+          }
+
       - name: Test silent install and uninstall
         shell: powershell
         run: .\scripts\test_installer.ps1
@@ -32,8 +59,9 @@ jobs:
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: nazm-setup-0.4.0-x64
-          path: dist/installer/nazm-setup-0.4.0-x64.exe
+          name: nazm-setup-${{ steps.version.outputs.version }}-x64
+          path: dist/installer/nazm-setup-${{ steps.version.outputs.version }}-x64.exe
+          if-no-files-found: error
 
   linux:
     name: Linux build, test, and link
@@ -51,6 +79,21 @@ jobs:
 
       - name: Run CTest
         run: ctest --test-dir build --output-on-failure
+
+      - name: Require the linked ELF and GNU as gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          registered="$(ctest --test-dir build -N)"
+          for name in integration_link_and_run integration_debug_line_readelf \
+              differential_encoder_gas differential_register_matrix_gas \
+              differential_symbolic_forms_gas; do
+            grep -qF "$name" <<<"$registered" \
+              || { echo "CTest did not register $name on this runner." >&2; exit 1; }
+          done
+
+      - name: Reject text files that are not clean UTF-8
+        run: python3 tools/check_utf8.py
 
       - name: Run direct test path
         run: ./build.sh test
@@ -78,3 +121,104 @@ jobs:
           readelf -S -W build/خروج.o | grep -F ".note.GNU-stack"
           readelf -l -W build/خروج | tee build/خروج.segments
           grep -E "GNU_STACK .* RW +0x" build/خروج.segments
+
+      - name: Measure line coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S . -B build-coverage -DCMAKE_BUILD_TYPE=Coverage
+          cmake --build build-coverage --parallel
+          ctest --test-dir build-coverage --output-on-failure
+          python3 tools/coverage_summary.py build-coverage --minimum 90 \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Package the Linux archive
+        id: archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^ *VERSION \([0-9.]*\)$/\1/p' CMakeLists.txt | head -n 1)"
+          test -n "$version"
+          name="nazm-$version-linux-x64"
+          cmake --install build --prefix "dist/$name" --strip
+          cp LICENSE README.md CHANGELOG.md "dist/$name/"
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          (cd dist && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Run the archive on a clean machine
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="${{ steps.archive.outputs.name }}"
+          ./build/نظم examples/خروج.نظم --خرج build/مرجع.o --صيغة إلف64
+          expected="$(sha256sum build/مرجع.o | cut -d' ' -f1)"
+          # A stock image with no compiler, no CMake and nothing of this build.
+          docker run --rm --network none \
+            -v "$PWD/dist:/dist:ro" -v "$PWD/examples:/examples:ro" \
+            -e NAME="$name" -e EXPECTED="$expected" -e LANG=C.UTF-8 \
+            ubuntu:24.04 bash -euo pipefail -c '
+              cd /tmp
+              (cd /dist && sha256sum -c "$NAME.tar.gz.sha256")
+              tar -xzf "/dist/$NAME.tar.gz"
+              test -f "$NAME/lib/libnazm.a"
+              test -f "$NAME/include/nazm.h"
+              "$NAME/bin/nazm" --إصدار
+              "$NAME/bin/نظم" /examples/خروج.نظم --خرج /tmp/خروج.o --صيغة إلف64
+              echo "$EXPECTED  /tmp/خروج.o" | sha256sum -c -
+            ' | tee dist/"$name".receipt.txt
+
+      - name: Upload Linux archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.archive.outputs.name }}
+          path: |
+            dist/${{ steps.archive.outputs.name }}.tar.gz
+            dist/${{ steps.archive.outputs.name }}.tar.gz.sha256
+            dist/${{ steps.archive.outputs.name }}.receipt.txt
+          if-no-files-found: error
+
+  fuzz:
+    name: Coverage-guided fuzzing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Build the libFuzzer target
+        env:
+          CC: clang
+        run: |
+          cmake -S . -B build-fuzz -DCMAKE_BUILD_TYPE=Debug \
+            -DNAZM_BUILD_FUZZER=ON -DNAZM_BUILD_TESTS=OFF -DNAZM_BUILD_CLI=OFF
+          cmake --build build-fuzz --parallel --target nazm_fuzz_assemble
+
+      - name: Fuzz from the examples and fixtures
+        shell: bash
+        env:
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          set -euo pipefail
+          mkdir -p corpus
+          n=0
+          while IFS= read -r -d '' seed; do
+            n=$((n + 1))
+            cp "$seed" "corpus/seed-$n"
+          done < <(find examples tests/fixtures tests/differential \
+                     -name '*.نظم' -print0)
+          test "$n" -gt 0
+          ./build-fuzz/nazm_fuzz_assemble corpus \
+            -max_total_time=180 -max_len=4096 -timeout=10 \
+            -print_final_stats=1
+
+      - name: Upload crashing inputs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nazm-fuzz-crashes
+          path: |
+            crash-*
+            timeout-*
+            oom-*
+          if-no-files-found: ignore

@@ -681,7 +681,9 @@ static EncodedInstruction enc_jmp(const Operand *ops, int n,
         emit(&b, modrm_byte(3, 4, rf(ops[0].reg)));
         return from_buf(&b);
     }
-    /* Near relative: E9 rel32 (always use 32-bit for simplicity/correctness) */
+    /* Near relative: E9 rel32 (always use 32-bit for simplicity/correctness).
+     * The displacement belongs to a label; no other operand kind has one. */
+    if (ops[0].kind != OP_LABEL) return make_error();
     if (!immediate_fits_i32(resolved_disp)) {
         return make_error();
     }
@@ -705,6 +707,7 @@ static EncodedInstruction enc_call(const Operand *ops, int n,
         return from_buf(&b);
     }
     /* E8 rel32 */
+    if (ops[0].kind != OP_LABEL) return make_error();
     if (!immediate_fits_i32(resolved_disp)) {
         return make_error();
     }
@@ -715,8 +718,10 @@ static EncodedInstruction enc_call(const Operand *ops, int n,
 
 /* ── Conditional jumps ───────────────────────────────────────────────────── */
 
-static EncodedInstruction enc_jcc(int64_t disp, uint8_t opcode2) {
+static EncodedInstruction enc_jcc(const Operand *ops, int n,
+                                  int64_t disp, uint8_t opcode2) {
     /* Always near: 0F opcode2 rel32 (6 bytes) */
+    if (n != 1 || ops[0].kind != OP_LABEL) return make_error();
     if (!immediate_fits_i32(disp)) {
         return make_error();
     }
@@ -869,16 +874,26 @@ EncodedInstruction encoder_encode(OpcodeEnum opcode,
     case OPCODE_CALL:    return enc_call(ops, op_count, resolved_target);
     case OPCODE_RET:     return enc_ret();
 
-    case OPCODE_JE:      return enc_jcc(resolved_target, 0x84);
-    case OPCODE_JNE:     return enc_jcc(resolved_target, 0x85);
-    case OPCODE_JG:      return enc_jcc(resolved_target, 0x8F);
-    case OPCODE_JGE:     return enc_jcc(resolved_target, 0x8D);
-    case OPCODE_JL:      return enc_jcc(resolved_target, 0x8C);
-    case OPCODE_JLE:     return enc_jcc(resolved_target, 0x8E);
-    case OPCODE_JZ:      return enc_jcc(resolved_target, 0x84);
-    case OPCODE_JNZ:     return enc_jcc(resolved_target, 0x85);
-    case OPCODE_JS:      return enc_jcc(resolved_target, 0x88);
-    case OPCODE_JNS:     return enc_jcc(resolved_target, 0x89);
+    case OPCODE_JE:      return enc_jcc(ops, op_count, resolved_target,
+                                        0x84);
+    case OPCODE_JNE:     return enc_jcc(ops, op_count, resolved_target,
+                                        0x85);
+    case OPCODE_JG:      return enc_jcc(ops, op_count, resolved_target,
+                                        0x8F);
+    case OPCODE_JGE:     return enc_jcc(ops, op_count, resolved_target,
+                                        0x8D);
+    case OPCODE_JL:      return enc_jcc(ops, op_count, resolved_target,
+                                        0x8C);
+    case OPCODE_JLE:     return enc_jcc(ops, op_count, resolved_target,
+                                        0x8E);
+    case OPCODE_JZ:      return enc_jcc(ops, op_count, resolved_target,
+                                        0x84);
+    case OPCODE_JNZ:     return enc_jcc(ops, op_count, resolved_target,
+                                        0x85);
+    case OPCODE_JS:      return enc_jcc(ops, op_count, resolved_target,
+                                        0x88);
+    case OPCODE_JNS:     return enc_jcc(ops, op_count, resolved_target,
+                                        0x89);
 
     case OPCODE_SYSCALL: return enc_syscall();
     case OPCODE_NOP:     return enc_nop();

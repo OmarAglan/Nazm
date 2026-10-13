@@ -553,6 +553,36 @@ static size_t *pass1_section_offset(SymbolSection section,
     return NULL;
 }
 
+/* A boundary inside a section holds after linking only if the section itself
+ * is placed on that boundary, so the largest one is carried to the writer. */
+static void pass1_note_alignment(Pass1Result *result,
+                                 SymbolSection section,
+                                 const Instruction *instr) {
+    if (instr->directive_kind != DIRECTIVE_ALIGNMENT ||
+        instr->op_count != 1 || instr->ops[0].kind != OP_IMM ||
+        instr->ops[0].imm <= 0) {
+        return;
+    }
+
+    size_t alignment = (size_t)instr->ops[0].imm;
+    size_t *largest = NULL;
+    switch (section) {
+    case SYMBOL_SECTION_DATA:
+        largest = &result->data_alignment;
+        break;
+    case SYMBOL_SECTION_READ_ONLY_DATA:
+        largest = &result->read_only_data_alignment;
+        break;
+    case SYMBOL_SECTION_BSS:
+        largest = &result->bss_alignment;
+        break;
+    case SYMBOL_SECTION_TEXT:
+    case SYMBOL_SECTION_UNKNOWN:
+        return;
+    }
+    if (largest && alignment > *largest) *largest = alignment;
+}
+
 Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
     Pass1Result result = {0};
     symtable_init(&result.symtable, arena);
@@ -702,6 +732,7 @@ Pass1Result pass1_run(const InstructionList *instructions, Arena *arena) {
                 &read_only_data_offset,
                 &bss_offset);
             int dsz = data_directive_size_at(instr, *section_offset);
+            pass1_note_alignment(&result, current_section, instr);
             if (instr->label) {
                 if (!symtable_insert_section(&result.symtable, instr->label,
                                              current_section,

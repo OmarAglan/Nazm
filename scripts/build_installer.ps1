@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "0.4.0",
+    [string]$Version = "",
     [string]$BuildDirectory = "",
     [string]$IsccPath = "",
     [string]$SignToolName = "",
@@ -24,6 +24,12 @@ if ([string]::IsNullOrWhiteSpace($BuildDirectory)) {
 }
 
 $cmakeText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root "CMakeLists.txt")
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    if ($cmakeText -notmatch "project\(nazm\s+VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)") {
+        throw "CMakeLists.txt does not declare the Nazm project version."
+    }
+    $Version = $Matches[1]
+}
 $headerText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root "include\nazm.h")
 if ($cmakeText -notmatch "VERSION\s+$([regex]::Escape($Version))" -or
     $headerText -notmatch "NAZM_VERSION_STRING\s+`"$([regex]::Escape($Version))`"") {

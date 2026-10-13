@@ -48,15 +48,6 @@ void error_add_span(ErrorList *list,
         utf8_complete_prefix((const uint8_t *)message, strlen(message)));
 }
 
-void error_add(ErrorList *list,
-               Arena *arena,
-               const char *file,
-               int line,
-               int col,
-               const char *message) {
-    error_add_span(list, arena, file, line, col, col + 1, message);
-}
-
 static bool source_has_context(const ErrorList *list, const NazmError *error) {
     return list->source.data != NULL && list->source.len > 0 && error->line > 0;
 }

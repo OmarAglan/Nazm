@@ -128,6 +128,67 @@ contract.
 9. The CLI writes the object file, optionally writes a UTF-8 listing from the
    exact pass-two spans, and reports success or Arabic diagnostics.
 
+## Stage Contracts
+
+What each stage may assume about its input and must guarantee about its
+output. A change that breaks one of these lines changes more than one module.
+
+**`InstructionList` (parser output, `src/parser/instruction.h`).**
+- One `Instruction` per source statement, in source order: an instruction, a
+  directive, or a bare label. A label on the same line as a statement is that
+  statement's `label` field, not an entry of its own.
+- An instruction holds at most `MAX_OPERANDS` (3) operands. The parser reports
+  a fourth operand as an error and never stores it.
+- The array and every string an instruction points to (labels, label
+  operands, string literals, directive spellings) are copies allocated from
+  the pipeline arena. No instruction points into the `TokenArray`, and
+  nothing in the list is freed individually.
+- `source_name` and `source_data` on the list itself are borrowed from the
+  caller for diagnostics and listings; the source buffer must outlive the
+  list.
+- After parsing the list is read-only. Pass 1, pass 2, the listing renderer
+  and the output writers take it as `const`.
+
+**Pass 1 (`src/passes/pass1.c`).**
+- Computes: the section-aware `SymbolTable` with every label's section,
+  offset and binding; the byte size of `.text`, `.data`, the read-only data
+  section and `.bss`; the largest `.محاذاة` boundary used in each data
+  section; and the list of declared debug files.
+- Validates: duplicate and undefined visibility declarations, `.خارجي`
+  rules, the operand count, kind and range of every directive, and data
+  directives outside a data section.
+- Does not: modify the instruction list, emit a byte, resolve a label
+  reference, or create a relocation. Its sizes come from the same encoder
+  sizing rules pass 2 uses, with every label branch at its fixed `rel32`
+  length, so no size depends on a label's final address.
+
+**Pass 2 (`src/passes/pass2.c`).**
+- Runs only when pass 1 reported no error.
+- Treats the pass-1 section sizes as hard capacities. It encodes every
+  instruction again, compares each length and each section total with pass
+  1, and reports an Arabic internal error instead of writing past a buffer
+  or truncating.
+- Produces the section bytes, one emission span per statement, the
+  relocation list, and the debug line rows bound to `.text` offsets.
+- Resolves a jump or call to a label defined in this file into its final
+  `rel32` displacement. Every other symbolic reference becomes a
+  relocation, even when the symbol is local: a jump or call to an external
+  symbol, a `[مؤشر_التعليمة+وسم]` operand, `انقل سجل، وسم`, and a symbol in
+  `.عدد٦٤`.
+
+**Encoder (`src/encoder/`).**
+- Takes an opcode, operands and an already-resolved displacement, and
+  returns at most 15 bytes or an error. It never sees source text or the
+  symbol table, and it returns an error for any operand form it has no rule
+  for instead of guessing.
+
+**Output writers (`src/output/`).**
+- Take section bytes, sizes, alignment requests, symbols, relocations and
+  debug rows through `OutputInput`, and return the object bytes in the
+  pipeline arena. The command writes them before it releases the arena; the
+  API copies them into the heap-owned `NazmResult`. The writers never read
+  the instruction list.
+
 ## Key Data Structures
 
 **Token**
