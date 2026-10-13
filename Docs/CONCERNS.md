@@ -57,7 +57,7 @@ in [READINESS.md](READINESS.md). This file keeps the reasoning behind them.
   releases keep the previous release's version, so they keep its fingerprint
   even when they change which sources are accepted. The two acceptance fixes
   after `0.4.0` (ill-formed UTF-8 in comments and strings, numbers beyond 64
-  bits) are in that state.
+  bits) were in that state until `0.5.0` released them.
 - Impact: a consumer that builds an untagged revision and keys an object cache
   on the fingerprint alone cannot tell that revision from the release. Objects
   for valid source are unchanged by the two fixes, so no stale object can be

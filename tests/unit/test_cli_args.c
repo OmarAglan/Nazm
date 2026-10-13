@@ -149,7 +149,7 @@ void test_cli_rejects_unknown_option(void) {
 }
 
 void test_cli_version_string_is_current(void) {
-    TEST_ASSERT_EQUAL_STRING("0.4.0", NAZM_VERSION_STRING);
+    TEST_ASSERT_EQUAL_STRING("0.5.0", NAZM_VERSION_STRING);
 }
 
 void test_cli_build_target_describes_architecture_and_system(void) {

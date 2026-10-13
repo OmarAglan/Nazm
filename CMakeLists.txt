@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(nazm
-    VERSION 0.4.0
+    VERSION 0.5.0
     DESCRIPTION "نَظْم — المجمع العربي لبنية إكس86-64"
     LANGUAGES C
 )

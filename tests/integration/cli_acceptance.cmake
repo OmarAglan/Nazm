@@ -54,7 +54,7 @@ if(NOT VERSION_RESULT STREQUAL "0")
         "${VERSION_STDOUT}\n${VERSION_STDERR}")
 endif()
 if(NOT VERSION_STDOUT MATCHES
-        "0\\.4\\.0 \\(.+؛ [A-Za-z0-9_]+-[A-Za-z0-9_]+\\)")
+        "0\\.5\\.0 \\(.+؛ [A-Za-z0-9_]+-[A-Za-z0-9_]+\\)")
     message(FATAL_ERROR
         "نظم --إصدار did not report Arabic and exact build targets\n"
         "${VERSION_STDOUT}")
