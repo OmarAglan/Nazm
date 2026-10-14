@@ -21,18 +21,18 @@ extern "C" {
 #define NAZM_API_SCHEMA "nazm-api-v1"
 #define NAZM_CAPABILITIES_SCHEMA "nazm-capabilities-v1"
 
-#define NAZM_VERSION_MAJOR 0
-#define NAZM_VERSION_MINOR 5
+#define NAZM_VERSION_MAJOR 1
+#define NAZM_VERSION_MINOR 0
 #define NAZM_VERSION_PATCH 0
-#define NAZM_VERSION_STRING "0.5.0"
+#define NAZM_VERSION_STRING "1.0.0"
 
 /* SHA-256 of Docs/generated/nazm_capabilities_v1.json. */
 #define NAZM_CAPABILITIES_SHA256 \
-    "6520f967332f07106f8584ef8fdbad3420ba5e8371bc4b4909cec0d274f75b31"
+    "34817a4ea4ccd6d04ca32f8e901368e018359e792a44b68744ccffee66860801"
 
 /* Changes whenever API, implementation version, or capabilities change. */
 #define NAZM_FINGERPRINT \
-    "nazm-api-v1;version=0.5.0;capabilities=nazm-capabilities-v1:" \
+    "nazm-api-v1;version=1.0.0;capabilities=nazm-capabilities-v1:" \
     NAZM_CAPABILITIES_SHA256
 
 typedef enum {

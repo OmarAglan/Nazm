@@ -91,7 +91,7 @@ try {
         throw "Nazm repair did not remove an obsolete owned payload file."
     }
     $marker = Get-ItemProperty -LiteralPath $markerKey
-    if ($marker.Version -ne '0.5.0' -or
+    if ($marker.Version -ne '1.0.0' -or
         $marker.InstallLocation -ine $InstallDirectory) {
         throw 'Nazm installer did not record its installed version and location.'
     }

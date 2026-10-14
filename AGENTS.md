@@ -15,7 +15,7 @@
 **Decision Style:** Prefer outcome-first execution. Use the workflow below as the default operating model, scaling depth to the risk of the task. Keep strict rules for byte correctness, memory ownership, Arabic diagnostics, C11 portability, and destructive operations.
 
 **Project Facts:**
-- Current version is `0.5.0` in `CMakeLists.txt`, `include/nazm.h`, and `نظم --إصدار`.
+- Current version is `1.0.0` in `CMakeLists.txt`, `include/nazm.h`, and `نظم --إصدار`.
 - Nazm is an Arabic-first assembler for x86-64.
 - Primary implementation language is C11, with no runtime external dependencies.
 - Current build system is CMake 3.20+, with `build.sh` as a direct build/test path.
@@ -26,8 +26,9 @@
   boundary after Baa instruction selection and register allocation; see
   `Docs/BAA_INTEGRATION.md`.
 - The encoding/object correctness gate is closed, and every `1.0` condition in
-  `Docs/READINESS.md` is closed. `0.5.0` carries the breaking changes; what
-  remains is the consumers building on it and then `1.0`; do not regress byte safety or reopen a condition silently.
+  `Docs/READINESS.md` is closed. `1.0.0` is released; from here
+  `Docs/COMPATIBILITY.md` admits a breaking change only in a major release. Do
+  not regress byte safety or reopen a condition silently.
 - Labels may not begin with `سجل_`, `مؤشر_` or `فهرس_`; these prefixes are
   reserved for register names.
 - Output formats are intended to be ELF64 and PE/COFF.

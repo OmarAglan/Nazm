@@ -24,7 +24,7 @@ void test_api_info_is_exact_and_stable(void)
     TEST_ASSERT_EQUAL_UINT32(sizeof(NazmApiInfo), info.struct_size);
     TEST_ASSERT_EQUAL_UINT32(NAZM_API_VERSION, info.api_version);
     TEST_ASSERT_EQUAL_STRING("nazm-api-v1", info.api_schema);
-    TEST_ASSERT_EQUAL_STRING("0.5.0", info.version);
+    TEST_ASSERT_EQUAL_STRING("1.0.0", info.version);
     TEST_ASSERT_EQUAL_STRING("nazm-capabilities-v1", info.capabilities_schema);
     TEST_ASSERT_EQUAL_STRING(NAZM_CAPABILITIES_SHA256,
                              info.capabilities_sha256);

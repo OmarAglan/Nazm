@@ -3,7 +3,7 @@
 #define MyAppId "{{8D3D57AE-41CF-4B8A-95E9-270E4564E2A1}"
 #define MyAppName "نظم"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.5.0"
+  #define MyAppVersion "1.0.0"
 #endif
 #ifndef NazmBinaryDir
   #define NazmBinaryDir "build\windows-release"
